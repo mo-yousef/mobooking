@@ -1,0 +1,2 @@
+<?php
+// Landing page template
