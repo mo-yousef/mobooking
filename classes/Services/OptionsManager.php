@@ -3,7 +3,7 @@ namespace MoBooking\Services;
 
 /**
  * Service Options Manager Class
- * Handles all AJAX requests related to service options management
+ * Enhanced version that properly handles all option types and formats
  */
 class OptionsManager {
     /**
@@ -16,6 +16,25 @@ class OptionsManager {
         add_action('wp_ajax_mobooking_get_service_option', array($this, 'ajax_get_service_option'));
         add_action('wp_ajax_mobooking_get_service_options', array($this, 'ajax_get_service_options'));
         add_action('wp_ajax_mobooking_update_options_order', array($this, 'ajax_update_options_order'));
+        
+        // Enqueue the custom styles
+        add_action('wp_enqueue_scripts', array($this, 'enqueue_styles'));
+        add_action('admin_enqueue_scripts', array($this, 'enqueue_styles'));
+    }
+    
+    /**
+     * Enqueue custom styles
+     */
+    public function enqueue_styles() {
+        // Only enqueue on dashboard pages
+        if (is_admin() || (isset($_GET['pagename']) && $_GET['pagename'] === 'dashboard')) {
+            wp_enqueue_style(
+                'mobooking-service-options-style',
+                plugin_dir_url(dirname(__FILE__)) . '../assets/css/service-options.css',
+                array(),
+                MOBOOKING_VERSION
+            );
+        }
     }
     
     /**
@@ -62,9 +81,13 @@ class OptionsManager {
             'price_type' => isset($data['price_type']) ? sanitize_text_field($data['price_type']) : 'fixed'
         );
         
-        // Add additional fields based on option type
+        // Add type-specific fields based on the option type
         if (isset($data['default_value'])) {
-            $option_data['default_value'] = sanitize_textarea_field($data['default_value']);
+            if ($data['type'] === 'textarea') {
+                $option_data['default_value'] = sanitize_textarea_field($data['default_value']);
+            } else {
+                $option_data['default_value'] = sanitize_text_field($data['default_value']);
+            }
         }
         
         if (isset($data['placeholder'])) {
@@ -126,6 +149,17 @@ class OptionsManager {
                 'message' => __('Option updated successfully.', 'mobooking')
             );
         } else {
+            // Verify service ownership
+            $services_manager = new \MoBooking\Services\Manager();
+            $service = $services_manager->get_service($option_data['service_id']);
+            
+            if (!$service || $service->user_id != get_current_user_id()) {
+                return array(
+                    'success' => false,
+                    'message' => __('You do not have permission to add options to this service.', 'mobooking')
+                );
+            }
+            
             // Get the highest display order
             $highest_order = $wpdb->get_var($wpdb->prepare(
                 "SELECT MAX(display_order) FROM $table_name WHERE service_id = %d",
@@ -164,7 +198,7 @@ class OptionsManager {
         global $wpdb;
         $table_name = $wpdb->prefix . 'mobooking_service_options';
         
-        // Verify ownership if needed
+        // Verify ownership
         if (!$this->verify_option_ownership($option_id, $service_id)) {
             return array(
                 'success' => false,
@@ -198,7 +232,7 @@ class OptionsManager {
         global $wpdb;
         $table_name = $wpdb->prefix . 'mobooking_service_options';
         
-        // Verify service ownership if needed
+        // Verify service ownership
         $services_manager = new \MoBooking\Services\Manager();
         $service = $services_manager->get_service($service_id);
         
@@ -210,28 +244,47 @@ class OptionsManager {
         }
         
         // Update each option's order
-        foreach ($order_data as $item) {
-            if (empty($item['id']) || !isset($item['order'])) {
-                continue;
+        $wpdb->query('START TRANSACTION');
+        
+        try {
+            foreach ($order_data as $item) {
+                if (empty($item['id']) || !isset($item['order'])) {
+                    continue;
+                }
+                
+                $option_id = absint($item['id']);
+                $order = absint($item['order']);
+                
+                // Get the option to verify it belongs to this service
+                $option = $this->get_service_option($option_id);
+                if (!$option || $option->service_id != $service_id) {
+                    continue;
+                }
+                
+                // Update the option's display_order
+                $wpdb->update(
+                    $table_name,
+                    array('display_order' => $order),
+                    array('id' => $option_id, 'service_id' => $service_id),
+                    array('%d'),
+                    array('%d', '%d')
+                );
             }
             
-            $option_id = absint($item['id']);
-            $order = absint($item['order']);
+            $wpdb->query('COMMIT');
             
-            // Update the option's display_order
-            $wpdb->update(
-                $table_name,
-                array('display_order' => $order),
-                array('id' => $option_id, 'service_id' => $service_id),
-                array('%d'),
-                array('%d', '%d')
+            return array(
+                'success' => true,
+                'message' => __('Options order updated successfully.', 'mobooking')
+            );
+        } catch (\Exception $e) {
+            $wpdb->query('ROLLBACK');
+            
+            return array(
+                'success' => false,
+                'message' => __('Error updating options order.', 'mobooking')
             );
         }
-        
-        return array(
-            'success' => true,
-            'message' => __('Options order updated successfully.', 'mobooking')
-        );
     }
     
     /**
@@ -324,7 +377,14 @@ class OptionsManager {
         }
         
         $option_id = absint($_POST['id']);
-        $service_id = $this->get_service_option($option_id)->service_id;
+        
+        // Get service ID for the option
+        $option = $this->get_service_option($option_id);
+        if (!$option) {
+            wp_send_json_error(array('message' => __('Option not found.', 'mobooking')));
+        }
+        
+        $service_id = $option->service_id;
         
         // Delete option
         $result = $this->delete_service_option($option_id, $service_id);
@@ -364,7 +424,7 @@ class OptionsManager {
             wp_send_json_error(array('message' => __('Option not found.', 'mobooking')));
         }
         
-        // Verify ownership if needed
+        // Verify ownership
         $services_manager = new \MoBooking\Services\Manager();
         $service = $services_manager->get_service($option->service_id);
         
@@ -398,7 +458,7 @@ class OptionsManager {
         
         $service_id = absint($_POST['service_id']);
         
-        // Verify ownership if needed
+        // Verify ownership
         $services_manager = new \MoBooking\Services\Manager();
         $service = $services_manager->get_service($service_id);
         
@@ -450,7 +510,155 @@ class OptionsManager {
             'message' => $result['message']
         ));
     }
+    
+    /**
+     * Process option for booking display
+     * 
+     * Formats options for display in booking forms
+     */
+    public function format_option_for_display($option) {
+        $formatted = array(
+            'id' => $option->id,
+            'name' => $option->name,
+            'type' => $option->type,
+            'required' => (bool) $option->is_required,
+            'description' => $option->description,
+            'price_impact' => floatval($option->price_impact),
+            'price_type' => $option->price_type
+        );
+        
+        // Add type-specific properties
+        switch ($option->type) {
+            case 'checkbox':
+                $formatted['default'] = $option->default_value == '1';
+                $formatted['label'] = $option->option_label ?: $option->name;
+                break;
+                
+            case 'number':
+            case 'quantity':
+                $formatted['min'] = $option->min_value !== null ? floatval($option->min_value) : null;
+                $formatted['max'] = $option->max_value !== null ? floatval($option->max_value) : null;
+                $formatted['default'] = $option->default_value !== null ? floatval($option->default_value) : 0;
+                $formatted['step'] = $option->step ?: 1;
+                $formatted['unit'] = $option->unit ?: '';
+                $formatted['placeholder'] = $option->placeholder ?: '';
+                break;
+                
+            case 'select':
+            case 'radio':
+                $formatted['choices'] = $this->parse_option_choices($option->options);
+                $formatted['default'] = $option->default_value ?: '';
+                break;
+                
+            case 'text':
+                $formatted['default'] = $option->default_value ?: '';
+                $formatted['placeholder'] = $option->placeholder ?: '';
+                $formatted['min_length'] = $option->min_length ? intval($option->min_length) : null;
+                $formatted['max_length'] = $option->max_length ? intval($option->max_length) : null;
+                break;
+                
+            case 'textarea':
+                $formatted['default'] = $option->default_value ?: '';
+                $formatted['placeholder'] = $option->placeholder ?: '';
+                $formatted['rows'] = $option->rows ? intval($option->rows) : 3;
+                break;
+        }
+        
+        return $formatted;
+    }
+    
+    /**
+     * Parse option choices from string to array
+     */
+    private function parse_option_choices($options_string) {
+        if (!$options_string) {
+            return array();
+        }
+        
+        $choices = array();
+        $lines = explode("\n", $options_string);
+        
+        foreach ($lines as $line) {
+            $line = trim($line);
+            if (empty($line)) continue;
+            
+            $parts = explode('|', $line);
+            $value = trim($parts[0]);
+            
+            if (isset($parts[1])) {
+                $label_price_parts = explode(':', trim($parts[1]));
+                $label = trim($label_price_parts[0]);
+                $price = isset($label_price_parts[1]) ? floatval(trim($label_price_parts[1])) : 0;
+            } else {
+                $label = $value;
+                $price = 0;
+            }
+            
+            $choices[] = array(
+                'value' => $value,
+                'label' => $label,
+                'price' => $price
+            );
+        }
+        
+        return $choices;
+    }
+    
+    /**
+     * Calculate price impact for a selected option value
+     */
+    public function calculate_price_impact($option, $value) {
+        $impact = 0;
+        
+        // If no value or option is not set
+        if (empty($value) || empty($option)) {
+            return 0;
+        }
+        
+        switch ($option->type) {
+            case 'checkbox':
+                // Only apply impact if checked (value = 1)
+                if ($value == '1' || $value === true) {
+                    $impact = floatval($option->price_impact);
+                }
+                break;
+                
+            case 'select':
+            case 'radio':
+                // Check if there's a specific price for this choice
+                $choices = $this->parse_option_choices($option->options);
+                foreach ($choices as $choice) {
+                    if ($choice['value'] == $value) {
+                        // If choice has its own price, use that
+                        if ($choice['price'] > 0) {
+                            $impact = $choice['price'];
+                        } else {
+                            // Otherwise use the option's default price impact
+                            $impact = floatval($option->price_impact);
+                        }
+                        break;
+                    }
+                }
+                break;
+                
+            case 'number':
+            case 'quantity':
+                // Apply price impact based on the selected value
+                $numericValue = floatval($value);
+                
+                if ($option->price_type == 'fixed') {
+                    $impact = floatval($option->price_impact);
+                } elseif ($option->price_type == 'multiply') {
+                    $impact = $numericValue * floatval($option->price_impact);
+                }
+                break;
+                
+            default:
+                // Default to the option's price impact
+                $impact = floatval($option->price_impact);
+                break;
+        }
+        
+        return $impact;
+    }
 }
-
-// Initialize the manager
-// The class will be instantiated by the loader

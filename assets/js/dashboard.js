@@ -2,13 +2,6 @@
  * Enhanced Service Options Manager for MoBooking
  * Provides a modern, intuitive interface for managing service options
  * with sortable functionality and improved UI/UX
- *
- * Features:
- * - Drag and drop sorting of service options
- * - Visual previews of each option type
- * - Improved UI with compact design
- * - Real-time feedback and notifications
- * - Dynamic forms based on option type
  */
 
 jQuery(document).ready(function ($) {
@@ -22,6 +15,19 @@ jQuery(document).ready(function ($) {
   let currentServiceName = null;
   let optionsChanged = false;
   let sortableInitialized = false;
+
+  // Notification system
+  const createNotification = (message, type = "info") => {
+    // Create notification element if it doesn't exist
+    if ($("#mobooking-notification").length === 0) {
+      $("body").append('<div id="mobooking-notification"></div>');
+    }
+
+    const notification = $("#mobooking-notification");
+    notification.attr("class", "").addClass("notification-" + type);
+    notification.html(message);
+    notification.fadeIn(300).delay(3000).fadeOut(300);
+  };
 
   // ==== SERVICE OPTIONS MANAGEMENT ====
 
@@ -47,7 +53,7 @@ jQuery(document).ready(function ($) {
 
     // Show loading indicator
     $("#options-modal").addClass("loading");
-    $("#options-modal").fadeIn();
+    $("#options-modal").fadeIn(300);
 
     // Load service options
     loadServiceOptions(currentServiceId);
@@ -68,7 +74,7 @@ jQuery(document).ready(function ($) {
           // Clear options list
           $(".options-list").empty();
 
-          if (response.data.options.length === 0) {
+          if (!response.data.options || response.data.options.length === 0) {
             $(".options-list").html(
               '<div class="options-list-empty">No options configured yet. Add your first option to customize this service.</div>'
             );
@@ -78,34 +84,30 @@ jQuery(document).ready(function ($) {
             const optionsHTML = response.data.options
               .map((option, index) => {
                 return `
-                                <div class="option-item" data-id="${
-                                  option.id
-                                }" data-order="${
+                  <div class="option-item" data-id="${option.id}" data-order="${
                   option.display_order || index
                 }">
-                                    <div class="option-drag-handle">
-                                        <span class="dashicons dashicons-menu"></span>
-                                    </div>
-                                    <div class="option-content">
-                                        <span class="option-name">${
-                                          option.name
-                                        }</span>
-                                        <div class="option-meta">
-                                            <span class="option-type">${getOptionTypeLabel(
-                                              option.type
-                                            )}</span>
-                                            ${
-                                              option.is_required == 1
-                                                ? '<span class="option-required">Required</span>'
-                                                : ""
-                                            }
-                                        </div>
-                                    </div>
-                                    <div class="option-preview">
-                                        ${generateOptionPreview(option)}
-                                    </div>
-                                </div>
-                            `;
+                    <div class="option-drag-handle">
+                      <span class="dashicons dashicons-menu"></span>
+                    </div>
+                    <div class="option-content">
+                      <span class="option-name">${option.name}</span>
+                      <div class="option-meta">
+                        <span class="option-type">${getOptionTypeLabel(
+                          option.type
+                        )}</span>
+                        ${
+                          option.is_required == 1
+                            ? '<span class="option-required">Required</span>'
+                            : ""
+                        }
+                      </div>
+                    </div>
+                    <div class="option-preview">
+                      ${generateOptionPreview(option)}
+                    </div>
+                  </div>
+                `;
               })
               .join("");
 
@@ -115,7 +117,7 @@ jQuery(document).ready(function ($) {
             initSortable();
           }
         } else {
-          showNotification(
+          createNotification(
             response.data.message || "Error loading options",
             "error"
           );
@@ -126,7 +128,7 @@ jQuery(document).ready(function ($) {
       },
       error: function (xhr, status, error) {
         console.error("AJAX Error:", error);
-        showNotification(
+        createNotification(
           "Error loading service options. Please try again.",
           "error"
         );
@@ -135,13 +137,22 @@ jQuery(document).ready(function ($) {
     });
   }
 
-  // Function to initialize sortable
+  // Function to initialize sortable options
   function initSortable() {
     if (!sortableInitialized && $(".options-list .option-item").length > 0) {
       $(".options-list").sortable({
         handle: ".option-drag-handle",
         placeholder: "option-item-placeholder",
         axis: "y",
+        opacity: 0.8,
+        tolerance: "pointer",
+        start: function (event, ui) {
+          ui.item.addClass("sorting");
+          ui.placeholder.height(ui.item.outerHeight());
+        },
+        stop: function (event, ui) {
+          ui.item.removeClass("sorting");
+        },
         update: function (event, ui) {
           optionsChanged = true;
           updateOptionsOrder();
@@ -155,7 +166,11 @@ jQuery(document).ready(function ($) {
   // Function to disable sortable
   function disableSortable() {
     if (sortableInitialized) {
-      $(".options-list").sortable("destroy");
+      try {
+        $(".options-list").sortable("destroy");
+      } catch (e) {
+        console.log("Sortable already destroyed");
+      }
       sortableInitialized = false;
       $(".options-list").removeClass("sortable-enabled");
     }
@@ -183,9 +198,9 @@ jQuery(document).ready(function ($) {
       },
       success: function (response) {
         if (response.success) {
-          showNotification("Options order updated", "success");
+          createNotification("Options order updated", "success");
         } else {
-          showNotification(
+          createNotification(
             response.data.message || "Error updating order",
             "error"
           );
@@ -193,7 +208,7 @@ jQuery(document).ready(function ($) {
       },
       error: function (xhr, status, error) {
         console.error("AJAX Error:", error);
-        showNotification("Error updating options order", "error");
+        createNotification("Error updating options order", "error");
       },
     });
   }
@@ -321,9 +336,9 @@ jQuery(document).ready(function ($) {
 
           // Highlight selected option
           $(".option-item").removeClass("active");
-          $('.option-item[data-id="' + optionId + '"]').addClass("active");
+          $(`.option-item[data-id="${optionId}"]`).addClass("active");
         } else {
-          showNotification(
+          createNotification(
             response.data.message || "Error loading option",
             "error"
           );
@@ -334,7 +349,7 @@ jQuery(document).ready(function ($) {
       },
       error: function (xhr, status, error) {
         console.error("AJAX Error:", error);
-        showNotification(
+        createNotification(
           "Error loading option data. Please try again.",
           "error"
         );
@@ -349,8 +364,10 @@ jQuery(document).ready(function ($) {
     $("#option-id").val("");
     $("#option-form")[0].reset();
 
-    // Set service ID from the modal
-    // (Already set when opening the options modal)
+    // Set default values
+    $("#option-price-type").val("fixed");
+    $("#option-price-impact").val("0");
+    $("#option-type").val("checkbox");
 
     // Generate empty dynamic fields for default type
     generateDynamicFields("checkbox");
@@ -494,13 +511,27 @@ jQuery(document).ready(function ($) {
 
       case "select":
       case "radio":
+        // Parse existing options
+        let choicesArray = [];
+        if (optionData.options) {
+          choicesArray = parseOptionsString(optionData.options);
+        }
+
         dynamicFields.append(
           '<div class="form-group">' +
-            '<label for="option-choices">Choices (one per line, format: value|label)</label>' +
-            '<textarea id="option-choices" name="options" rows="4">' +
-            (optionData.options || "") +
-            "</textarea>" +
-            '<p class="field-hint">Example: small|Small Size (10-20 sq ft)</p>' +
+            "<label>Choices</label>" +
+            '<div class="choices-container">' +
+            '<div class="choices-header">' +
+            '<div class="choice-value">Value</div>' +
+            '<div class="choice-label">Label</div>' +
+            '<div class="choice-price">Price Impact</div>' +
+            '<div class="choice-actions"></div>' +
+            "</div>" +
+            '<div class="choices-list"></div>' +
+            '<div class="add-choice-container">' +
+            '<button type="button" class="button add-choice">Add Choice</button>' +
+            "</div>" +
+            "</div>" +
             "</div>" +
             '<div class="form-group">' +
             '<label for="option-default-value">Default Value</label>' +
@@ -510,6 +541,21 @@ jQuery(document).ready(function ($) {
             '<p class="field-hint">Enter the value (not the label) of the default choice</p>' +
             "</div>"
         );
+
+        // Populate choices
+        const choicesList = dynamicFields.find(".choices-list");
+        if (choicesArray.length === 0) {
+          // Add a blank choice if none exist
+          addChoiceRow(choicesList);
+        } else {
+          // Add each choice
+          choicesArray.forEach((choice) => {
+            addChoiceRow(choicesList, choice.value, choice.label, choice.price);
+          });
+        }
+
+        // Make choices sortable
+        initChoicesSortable();
         break;
 
       case "text":
@@ -616,6 +662,147 @@ jQuery(document).ready(function ($) {
     updatePriceFields(optionData.price_type || "fixed");
   }
 
+  // Function to parse options string into array of objects
+  function parseOptionsString(optionsString) {
+    const options = [];
+    if (!optionsString) return options;
+
+    const lines = optionsString.split("\n");
+
+    lines.forEach((line) => {
+      if (!line.trim()) return;
+
+      const parts = line.split("|");
+      const value = parts[0]?.trim() || "";
+      const labelPriceParts = parts[1]?.split(":") || [""];
+
+      const label = labelPriceParts[0]?.trim() || "";
+      const price = parseFloat(labelPriceParts[1] || 0) || 0;
+
+      if (value) {
+        options.push({
+          value,
+          label,
+          price,
+        });
+      }
+    });
+
+    return options;
+  }
+
+  // Function to serialize choices to string format
+  function serializeChoices() {
+    const choices = [];
+
+    $(".choice-row").each(function () {
+      const value = $(this).find(".choice-value-input").val().trim();
+      const label = $(this).find(".choice-label-input").val().trim();
+      const price = parseFloat($(this).find(".choice-price-input").val()) || 0;
+
+      if (value) {
+        choices.push(`${value}|${label}${price ? ":" + price : ""}`);
+      }
+    });
+
+    return choices.join("\n");
+  }
+
+  // Function to add a new choice row
+  function addChoiceRow(container, value = "", label = "", price = 0) {
+    const row = $(`
+      <div class="choice-row">
+        <div class="choice-drag-handle">
+          <span class="dashicons dashicons-menu"></span>
+        </div>
+        <div class="choice-value">
+          <input type="text" class="choice-value-input" value="${value}" placeholder="value">
+        </div>
+        <div class="choice-label">
+          <input type="text" class="choice-label-input" value="${label}" placeholder="Display Label">
+        </div>
+        <div class="choice-price">
+          <input type="number" class="choice-price-input" value="${price}" step="0.01" placeholder="0.00">
+        </div>
+        <div class="choice-actions">
+          <button type="button" class="button-link remove-choice">
+            <span class="dashicons dashicons-trash"></span>
+          </button>
+        </div>
+      </div>
+    `);
+
+    container.append(row);
+
+    // Focus on the value input
+    if (!value) {
+      row.find(".choice-value-input").focus();
+    }
+
+    return row;
+  }
+
+  // Function to initialize choices sortable
+  function initChoicesSortable() {
+    $(".choices-list").sortable({
+      handle: ".choice-drag-handle",
+      placeholder: "choice-row-placeholder",
+      axis: "y",
+      opacity: 0.8,
+      tolerance: "pointer",
+      start: function (event, ui) {
+        ui.placeholder.height(ui.item.outerHeight());
+      },
+      update: function () {
+        // When order changes, update the hidden input
+        updateOptionsField();
+      },
+    });
+  }
+
+  // Add new choice button handler
+  $(document).on("click", ".add-choice", function () {
+    const choicesList = $(this)
+      .closest(".choices-container")
+      .find(".choices-list");
+    addChoiceRow(choicesList);
+    updateOptionsField();
+  });
+
+  // Remove choice button handler
+  $(document).on("click", ".remove-choice", function () {
+    const choiceRow = $(this).closest(".choice-row");
+
+    // Animate removal
+    choiceRow.slideUp(200, function () {
+      $(this).remove();
+      updateOptionsField();
+    });
+  });
+
+  // Update options field when choice inputs change
+  $(document).on(
+    "input",
+    ".choice-value-input, .choice-label-input, .choice-price-input",
+    function () {
+      updateOptionsField();
+    }
+  );
+
+  // Function to update the hidden options field
+  function updateOptionsField() {
+    const serialized = serializeChoices();
+
+    // Create a hidden input for options if it doesn't exist
+    if ($("#option-choices").length === 0) {
+      $(".choices-container").append(
+        '<input type="hidden" id="option-choices" name="options">'
+      );
+    }
+
+    $("#option-choices").val(serialized);
+  }
+
   // Cancel option editing
   $(".cancel-option").on("click", function () {
     $("#option-form").hide();
@@ -626,6 +813,16 @@ jQuery(document).ready(function ($) {
   // Submit option form
   $("#option-form").on("submit", function (e) {
     e.preventDefault();
+
+    // Validate form
+    if (!validateOptionForm()) {
+      return false;
+    }
+
+    // Update choices field before submitting
+    if ($(".choices-list").length) {
+      updateOptionsField();
+    }
 
     // Show loading indicator
     $("#options-modal").addClass("loading");
@@ -650,9 +847,14 @@ jQuery(document).ready(function ($) {
           $(".no-option-selected").show();
 
           // Show success message
-          showNotification("Option saved successfully", "success");
+          createNotification(
+            `Option ${
+              $("#option-id").val() ? "updated" : "created"
+            } successfully`,
+            "success"
+          );
         } else {
-          showNotification(
+          createNotification(
             response.data.message || "Error saving option",
             "error"
           );
@@ -661,11 +863,45 @@ jQuery(document).ready(function ($) {
       },
       error: function (xhr, status, error) {
         console.error("AJAX Error:", error);
-        showNotification("Error saving option. Please try again.", "error");
+        createNotification("Error saving option. Please try again.", "error");
         $("#options-modal").removeClass("loading");
       },
     });
   });
+
+  // Validate the option form
+  function validateOptionForm() {
+    // Check required fields
+    const name = $("#option-name").val().trim();
+    if (!name) {
+      createNotification("Option name is required", "error");
+      $("#option-name").focus();
+      return false;
+    }
+
+    // Validate choices for select/radio options
+    if (
+      $("#option-type").val() === "select" ||
+      $("#option-type").val() === "radio"
+    ) {
+      const hasValidChoices = $(".choice-row")
+        .toArray()
+        .some((row) => {
+          return $(row).find(".choice-value-input").val().trim() !== "";
+        });
+
+      if (!hasValidChoices) {
+        createNotification(
+          "At least one choice with a value is required",
+          "error"
+        );
+        $(".choices-list .choice-value-input:first").focus();
+        return false;
+      }
+    }
+
+    return true;
+  }
 
   // Delete option button click
   $(".delete-option").on("click", function () {
@@ -705,9 +941,9 @@ jQuery(document).ready(function ($) {
           $(".no-option-selected").show();
 
           // Show success message
-          showNotification("Option deleted successfully", "success");
+          createNotification("Option deleted successfully", "success");
         } else {
-          showNotification(
+          createNotification(
             response.data.message || "Error deleting option",
             "error"
           );
@@ -716,7 +952,7 @@ jQuery(document).ready(function ($) {
       },
       error: function (xhr, status, error) {
         console.error("AJAX Error:", error);
-        showNotification("Error deleting option. Please try again.", "error");
+        createNotification("Error deleting option. Please try again.", "error");
         $("#options-modal").removeClass("loading");
       },
     });
@@ -733,19 +969,18 @@ jQuery(document).ready(function ($) {
       }
     }
 
-    $("#options-modal").fadeOut();
+    $("#options-modal").fadeOut(300);
   });
 
-  // Helper function to show notification
-  function showNotification(message, type = "info") {
-    // Create notification element if it doesn't exist
-    if ($("#mobooking-notification").length === 0) {
-      $("body").append('<div id="mobooking-notification"></div>');
-    }
+  // Add animations to modal
+  $(document).on("click", ".manage-options", function () {
+    $("#options-modal").hide().fadeIn(300);
+  });
 
-    const notification = $("#mobooking-notification");
-    notification.attr("class", "notification-" + type);
-    notification.text(message);
-    notification.fadeIn().delay(3000).fadeOut();
-  }
+  // Animate option item selection
+  $(document).on("click", ".option-item", function () {
+    if ($(this).hasClass("active")) return;
+    $(".option-item").removeClass("active");
+    $(this).addClass("active");
+  });
 });
