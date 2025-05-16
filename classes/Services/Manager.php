@@ -12,7 +12,15 @@ class Manager {
         // Register AJAX handlers
         add_action('wp_ajax_mobooking_save_service', array($this, 'ajax_save_service'));
         add_action('wp_ajax_mobooking_delete_service', array($this, 'ajax_delete_service'));
-        add_action('wp_ajax_mobooking_get_services', array($this, 'ajax_get_services'));
+        // Get service by ID for editing
+        add_action('wp_ajax_mobooking_get_service', function() {
+            // Check nonce
+            if (!isset($_POST['nonce']) || !wp_verify_nonce($_POST['nonce'], 'mobooking-service-nonce')) {
+                wp_send_json_error(array('message' => __('Security verification failed.', 'mobooking')));
+            }
+            
+            // Check permissions and get service data...
+        });
         add_action('wp_ajax_nopriv_mobooking_get_services_by_zip', array($this, 'ajax_get_services_by_zip'));
         
         // Add shortcodes
