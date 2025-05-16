@@ -7,3 +7,10 @@ Author: MoBooking
 Author URI: https://mobooking.com/
 Text Domain: mobooking
 */
+div#header {
+    display: none;
+}
+
+div#footer {
+    display: none;
+}

@@ -10,6 +10,7 @@ class Manager {
      */
     private $tables = array(
         'services',
+        'service_options',
         'bookings',
         'discounts',
         'areas',
@@ -45,11 +46,47 @@ class Manager {
             price decimal(10,2) NOT NULL,
             duration int(11) NOT NULL,
             icon varchar(255) NULL,
+            image_url varchar(255) NULL,
             category varchar(255) NULL,
+            status varchar(20) DEFAULT 'active',
             created_at datetime DEFAULT CURRENT_TIMESTAMP,
             updated_at datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
             PRIMARY KEY  (id),
             KEY user_id (user_id)
+        ) $charset_collate;";
+        
+        require_once(ABSPATH . 'wp-admin/includes/upgrade.php');
+        dbDelta($sql);
+    }
+    
+    /**
+     * Create service options table
+     */
+    private function create_service_options_table() {
+        global $wpdb;
+        $table_name = $wpdb->prefix . 'mobooking_service_options';
+        
+        $charset_collate = $wpdb->get_charset_collate();
+        
+        $sql = "CREATE TABLE $table_name (
+            id bigint(20) NOT NULL AUTO_INCREMENT,
+            service_id bigint(20) NOT NULL,
+            name varchar(255) NOT NULL,
+            description text NULL,
+            type varchar(50) NOT NULL,
+            is_required tinyint(1) NOT NULL DEFAULT 0,
+            default_value text NULL,
+            placeholder text NULL,
+            min_value float NULL,
+            max_value float NULL,
+            price_impact decimal(10,2) NULL,
+            price_type varchar(20) DEFAULT 'fixed',
+            options text NULL,
+            display_order int(11) NOT NULL DEFAULT 0,
+            created_at datetime DEFAULT CURRENT_TIMESTAMP,
+            updated_at datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            PRIMARY KEY  (id),
+            KEY service_id (service_id)
         ) $charset_collate;";
         
         require_once(ABSPATH . 'wp-admin/includes/upgrade.php');
@@ -75,6 +112,7 @@ class Manager {
             zip_code varchar(20) NOT NULL,
             service_date datetime NOT NULL,
             services text NOT NULL,
+            service_options text NULL,
             total_price decimal(10,2) NOT NULL,
             discount_code varchar(255) NULL,
             discount_amount decimal(10,2) NULL,
