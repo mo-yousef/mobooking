@@ -70,8 +70,8 @@ public function save_service_option($data) {
     global $wpdb;
     $table_name = $wpdb->prefix . 'mobooking_service_options';
     
-    // Sanitize data - with error logging
-    error_log('Attempting to save service option with data: ' . print_r($data, true));
+    // Sanitize data
+    error_log('Processing service option data: ' . print_r($data, true));
     
     // Basic validation
     if (empty($data['service_id'])) {
@@ -82,25 +82,57 @@ public function save_service_option($data) {
         );
     }
     
-    // Continue with your existing code...
+    // Build complete option data structure with all fields
     $option_data = array(
-        'service_id' => absint($data['service_id']),
-        'name' => sanitize_text_field($data['name']),
-        'description' => isset($data['description']) ? sanitize_textarea_field($data['description']) : '',
-        'type' => sanitize_text_field($data['type']),
-        'is_required' => isset($data['is_required']) ? absint($data['is_required']) : 0,
-        'price_impact' => isset($data['price_impact']) ? floatval($data['price_impact']) : 0,
-        'price_type' => isset($data['price_type']) ? sanitize_text_field($data['price_type']) : 'fixed'
+        'service_id'    => absint($data['service_id']),
+        'name'          => sanitize_text_field($data['name']),
+        'description'   => isset($data['description']) ? sanitize_textarea_field($data['description']) : '',
+        'type'          => sanitize_text_field($data['type']),
+        'is_required'   => isset($data['is_required']) ? absint($data['is_required']) : 0,
+        'default_value' => isset($data['default_value']) ? sanitize_text_field($data['default_value']) : '',
+        'placeholder'   => isset($data['placeholder']) ? sanitize_text_field($data['placeholder']) : '',
+        'min_value'     => isset($data['min_value']) && $data['min_value'] !== '' ? floatval($data['min_value']) : null,
+        'max_value'     => isset($data['max_value']) && $data['max_value'] !== '' ? floatval($data['max_value']) : null,
+        'price_impact'  => isset($data['price_impact']) ? floatval($data['price_impact']) : 0,
+        'price_type'    => isset($data['price_type']) ? sanitize_text_field($data['price_type']) : 'fixed',
+        'options'       => isset($data['options']) ? sanitize_textarea_field($data['options']) : '',
+        'option_label'  => isset($data['option_label']) ? sanitize_text_field($data['option_label']) : '',
+        'step'          => isset($data['step']) ? sanitize_text_field($data['step']) : '',
+        'unit'          => isset($data['unit']) ? sanitize_text_field($data['unit']) : '',
+        'min_length'    => isset($data['min_length']) ? absint($data['min_length']) : null,
+        'max_length'    => isset($data['max_length']) ? absint($data['max_length']) : null,
+        'rows'          => isset($data['rows']) ? absint($data['rows']) : null
     );
-    
-    // Rest of your existing code...
     
     // Check if we're updating or creating
     if (!empty($data['id'])) {
         // Update existing option
-        // ...
+        $result = $wpdb->update(
+            $table_name,
+            $option_data,
+            array('id' => absint($data['id'])),
+            array(
+                '%d', '%s', '%s', '%s', '%d', '%s', '%s', '%f', '%f', 
+                '%f', '%s', '%s', '%s', '%s', '%s', '%d', '%d', '%d'
+            ),
+            array('%d')
+        );
+        
+        if ($result === false) {
+            error_log('Database error in wpdb->update: ' . $wpdb->last_error);
+            return array(
+                'success' => false,
+                'message' => __('Database error: Could not update option.', 'mobooking')
+            );
+        }
+        
+        return array(
+            'success' => true,
+            'id' => absint($data['id']),
+            'message' => __('Option updated successfully.', 'mobooking')
+        );
     } else {
-        // Log that we're creating a new option
+        // Creating new option
         error_log('Creating new service option for service_id: ' . $option_data['service_id']);
         
         // Get the highest display order
@@ -112,11 +144,14 @@ public function save_service_option($data) {
         // Set the display order one higher than the current highest
         $option_data['display_order'] = ($highest_order !== null) ? intval($highest_order) + 1 : 0;
         
-        // Create new option
+        // Create new option with ALL fields
         $result = $wpdb->insert(
             $table_name,
             $option_data,
-            array('%d', '%s', '%s', '%s', '%d', '%f', '%s', '%d')
+            array(
+                '%d', '%s', '%s', '%s', '%d', '%s', '%s', '%f', '%f', 
+                '%f', '%s', '%s', '%s', '%s', '%s', '%d', '%d', '%d', '%d'
+            )
         );
         
         if ($result === false) {
@@ -134,7 +169,6 @@ public function save_service_option($data) {
         );
     }
 }
-    
     /**
      * Delete a service option
      */
