@@ -82,6 +82,12 @@ class Manager {
             price_impact decimal(10,2) NULL,
             price_type varchar(20) DEFAULT 'fixed',
             options text NULL,
+            option_label text NULL,
+            step varchar(50) NULL,
+            unit varchar(50) NULL,
+            min_length int(11) NULL,
+            max_length int(11) NULL,
+            rows int(11) NULL,
             display_order int(11) NOT NULL DEFAULT 0,
             created_at datetime DEFAULT CURRENT_TIMESTAMP,
             updated_at datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -92,6 +98,8 @@ class Manager {
         require_once(ABSPATH . 'wp-admin/includes/upgrade.php');
         dbDelta($sql);
     }
+
+
     
     /**
      * Create bookings table

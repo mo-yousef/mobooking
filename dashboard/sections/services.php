@@ -805,7 +805,7 @@ jQuery(document).ready(function($) {
     
     // Close modals
     $('.modal-close, .cancel-service, .cancel-option, .cancel-delete').on('click', function() {
-        $('.mobooking-modal').fadeOut();
+        $('.mobooking-modal').fadeOut('fast');
     });
     
     // Cancel option editing
@@ -997,7 +997,7 @@ jQuery(document).ready(function($) {
         display: flex;
         flex-direction: column;
         height: 100%;
-    }
+    border: 1px solid var(--border-color);    }
     
     .service-card:hover {
         transform: translateY(-3px);

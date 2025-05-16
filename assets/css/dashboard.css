@@ -1,22 +1,22 @@
 /* dashboard.css */
 
 :root {
-    --primary-color: var(--mobooking-primary-color, #1e88e5);
+    --primary-color: var(--mobooking-primary-color, #2863ec);
     /* Main Blue */
-    --primary-dark: var(--mobooking-primary-color-dark, #1565c0);
+    --primary-dark: var(--mobooking-primary-color-dark, #2863ec);
     /* Darker Blue */
-    --primary-light: var(--mobooking-primary-color-light, #90caf9);
+    --primary-light: var(--mobooking-primary-color-light, #f1f5f9);
     /* Light Blue */
 
-    --text-color: #2e2e2e;
+    --text-color: #020817;
     /* Deeper for contrast */
-    --text-light: #7a7a7a;
+    --text-light: #64748b;
     /* Softer light text */
     --bg-color: #f4f6f8;
     /* Slightly warmer than pure white */
     --card-bg: #ffffff;
     /* Cards remain white */
-    --border-color: #dfe3e8;
+    --border-color: #e3e8f0;
     /* Modern light gray borders */
 
     --success-color: #43a047;
@@ -28,7 +28,8 @@
     --info-color: #1e88e5;
     /* Matching info blue */
 
-    --shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
+    --shadow: 0 4px 12px 0 1px 3px 0 rgba(0, 0, 0, .1),
+        0 1px 2px -1px rgba(0, 0, 0, .1);
     /* Softer shadow */
     --radius: 10px;
     /* Slightly more rounded */
@@ -162,12 +163,11 @@ body {
 
 .sidebar-nav a:hover {
     color: var(--primary-color);
-    background-color: rgba(0, 0, 0, 0.04);
+    background-color: var(--primary-light);
 }
 
 .sidebar-nav .active a {
     background-color: var(--primary-light);
-    color: white;
     box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.1);
 }
 
@@ -186,6 +186,7 @@ body {
     font-size: 1.25rem;
     width: 1.25rem;
     height: 1.25rem;
+    color: var(--text-light);
 }
 
 .sidebar-subscription {
@@ -285,6 +286,7 @@ body {
     display: flex;
     align-items: center;
     transition: var(--transition);
+    border: 1px solid var(--border-color);
 }
 
 .stat-card:hover {
@@ -352,6 +354,7 @@ body {
     border-radius: var(--radius);
     padding: 1.5rem;
     box-shadow: var(--shadow);
+    border: 1px solid var(--border-color);
 }
 
 .widget-title {
