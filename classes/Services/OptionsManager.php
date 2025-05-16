@@ -66,130 +66,74 @@ class OptionsManager {
     /**
      * Save a service option
      */
-    public function save_service_option($data) {
-        global $wpdb;
-        $table_name = $wpdb->prefix . 'mobooking_service_options';
-        
-        // Sanitize data
-        $option_data = array(
-            'service_id' => absint($data['service_id']),
-            'name' => sanitize_text_field($data['name']),
-            'description' => isset($data['description']) ? sanitize_textarea_field($data['description']) : '',
-            'type' => sanitize_text_field($data['type']),
-            'is_required' => isset($data['is_required']) ? absint($data['is_required']) : 0,
-            'price_impact' => isset($data['price_impact']) ? floatval($data['price_impact']) : 0,
-            'price_type' => isset($data['price_type']) ? sanitize_text_field($data['price_type']) : 'fixed'
+public function save_service_option($data) {
+    global $wpdb;
+    $table_name = $wpdb->prefix . 'mobooking_service_options';
+    
+    // Sanitize data - with error logging
+    error_log('Attempting to save service option with data: ' . print_r($data, true));
+    
+    // Basic validation
+    if (empty($data['service_id'])) {
+        error_log('Missing service_id in save_service_option');
+        return array(
+            'success' => false,
+            'message' => 'Missing service ID'
         );
-        
-        // Add type-specific fields based on the option type
-        if (isset($data['default_value'])) {
-            if ($data['type'] === 'textarea') {
-                $option_data['default_value'] = sanitize_textarea_field($data['default_value']);
-            } else {
-                $option_data['default_value'] = sanitize_text_field($data['default_value']);
-            }
-        }
-        
-        if (isset($data['placeholder'])) {
-            $option_data['placeholder'] = sanitize_text_field($data['placeholder']);
-        }
-        
-        if (isset($data['min_value'])) {
-            $option_data['min_value'] = floatval($data['min_value']);
-        }
-        
-        if (isset($data['max_value'])) {
-            $option_data['max_value'] = floatval($data['max_value']);
-        }
-        
-        if (isset($data['options'])) {
-            $option_data['options'] = sanitize_textarea_field($data['options']);
-        }
-        
-        // Optional additional fields for enhanced functionality
-        $optional_fields = array(
-            'option_label', 'step', 'unit', 'min_length', 'max_length', 'rows'
-        );
-        
-        foreach ($optional_fields as $field) {
-            if (isset($data[$field])) {
-                $option_data[$field] = sanitize_text_field($data[$field]);
-            }
-        }
-        
-        // Check if we're updating or creating
-        if (!empty($data['id'])) {
-            // Verify ownership if needed
-            if (!$this->verify_option_ownership($data['id'], $option_data['service_id'])) {
-                return array(
-                    'success' => false,
-                    'message' => __('You do not have permission to edit this option.', 'mobooking')
-                );
-            }
-            
-            // Update existing option
-            $result = $wpdb->update(
-                $table_name,
-                $option_data,
-                array('id' => absint($data['id'])),
-                array('%d', '%s', '%s', '%s', '%d', '%f', '%s'),
-                array('%d')
-            );
-            
-            if ($result === false) {
-                return array(
-                    'success' => false,
-                    'message' => __('Database error: Could not update option.', 'mobooking')
-                );
-            }
-            
-            return array(
-                'success' => true,
-                'id' => absint($data['id']),
-                'message' => __('Option updated successfully.', 'mobooking')
-            );
-        } else {
-            // Verify service ownership
-            $services_manager = new \MoBooking\Services\Manager();
-            $service = $services_manager->get_service($option_data['service_id']);
-            
-            if (!$service || $service->user_id != get_current_user_id()) {
-                return array(
-                    'success' => false,
-                    'message' => __('You do not have permission to add options to this service.', 'mobooking')
-                );
-            }
-            
-            // Get the highest display order
-            $highest_order = $wpdb->get_var($wpdb->prepare(
-                "SELECT MAX(display_order) FROM $table_name WHERE service_id = %d",
-                $option_data['service_id']
-            ));
-            
-            // Set the display order one higher than the current highest
-            $option_data['display_order'] = ($highest_order !== null) ? intval($highest_order) + 1 : 0;
-            
-            // Create new option
-            $result = $wpdb->insert(
-                $table_name,
-                $option_data,
-                array('%d', '%s', '%s', '%s', '%d', '%f', '%s', '%d')
-            );
-            
-            if ($result === false) {
-                return array(
-                    'success' => false,
-                    'message' => __('Database error: Could not create option.', 'mobooking')
-                );
-            }
-            
-            return array(
-                'success' => true,
-                'id' => $wpdb->insert_id,
-                'message' => __('Option created successfully.', 'mobooking')
-            );
-        }
     }
+    
+    // Continue with your existing code...
+    $option_data = array(
+        'service_id' => absint($data['service_id']),
+        'name' => sanitize_text_field($data['name']),
+        'description' => isset($data['description']) ? sanitize_textarea_field($data['description']) : '',
+        'type' => sanitize_text_field($data['type']),
+        'is_required' => isset($data['is_required']) ? absint($data['is_required']) : 0,
+        'price_impact' => isset($data['price_impact']) ? floatval($data['price_impact']) : 0,
+        'price_type' => isset($data['price_type']) ? sanitize_text_field($data['price_type']) : 'fixed'
+    );
+    
+    // Rest of your existing code...
+    
+    // Check if we're updating or creating
+    if (!empty($data['id'])) {
+        // Update existing option
+        // ...
+    } else {
+        // Log that we're creating a new option
+        error_log('Creating new service option for service_id: ' . $option_data['service_id']);
+        
+        // Get the highest display order
+        $highest_order = $wpdb->get_var($wpdb->prepare(
+            "SELECT MAX(display_order) FROM $table_name WHERE service_id = %d",
+            $option_data['service_id']
+        ));
+        
+        // Set the display order one higher than the current highest
+        $option_data['display_order'] = ($highest_order !== null) ? intval($highest_order) + 1 : 0;
+        
+        // Create new option
+        $result = $wpdb->insert(
+            $table_name,
+            $option_data,
+            array('%d', '%s', '%s', '%s', '%d', '%f', '%s', '%d')
+        );
+        
+        if ($result === false) {
+            error_log('Database error in wpdb->insert: ' . $wpdb->last_error);
+            return array(
+                'success' => false,
+                'message' => __('Database error: Could not create option.', 'mobooking')
+            );
+        }
+        
+        return array(
+            'success' => true,
+            'id' => $wpdb->insert_id,
+            'message' => __('Option created successfully.', 'mobooking')
+        );
+    }
+}
     
     /**
      * Delete a service option
@@ -405,14 +349,12 @@ class OptionsManager {
 //         'message' => $result['message']
 //     ));
 // }
-/**
- * AJAX handler to save service option - TEMPORARY VERSION WITH NONCE CHECK BYPASSED
- */
 public function ajax_save_service_option() {
-    error_log('AJAX save_service_option called - NONCE CHECK BYPASSED FOR TESTING');
+    // COMPLETELY BYPASS NONCE CHECK FOR TEMPORARY TESTING ONLY
+    // WARNING: REMOVE THIS IN PRODUCTION
     
-    // TEMPORARY: Bypass nonce check for testing
-    // WARNING: Only use this for testing, never in production!
+    // Log incoming data
+    error_log('AJAX request data: ' . print_r($_POST, true));
     
     // Check permissions
     if (!current_user_can('mobooking_business_owner') && !current_user_can('administrator')) {

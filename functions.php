@@ -46,7 +46,8 @@ function mobooking_register_scripts() {
     // Localize scripts for various sections
     wp_localize_script('jquery', 'mobooking_services', array(
         'ajax_url' => admin_url('admin-ajax.php'),
-        'nonce' => wp_create_nonce('mobooking-service-nonce')
+        'nonce' => wp_create_nonce('mobooking-service-nonce'),
+        'option_nonce' => wp_create_nonce('mobooking-option-nonce') // Add this line
     ));
     
     wp_localize_script('jquery', 'mobooking_areas', array(
