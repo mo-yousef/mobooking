@@ -191,3 +191,31 @@ function mobooking_create_service_options_table() {
  * adding 'service_options' to the $tables array and implementing the create_service_options_table
  * method if it's not already there.
  */
+
+
+
+
+
+ // Temporary debugging function - REMOVE AFTER DEBUGGING
+function check_nonce_validity() {
+    if (!is_admin() || !is_user_logged_in()) {
+        return;
+    }
+    
+    $option_nonce = wp_create_nonce('mobooking-option-nonce');
+    $service_nonce = wp_create_nonce('mobooking-service-nonce');
+    
+    // Verify both nonces immediately after creating them
+    $option_valid = wp_verify_nonce($option_nonce, 'mobooking-option-nonce');
+    $service_valid = wp_verify_nonce($service_nonce, 'mobooking-service-nonce');
+    
+    error_log("NONCE CHECK: option_nonce=$option_nonce, valid=$option_valid");
+    error_log("NONCE CHECK: service_nonce=$service_nonce, valid=$service_valid");
+}
+add_action('admin_init', 'check_nonce_validity');
+
+function log_nonce_life($life) {
+    error_log("Nonce life: $life seconds");
+    return $life;
+}
+add_filter('nonce_life', 'log_nonce_life');

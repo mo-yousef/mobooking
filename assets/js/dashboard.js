@@ -827,16 +827,26 @@ jQuery(document).ready(function ($) {
     // Show loading indicator
     $("#options-modal").addClass("loading");
 
-    // Get the nonce from the form (don't add extra nonce parameter)
-    let formData = $(this).serialize();
-    formData += "&action=mobooking_save_service_option";
+    // Collect form data
+    var formData = new FormData(this);
+    formData.append("action", "mobooking_save_service_option");
+
+    // Debug output
+    console.log("Submitting form with data:");
+    for (var pair of formData.entries()) {
+      console.log(pair[0] + ": " + pair[1]);
+    }
 
     // Submit via AJAX
     $.ajax({
       url: mobooking_services.ajax_url,
       type: "POST",
       data: formData,
+      processData: false,
+      contentType: false,
       success: function (response) {
+        console.log("Server response:", response);
+
         if (response.success) {
           // Reload options list
           loadServiceOptions($("#option-service-id").val());
@@ -853,15 +863,17 @@ jQuery(document).ready(function ($) {
             "success"
           );
         } else {
+          console.error("Error response:", response.data);
           createNotification(
             response.data.message || "Error saving option",
             "error"
           );
-          $("#options-modal").removeClass("loading");
         }
+        $("#options-modal").removeClass("loading");
       },
       error: function (xhr, status, error) {
         console.error("AJAX Error:", error);
+        console.log("Full response:", xhr.responseText);
         createNotification("Error saving option. Please try again.", "error");
         $("#options-modal").removeClass("loading");
       },

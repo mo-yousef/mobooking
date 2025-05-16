@@ -326,7 +326,18 @@ $total_services = count($services);
                         <button type="submit" class="button button-primary save-option"><?php _e('Save Option', 'mobooking'); ?></button>
                     </div>
                     
-                    <?php wp_nonce_field('mobooking-option-nonce', 'option_nonce'); ?>
+                    <?php 
+                    // Remove the old nonce field
+                    // wp_nonce_field('mobooking-option-nonce', 'option_nonce');
+                    
+                    // Add a fresh nonce specifically for service options
+                    $option_nonce = wp_create_nonce('mobooking-option-nonce');
+                    echo '<input type="hidden" name="option_nonce" value="' . esc_attr($option_nonce) . '">';
+                    
+                    // Also add the service nonce that other functions might be using
+                    echo '<input type="hidden" name="nonce" value="' . esc_attr(wp_create_nonce('mobooking-service-nonce')) . '">';
+                    ?>
+
                 </form>
                 
                 <div class="no-option-selected">
