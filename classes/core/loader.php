@@ -24,7 +24,6 @@ class Loader {
      * Load all required dependencies
      */
     private function load_dependencies() {
-        // Load required files that might not be autoloaded
         // Initialize core modules
         new \MoBooking\Auth\Manager();
         new \MoBooking\Dashboard\Manager();

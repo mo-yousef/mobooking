@@ -297,25 +297,6 @@ class Manager {
     }
     
     /**
-     * Handle logout AJAX request
-     */
-    public function handle_logout() {
-        // Check nonce
-        if (!isset($_POST['mobooking_logout_nonce']) || !wp_verify_nonce($_POST['mobooking_logout_nonce'], 'mobooking-logout-nonce')) {
-            wp_send_json_error(__('Security verification failed.', 'mobooking'));
-        }
-        
-        // Logout user
-        wp_logout();
-        
-        // Send success response
-        wp_send_json_success(array(
-            'redirect' => home_url('/login/'),
-            'message' => __('You have been logged out successfully.', 'mobooking')
-        ));
-    }
-    
-    /**
      * Generate a unique username
      */
     private function generate_username($first_name, $last_name) {
