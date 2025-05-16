@@ -329,11 +329,12 @@ class OptionsManager {
      * AJAX handler to save service option
      */
     public function ajax_save_service_option() {
-        // Check nonce
-        if (!isset($_POST['nonce']) || !wp_verify_nonce($_POST['nonce'], 'mobooking-service-nonce')) {
+        // Check nonce using the option_nonce field
+        if (!isset($_POST['option_nonce']) || !wp_verify_nonce($_POST['option_nonce'], 'mobooking-option-nonce')) {
             wp_send_json_error(array('message' => __('Security verification failed.', 'mobooking')));
         }
         
+        // Rest of the function remains the same
         // Check permissions
         if (!current_user_can('mobooking_business_owner') && !current_user_can('administrator')) {
             wp_send_json_error(array('message' => __('You do not have permission to do this.', 'mobooking')));

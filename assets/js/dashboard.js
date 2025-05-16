@@ -827,10 +827,9 @@ jQuery(document).ready(function ($) {
     // Show loading indicator
     $("#options-modal").addClass("loading");
 
-    // Prepare form data
+    // Get the nonce from the form (don't add extra nonce parameter)
     let formData = $(this).serialize();
-    formData +=
-      "&action=mobooking_save_service_option&nonce=" + mobooking_services.nonce;
+    formData += "&action=mobooking_save_service_option";
 
     // Submit via AJAX
     $.ajax({
