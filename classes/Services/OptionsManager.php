@@ -356,6 +356,10 @@ class OptionsManager {
             'id' => $result['id'],
             'message' => $result['message']
         ));
+
+        error_log('Received nonce: ' . $_POST['option_nonce']);
+        error_log('Verifying against action: mobooking-option-nonce');
+
     }
     
     /**
