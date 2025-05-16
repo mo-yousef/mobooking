@@ -10,6 +10,7 @@ define('MOBOOKING_PATH', get_template_directory());
 define('MOBOOKING_URL', get_template_directory_uri());
 
 // Autoloader
+// Autoloader
 spl_autoload_register(function ($class) {
     // Check if the class uses our namespace
     if (strpos($class, 'MoBooking\\') !== 0) {

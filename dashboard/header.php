@@ -1,4 +1,5 @@
 <?php
+// dashboard/header.php
 // Prevent direct access
 if (!defined('ABSPATH')) {
     exit;
@@ -20,12 +21,41 @@ wp_localize_script('mobooking-dashboard-script', 'mobooking_dashboard', array(
 // Get primary color from settings
 $primary_color = $settings->primary_color ? $settings->primary_color : '#4CAF50';
 
+// Helper function to adjust brightness
+function adjust_brightness($hex, $steps) {
+    // Remove # if present
+    $hex = ltrim($hex, '#');
+    
+    if (strlen($hex) == 3) {
+        $r = hexdec(substr($hex, 0, 1) . substr($hex, 0, 1));
+        $g = hexdec(substr($hex, 1, 1) . substr($hex, 1, 1));
+        $b = hexdec(substr($hex, 2, 1) . substr($hex, 2, 1));
+    } else {
+        $r = hexdec(substr($hex, 0, 2));
+        $g = hexdec(substr($hex, 2, 2));
+        $b = hexdec(substr($hex, 4, 2));
+    }
+    
+    // Adjust brightness
+    $r = max(0, min(255, $r + $steps));
+    $g = max(0, min(255, $g + $steps));
+    $b = max(0, min(255, $b + $steps));
+    
+    // Convert back to hex
+    $hex = "#";
+    $hex .= str_pad(dechex($r), 2, "0", STR_PAD_LEFT);
+    $hex .= str_pad(dechex($g), 2, "0", STR_PAD_LEFT);
+    $hex .= str_pad(dechex($b), 2, "0", STR_PAD_LEFT);
+    
+    return $hex;
+}
+
 // Custom inline style for primary color
 $custom_css = "
     :root {
         --mobooking-primary-color: {$primary_color};
-        --mobooking-primary-color-dark: " . $this->adjust_brightness($primary_color, -20) . ";
-        --mobooking-primary-color-light: " . $this->adjust_brightness($primary_color, 20) . ";
+        --mobooking-primary-color-dark: " . adjust_brightness($primary_color, -20) . ";
+        --mobooking-primary-color-light: " . adjust_brightness($primary_color, 20) . ";
     }
 ";
 wp_add_inline_style('mobooking-dashboard-style', $custom_css);
