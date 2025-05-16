@@ -12,15 +12,8 @@ class Manager {
         // Register AJAX handlers
         add_action('wp_ajax_mobooking_save_service', array($this, 'ajax_save_service'));
         add_action('wp_ajax_mobooking_delete_service', array($this, 'ajax_delete_service'));
-        // Get service by ID for editing
-        add_action('wp_ajax_mobooking_get_service', function() {
-            // Check nonce
-            if (!isset($_POST['nonce']) || !wp_verify_nonce($_POST['nonce'], 'mobooking-service-nonce')) {
-                wp_send_json_error(array('message' => __('Security verification failed.', 'mobooking')));
-            }
-            
-            // Check permissions and get service data...
-        });
+        add_action('wp_ajax_mobooking_get_service', array($this, 'ajax_get_service')); // Updated to use class method
+        add_action('wp_ajax_mobooking_get_services', array($this, 'ajax_get_services'));
         add_action('wp_ajax_nopriv_mobooking_get_services_by_zip', array($this, 'ajax_get_services_by_zip'));
         
         // Add shortcodes
@@ -58,6 +51,40 @@ class Manager {
         return $wpdb->get_row($wpdb->prepare(
             "SELECT * FROM $table_name WHERE id = %d",
             $service_id
+        ));
+    }
+    
+    /**
+     * AJAX handler to get service by ID
+     */
+    public function ajax_get_service() {
+        // Check nonce
+        if (!isset($_POST['nonce']) || !wp_verify_nonce($_POST['nonce'], 'mobooking-service-nonce')) {
+            wp_send_json_error(array('message' => __('Security verification failed.', 'mobooking')));
+        }
+        
+        // Check permissions
+        if (!current_user_can('mobooking_business_owner') && !current_user_can('administrator')) {
+            wp_send_json_error(array('message' => __('You do not have permission to do this.', 'mobooking')));
+        }
+        
+        // Check service ID
+        if (!isset($_POST['id']) || empty($_POST['id'])) {
+            wp_send_json_error(array('message' => __('No service specified.', 'mobooking')));
+        }
+        
+        $service_id = absint($_POST['id']);
+        $user_id = get_current_user_id();
+        
+        // Get service data
+        $service = $this->get_service($service_id, $user_id);
+        
+        if (!$service) {
+            wp_send_json_error(array('message' => __('Service not found or you do not have permission to edit it.', 'mobooking')));
+        }
+        
+        wp_send_json_success(array(
+            'service' => $service
         ));
     }
     

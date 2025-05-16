@@ -1,21 +1,39 @@
 /* dashboard.css */
 
 :root {
-    --primary-color: var(--mobooking-primary-color, #4CAF50);
-    --primary-dark: var(--mobooking-primary-color-dark, #3b8f3e);
-    --primary-light: var(--mobooking-primary-color-light, #72c974);
-    --text-color: #333;
-    --text-light: #666;
-    --bg-color: #f8f9fa;
-    --card-bg: #fff;
-    --border-color: #eaeaea;
-    --success-color: #4CAF50;
-    --warning-color: #ff9800;
-    --danger-color: #f44336;
-    --info-color: #2196f3;
-    --shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
-    --radius: 8px;
-    --transition: all 0.2s ease-in-out;
+    --primary-color: var(--mobooking-primary-color, #1e88e5);
+    /* Main Blue */
+    --primary-dark: var(--mobooking-primary-color-dark, #1565c0);
+    /* Darker Blue */
+    --primary-light: var(--mobooking-primary-color-light, #90caf9);
+    /* Light Blue */
+
+    --text-color: #2e2e2e;
+    /* Deeper for contrast */
+    --text-light: #7a7a7a;
+    /* Softer light text */
+    --bg-color: #f4f6f8;
+    /* Slightly warmer than pure white */
+    --card-bg: #ffffff;
+    /* Cards remain white */
+    --border-color: #dfe3e8;
+    /* Modern light gray borders */
+
+    --success-color: #43a047;
+    /* Modern green */
+    --warning-color: #fb8c00;
+    /* Amber */
+    --danger-color: #e53935;
+    /* Strong red */
+    --info-color: #1e88e5;
+    /* Matching info blue */
+
+    --shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
+    /* Softer shadow */
+    --radius: 10px;
+    /* Slightly more rounded */
+    --transition: all 0.25s ease-in-out;
+
     --sidebar-width: 230px;
     --sidebar-collapsed: 60px;
     --header-height: 60px;
@@ -131,7 +149,9 @@ body {
 }
 
 .sidebar-nav a {
+    font-size: 14px;
     display: flex;
+    font-weight: 500;
     align-items: center;
     padding: 0.75rem 1.5rem;
     color: var(--text-color);

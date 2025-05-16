@@ -53,9 +53,9 @@ function adjust_brightness($hex, $steps) {
 // Custom inline style for primary color
 $custom_css = "
     :root {
-        --mobooking-primary-color: {$primary_color};
-        --mobooking-primary-color-dark: " . adjust_brightness($primary_color, -20) . ";
-        --mobooking-primary-color-light: " . adjust_brightness($primary_color, 20) . ";
+        // --mobooking-primary-color: {$primary_color};
+        // --mobooking-primary-color-dark: " . adjust_brightness($primary_color, -20) . ";
+        // --mobooking-primary-color-light: " . adjust_brightness($primary_color, 20) . ";
     }
 ";
 wp_add_inline_style('mobooking-dashboard-style', $custom_css);

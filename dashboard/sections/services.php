@@ -1,4 +1,3 @@
-
 <?php
 // Prevent direct access
 if (!defined('ABSPATH')) {
@@ -185,18 +184,17 @@ $total_services = count($services);
     </div>
 </div>
 
-<?php
-// Localize the script with the AJAX URL and nonce
-wp_enqueue_script('mobooking-services-script', '', array('jquery'), MOBOOKING_VERSION, true);
-wp_add_inline_script('mobooking-services-script', '
-var mobooking_services = {
-    "ajax_url": "' . admin_url('admin-ajax.php') . '",
-    "nonce": "' . wp_create_nonce('mobooking-service-nonce') . '"
-};
-');
-?>
 <script>
 jQuery(document).ready(function($) {
+    // First, check if mobooking_services is defined, and if not, define it
+    if (typeof mobooking_services === 'undefined') {
+        console.log('mobooking_services not defined, creating a default object');
+        window.mobooking_services = {
+            ajax_url: '<?php echo admin_url('admin-ajax.php'); ?>',
+            nonce: '<?php echo wp_create_nonce('mobooking-service-nonce'); ?>'
+        };
+    }
+    
     // Service filter
     $('#service-filter').on('change', function() {
         var category = $(this).val();
