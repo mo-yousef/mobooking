@@ -69,3 +69,34 @@ add_action('wp_enqueue_scripts', 'mobooking_register_scripts');
 add_action('admin_enqueue_scripts', 'mobooking_register_scripts');
 
 
+// Add at the top of your functions.php, after the initial checks
+$manager_file = get_template_directory() . '/classes/Services/Manager.php';
+if (file_exists($manager_file)) {
+    include_once $manager_file;
+    error_log('Manager.php file included successfully');
+} else {
+    error_log('Manager.php file not found at: ' . $manager_file);
+}
+
+
+
+spl_autoload_register(function ($class) {
+    // Check if the class uses our namespace
+    if (strpos($class, 'MoBooking\\') !== 0) {
+        return;
+    }
+    
+    // Remove namespace and replace \ with /
+    $relative_class = str_replace('MoBooking\\', '', $class);
+    $file = MOBOOKING_PATH . '/classes/' . str_replace('\\', '/', $relative_class) . '.php';
+    
+    // Debug output
+    error_log('Trying to load class: ' . $class);
+    error_log('Looking for file: ' . $file);
+    error_log('File exists: ' . (file_exists($file) ? 'Yes' : 'No'));
+    
+    // If the file exists, load it
+    if (file_exists($file)) {
+        require_once $file;
+    }
+});
