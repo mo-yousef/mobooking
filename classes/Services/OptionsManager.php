@@ -211,7 +211,7 @@ public function save_service_option($data) {
         $table_name = $wpdb->prefix . 'mobooking_service_options';
         
         // Verify service ownership
-        $services_manager = new \MoBooking\Services\Manager();
+        $services_manager = new \MoBooking\Services\ServiceManager();
         $service = $services_manager->get_service($service_id);
         
         if (!$service || $service->user_id != get_current_user_id()) {
@@ -277,7 +277,7 @@ public function save_service_option($data) {
         }
         
         // Get service's user_id
-        $services_manager = new \MoBooking\Services\Manager();
+        $services_manager = new \MoBooking\Services\ServiceManager();
         $service = $services_manager->get_service($service_id);
         
         // Check if current user owns the service
@@ -452,7 +452,7 @@ public function ajax_save_service_option() {
         }
         
         // Verify ownership
-        $services_manager = new \MoBooking\Services\Manager();
+        $services_manager = new \MoBooking\Services\ServiceManager();
         $service = $services_manager->get_service($option->service_id);
         
         if (!$service || $service->user_id != get_current_user_id()) {
@@ -486,7 +486,7 @@ public function ajax_save_service_option() {
         $service_id = absint($_POST['service_id']);
         
         // Verify ownership
-        $services_manager = new \MoBooking\Services\Manager();
+        $services_manager = new \MoBooking\Services\ServiceManager();
         $service = $services_manager->get_service($service_id);
         
         if (!$service || $service->user_id != get_current_user_id()) {

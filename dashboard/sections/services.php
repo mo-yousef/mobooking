@@ -5,7 +5,7 @@ if (!defined('ABSPATH')) {
 }
 
 // Get services
-$services_manager = new \MoBooking\Services\Manager();
+$services_manager = new \MoBooking\Services\ServiceManager();
 $services = $services_manager->get_user_services($user_id);
 
 // Set categories for filtering

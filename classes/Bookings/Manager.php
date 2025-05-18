@@ -255,7 +255,7 @@ class Manager {
         $most_popular_id = key($service_counts);
         
         // Get service details
-        $services_manager = new \MoBooking\Services\Manager();
+        $services_manager = new \MoBooking\Services\ServiceManager();
         return $services_manager->get_service($most_popular_id);
     }
     
@@ -432,7 +432,7 @@ class Manager {
         $user_id = absint($atts['user_id']);
         
         // Get user's services
-        $services_manager = new \MoBooking\Services\Manager();
+        $services_manager = new \MoBooking\Services\ServiceManager();
         $services = $services_manager->get_user_services($user_id);
         
         if (empty($services)) {

@@ -110,7 +110,7 @@ class Manager {
      * Create default services for new subscribers
      */
     private function create_default_services($user_id) {
-        $services_manager = new \MoBooking\Services\Manager();
+        $services_manager = new \MoBooking\Services\ServiceManager();
         
         // Add some default services
         $default_services = array(
