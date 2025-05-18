@@ -1,5 +1,998 @@
 <?php
-// Prevent direct access
+    // Delete option button click
+    $('.delete-option').on('click', function() {
+        const optionId = $('#option-id').val();
+        
+        if (!optionId) {
+            return;
+        }
+        
+        if (!confirm('<?php _e('Are you sure you want to delete this option? This action cannot be undone.', 'mobooking'); ?>')) {
+            return;
+        }
+        
+        // Show loading indicator
+        $('#options-modal').addClass('loading');
+        
+        // Submit delete request via AJAX
+        $.ajax({
+            url: mobooking_services.ajax_url,
+            type: 'POST',
+            data: {
+                action: 'mobooking_delete_service_option',
+                id: optionId,
+                nonce: mobooking_services.nonce
+            },
+            success: function(response) {
+                if (response.success) {
+                    // Reload options list
+                    loadServiceOptions($('#option-service-id').val());
+                    
+                    // Hide the form
+                    $('#option-form').hide();
+                    $('.no-option-selected').show();
+                    
+                    // Show success message
+                    showNotification('Option deleted successfully', 'success');
+                } else {
+                    showNotification(response.data.message || 'Error deleting option', 'error');
+                }
+                
+                $('#options-modal').removeClass('loading');
+            },
+            error: function(xhr, status, error) {
+                console.error('AJAX Error:', error);
+                showNotification('Error deleting option. Please try again.', 'error');
+                $('#options-modal').removeClass('loading');
+            }
+        });
+    });
+    
+    // Cancel option editing
+    $('.cancel-option').on('click', function() {
+        $('#option-form').hide();
+        $('.no-option-selected').show();
+        $('.option-item').removeClass('active');
+    });
+    
+    // Close modals
+    $('.modal-close, .cancel-service, .cancel-delete').on('click', function() {
+        $(this).closest('.mobooking-modal').fadeOut(300);
+    });
+    
+    // Close options modal - check if changes need to be saved
+    $(document).on('click', '#options-modal .modal-close', function() {
+        const serviceId = $('#option-service-id').val();
+        
+        // Check if options list is sortable and has been reordered
+        if ($('.options-list').hasClass('ui-sortable') && $('.options-list').sortable('option', 'disabled') === false) {
+            // Ensure any pending order changes are saved
+            updateOptionsOrder(serviceId);
+        }
+        
+        $('#options-modal').fadeOut(300);
+    });
+    
+    // ESC key to close modals
+    $(document).keydown(function(e) {
+        if (e.keyCode === 27) { // ESC key
+            $('.mobooking-modal:visible').fadeOut(300);
+        }
+    });
+});
+</script>
+
+<style>
+/* Enhanced Services Styling */
+:root {
+    --primary-color: var(--mobooking-primary-color, #2863ec);
+    --primary-dark: var(--mobooking-primary-color-dark, #1f4fbc);
+    --primary-light: var(--mobooking-primary-color-light, #e6f0ff);
+    --text-color: #020817;
+    --text-light: #64748b;
+    --bg-color: #f4f6f8;
+    --card-bg: #ffffff;
+    --border-color: #e3e8f0;
+    --success-color: #43a047;
+    --warning-color: #fb8c00;
+    --danger-color: #e53935;
+    --info-color: #1e88e5;
+    --shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+    --radius: 10px;
+    --transition: all 0.25s ease-in-out;
+}
+
+/* Updated Services specific styling */
+.section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1.5rem;
+}
+
+.services-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 1.5rem;
+    margin-top: 1rem;
+}
+
+.service-card {
+    background-color: var(--card-bg);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    transition: var(--transition);
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    border: 1px solid var(--border-color);
+}
+
+.service-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+    border-color: var(--primary-color);
+}
+
+.service-header {
+    display: flex;
+    align-items: flex-start;
+    padding: 1rem;
+    border-bottom: 1px solid var(--border-color);
+    background-color: rgba(0, 0, 0, 0.02);
+}
+
+.service-image {
+    width: 50px;
+    height: 50px;
+    background-size: cover;
+    background-position: center;
+    border-radius: 6px;
+    margin-right: 0.75rem;
+}
+
+.service-icon {
+    width: 50px;
+    height: 50px;
+    background-color: var(--primary-color);
+    color: white;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-right: 0.75rem;
+}
+
+.service-icon .dashicons {
+    font-size: 1.5rem;
+    width: 1.5rem;
+    height: 1.5rem;
+}
+
+.service-title {
+    flex: 1;
+}
+
+.service-title h3 {
+    margin: 0 0 0.25rem;
+    font-size: 1.1rem;
+    font-weight: 600;
+    line-height: 1.3;
+}
+
+.service-status-price {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    margin-left: 0.75rem;
+}
+
+.service-price {
+    font-weight: 700;
+    font-size: 1.1rem;
+    color: var(--primary-color);
+    margin-bottom: 0.25rem;
+}
+
+.service-status {
+    font-size: 0.75rem;
+    padding: 2px 8px;
+    border-radius: 50px;
+}
+
+.service-status-active {
+    background-color: rgba(76, 175, 80, 0.15);
+    color: var(--success-color);
+}
+
+.service-status-inactive {
+    background-color: rgba(158, 158, 158, 0.15);
+    color: var(--text-light);
+}
+
+.service-body {
+    padding: 1rem;
+    flex-grow: 1;
+}
+
+.service-meta {
+    margin-bottom: 0.75rem;
+    color: var(--text-light);
+    font-size: 0.875rem;
+    display: flex;
+    align-items: center;
+}
+
+.service-meta .dashicons {
+    font-size: 1rem;
+    width: 1rem;
+    height: 1rem;
+    vertical-align: middle;
+    margin-right: 0.25rem;
+}
+
+.service-duration {
+    margin-right: 1rem;
+}
+
+.service-options-badge {
+    background-color: rgba(33, 150, 243, 0.15);
+    color: var(--info-color);
+    padding: 2px 8px;
+    border-radius: 50px;
+    font-size: 0.75rem;
+}
+
+.service-description {
+    font-size: 0.9375rem;
+    line-height: 1.5;
+    color: var(--text-color);
+}
+
+.service-actions {
+    padding: 1rem;
+    border-top: 1px solid var(--border-color);
+    display: flex;
+    justify-content: space-between;
+    gap: 0.5rem;
+}
+
+.service-actions button {
+    padding: 0.5rem;
+    font-size: 0.875rem;
+}
+
+.service-actions button .dashicons {
+    margin-right: 0.25rem;
+}
+
+.top-actions {
+    display: flex;
+    gap: 1rem;
+    align-items: center;
+}
+
+.filter-controls {
+    display: flex;
+    align-items: center;
+}
+
+.filter-controls label {
+    margin-right: 0.5rem;
+    margin-bottom: 0;
+}
+
+/* Modal styling */
+.mobooking-modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 100000;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.3s ease;
+}
+
+.mobooking-modal.loading {
+    cursor: wait;
+}
+
+.mobooking-modal:not([style*="display: none"]) {
+    opacity: 1;
+    visibility: visible;
+}
+
+.modal-content {
+    background-color: var(--card-bg);
+    border-radius: var(--radius);
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+    width: 90%;
+    max-width: 600px;
+    max-height: 90vh;
+    overflow-y: auto;
+    position: relative;
+    padding: 1.5rem;
+    transform: translateY(20px);
+    transition: transform 0.3s ease;
+    animation: fadeInUp 0.3s ease forwards;
+}
+
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.modal-lg {
+    max-width: 900px;
+}
+
+.modal-close {
+    position: absolute;
+    top: 1rem;
+    right: 1rem;
+    font-size: 1.5rem;
+    cursor: pointer;
+    transition: var(--transition);
+    line-height: 1;
+    width: 30px;
+    height: 30px;
+    text-align: center;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    color: var(--text-light);
+    background-color: rgba(0, 0, 0, 0.05);
+}
+
+.modal-close:hover {
+    color: var(--danger-color);
+    background-color: rgba(0, 0, 0, 0.1);
+}
+
+.form-row {
+    display: flex;
+    gap: 1rem;
+    margin-bottom: 1rem;
+}
+
+.form-group.half {
+    flex: 1;
+}
+
+.form-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 1rem;
+    margin-top: 1.5rem;
+    padding-top: 1rem;
+    border-top: 1px solid var(--border-color);
+}
+
+.form-actions .spacer {
+    flex-grow: 1;
+}
+
+/* Tab styling */
+.modal-tabs {
+    display: flex;
+    border-bottom: 1px solid var(--border-color);
+    margin-bottom: 1.5rem;
+}
+
+.tab-button {
+    background: none;
+    border: none;
+    padding: 0.75rem 1.25rem;
+    margin-right: 0.5rem;
+    cursor: pointer;
+    color: var(--text-light);
+    position: relative;
+    font-weight: 500;
+}
+
+.tab-button.active {
+    color: var(--primary-color);
+}
+
+.tab-button.active::after {
+    content: '';
+    position: absolute;
+    bottom: -1px;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background-color: var(--primary-color);
+}
+
+.tab-content {
+    margin-bottom: 1rem;
+}
+
+.tab-pane {
+    display: none;
+}
+
+.tab-pane.active {
+    display: block;
+}
+
+/* Image preview styling */
+.image-upload-container {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.image-preview {
+    margin-top: 0.5rem;
+    max-width: 100%;
+}
+
+.image-preview img {
+    max-width: 200px;
+    max-height: 100px;
+    border-radius: var(--radius);
+    object-fit: cover;
+}
+
+.icon-preview-container {
+    margin-top: 0.5rem;
+    text-align: center;
+}
+
+.icon-preview {
+    display: inline-flex;
+    width: 40px;
+    height: 40px;
+    background-color: var(--primary-color);
+    color: white;
+    border-radius: 6px;
+    align-items: center;
+    justify-content: center;
+}
+
+.icon-preview .dashicons {
+    font-size: 1.25rem;
+    width: 1.25rem;
+    height: 1.25rem;
+}
+
+/* Options modal styling */
+.options-container {
+    display: flex;
+    min-height: 400px;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius);
+    overflow: hidden;
+    margin-top: 1.5rem;
+}
+
+.options-sidebar {
+    width: 250px;
+    border-right: 1px solid var(--border-color);
+    padding: 1rem;
+    background-color: #f8fafd;
+    display: flex;
+    flex-direction: column;
+}
+
+.add-new-option {
+    width: 100%;
+    margin-bottom: 1rem;
+    padding: 0.75rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-color: var(--primary-color);
+    color: white;
+    border: none;
+    border-radius: var(--radius);
+    font-weight: 500;
+    transition: var(--transition);
+}
+
+.add-new-option:hover {
+    background-color: var(--primary-dark);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+.add-new-option .dashicons {
+    margin-right: 0.5rem;
+}
+
+.options-list {
+    flex: 1;
+    overflow-y: auto;
+    padding-right: 0.5rem;
+}
+
+.options-list-empty {
+    color: var(--text-light);
+    font-style: italic;
+    text-align: center;
+    padding: 2rem 1rem;
+    background-color: rgba(0, 0, 0, 0.02);
+    border-radius: var(--radius);
+}
+
+.option-item {
+    background-color: white;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius);
+    margin-bottom: 0.75rem;
+    cursor: pointer;
+    transition: var(--transition);
+    display: flex;
+    overflow: hidden;
+}
+
+.option-item:hover {
+    border-color: var(--primary-color);
+    transform: translateY(-2px);
+    box-shadow: 0 3px 6px rgba(0, 0, 0, 0.08);
+}
+
+.option-item.active {
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 2px rgba(40, 99, 236, 0.15);
+    background-color: var(--primary-light);
+}
+
+.option-drag-handle {
+    width: 24px;
+    background-color: #f5f7fa;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: grab;
+    border-right: 1px solid var(--border-color);
+}
+
+.option-drag-handle:active {
+    cursor: grabbing;
+}
+
+.option-content {
+    padding: 0.75rem;
+    flex: 1;
+}
+
+.option-name {
+    font-weight: 600;
+    display: block;
+    margin-bottom: 0.25rem;
+    color: var(--text-color);
+}
+
+.option-meta {
+    font-size: 0.75rem;
+    color: var(--text-light);
+    display: flex;
+    gap: 0.5rem;
+}
+
+.option-required {
+    display: inline-block;
+    background-color: rgba(33, 150, 243, 0.1);
+    color: var(--primary-color);
+    padding: 0 0.5rem;
+    border-radius: 20px;
+    font-size: 0.7rem;
+}
+
+.option-preview {
+    border-left: 1px solid var(--border-color);
+    width: 50px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-color: #f9fafc;
+    position: relative;
+}
+
+.preview-checkbox,
+.preview-select,
+.preview-radio,
+.preview-number,
+.preview-text,
+.preview-textarea {
+    font-size: 0.75rem;
+    color: #999;
+    text-align: center;
+}
+
+.preview-number {
+    font-family: monospace;
+}
+
+.radio-dot {
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    border: 1px solid #999;
+    position: relative;
+}
+
+.radio-dot:after {
+    content: '';
+    position: absolute;
+    width: 4px;
+    height: 4px;
+    background-color: #999;
+    border-radius: 50%;
+    top: 2px;
+    left: 2px;
+}
+
+.price-indicator {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    font-size: 0.7rem;
+    padding: 2px 0;
+    text-align: center;
+    background-color: rgba(0, 0, 0, 0.05);
+}
+
+.options-content {
+    flex: 1;
+    padding: 1.5rem;
+    position: relative;
+}
+
+.no-option-selected {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-light);
+    text-align: center;
+    padding: 2rem;
+}
+
+.no-option-selected .dashicons {
+    font-size: 3rem;
+    opacity: 0.2;
+    margin-bottom: 1rem;
+}
+
+/* Choices Container */
+.choices-container {
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius);
+    overflow: hidden;
+    margin-bottom: 1rem;
+}
+
+.choices-header {
+    display: flex;
+    background-color: #f5f7fa;
+    border-bottom: 1px solid var(--border-color);
+    padding: 0.5rem;
+    font-weight: 500;
+    font-size: 0.75rem;
+    color: var(--text-light);
+}
+
+.choices-list {
+    max-height: 200px;
+    overflow-y: auto;
+}
+
+.choice-row {
+    display: flex;
+    border-bottom: 1px solid var(--border-color);
+    align-items: center;
+    background-color: white;
+    transition: var(--transition);
+}
+
+.choice-row:last-child {
+    border-bottom: none;
+}
+
+.choice-row.ui-sortable-helper {
+    background-color: #f9fbfd;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+}
+
+.choice-row-placeholder {
+    height: 38px;
+    background-color: rgba(0, 0, 0, 0.02);
+    border: 1px dashed var(--border-color);
+}
+
+.choice-drag-handle {
+    width: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: grab;
+    padding: 0 0.25rem;
+    color: var(--text-light);
+}
+
+.choice-drag-handle:active {
+    cursor: grabbing;
+}
+
+.choice-value {
+    flex: 1;
+    padding: 0.25rem;
+}
+
+.choice-label {
+    flex: 2;
+    padding: 0.25rem;
+}
+
+.choice-price {
+    width: 80px;
+    padding: 0.25rem;
+}
+
+.choice-actions {
+    width: 34px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.choice-row input {
+    border: 1px solid transparent;
+    background-color: transparent;
+    padding: 0.25rem 0.5rem;
+    width: 100%;
+}
+
+.choice-row input:focus {
+    border-color: var(--primary-color);
+    background-color: white;
+}
+
+.add-choice-container {
+    padding: 0.5rem;
+    background-color: #f9fafc;
+    border-top: 1px solid var(--border-color);
+}
+
+.add-choice {
+    background-color: transparent;
+    border: 1px dashed var(--border-color);
+    color: var(--text-light);
+    font-size: 0.8rem;
+    padding: 0.25rem 0.75rem;
+    width: 100%;
+    box-shadow: none;
+}
+
+.add-choice:hover {
+    background-color: var(--primary-light);
+    color: var(--primary-color);
+    border-color: var(--primary-color);
+}
+
+.remove-choice {
+    color: var(--text-light);
+    opacity: 0.5;
+    background: none;
+    border: none;
+    padding: 0;
+    cursor: pointer;
+    transition: var(--transition);
+}
+
+.remove-choice:hover {
+    color: var(--danger-color);
+    opacity: 1;
+}
+
+.button-link {
+    background: none;
+    border: none;
+    padding: 0;
+    font: inherit;
+    cursor: pointer;
+    box-shadow: none;
+}
+
+/* Option sortable placeholder */
+.option-item-placeholder {
+    border: 1px dashed var(--primary-color);
+    background-color: rgba(76, 175, 80, 0.05);
+    border-radius: var(--radius);
+    margin-bottom: 0.75rem;
+    height: 56px;
+}
+
+.sortable-enabled .option-item {
+    cursor: move;
+}
+
+/* Category badges */
+.category-badge {
+    display: inline-block;
+    padding: 3px 8px;
+    border-radius: 50px;
+    font-size: 0.75rem;
+    margin-left: 0.5rem;
+}
+
+.category-residential {
+    background-color: rgba(33, 150, 243, 0.15);
+    color: var(--info-color);
+}
+
+.category-commercial {
+    background-color: rgba(156, 39, 176, 0.15);
+    color: #9c27b0;
+}
+
+.category-special {
+    background-color: rgba(255, 193, 7, 0.15);
+    color: #ffc107;
+}
+
+/* No items state */
+.no-items {
+    text-align: center;
+    padding: 3rem 1rem;
+    color: var(--text-light);
+    background-color: rgba(0, 0, 0, 0.02);
+    border-radius: var(--radius);
+    border: 1px dashed var(--border-color);
+}
+
+.no-items .dashicons {
+    font-size: 3rem;
+    width: 3rem;
+    height: 3rem;
+    margin-bottom: 1rem;
+    opacity: 0.3;
+}
+
+/* Notification system */
+#mobooking-notification {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    padding: 12px 20px;
+    border-radius: 6px;
+    color: white;
+    font-size: 14px;
+    z-index: 100001;
+    box-shadow: 0 3px 10px rgba(0, 0, 0, 0.2);
+    animation: slide-in-right 0.3s ease-out forwards;
+    max-width: 300px;
+}
+
+@keyframes slide-in-right {
+    from {
+        transform: translateX(50px);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
+.notification-success {
+    background-color: var(--success-color);
+}
+
+.notification-error {
+    background-color: var(--danger-color);
+}
+
+.notification-info {
+    background-color: var(--info-color);
+}
+
+.notification-warning {
+    background-color: var(--warning-color);
+}
+
+/* Delete modal warning */
+.warning {
+    color: var(--danger-color);
+    font-weight: 500;
+}
+
+/* Loading state */
+.loading {
+    position: relative;
+}
+
+.loading::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(255, 255, 255, 0.7);
+    z-index: 1;
+    border-radius: var(--radius);
+}
+
+.loading::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 30px;
+    height: 30px;
+    border: 3px solid var(--primary-color);
+    border-top-color: transparent;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    z-index: 2;
+}
+
+@keyframes spin {
+    to {
+        transform: translate(-50%, -50%) rotate(360deg);
+    }
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .form-row {
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+    
+    .top-actions {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 1rem;
+    }
+    
+    .service-actions {
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+    
+    .service-actions button {
+        width: 100%;
+    }
+    
+    .options-container {
+        flex-direction: column;
+    }
+    
+    .options-sidebar {
+        width: 100%;
+        border-right: none;
+        border-bottom: 1px solid var(--border-color);
+        max-height: 200px;
+    }
+    
+    .modal-content {
+        width: 95%;
+        padding: 1rem;
+    }
+}
+</style> Prevent direct access
 if (!defined('ABSPATH')) {
     exit;
 }
@@ -31,7 +1024,8 @@ $price_types = array(
     'fixed' => __('Fixed Amount', 'mobooking'),
     'percentage' => __('Percentage of Base Price', 'mobooking'),
     'multiply' => __('Multiply by Value', 'mobooking'),
-    'custom' => __('Custom Formula', 'mobooking')
+    'custom' => __('Custom Formula', 'mobooking'),
+    'none' => __('No Price Impact', 'mobooking')
 );
 
 // Get total count
@@ -247,7 +1241,9 @@ $total_services = count($services);
     <div class="modal-content modal-lg">
         <span class="modal-close">&times;</span>
         
-        <h2 id="options-modal-title"><?php _e('Manage Service Options', 'mobooking'); ?> - <span class="service-name"></span></h2>
+        <h2 id="options-modal-title">
+            <?php _e('Manage Service Options', 'mobooking'); ?> - <span class="service-name"></span>
+        </h2>
         
         <div class="options-container">
             <div class="options-sidebar">
@@ -315,7 +1311,7 @@ $total_services = count($services);
                         
                         <div class="form-group half price-impact-value">
                             <label for="option-price-impact"><?php _e('Price Value', 'mobooking'); ?></label>
-                            <input type="number" id="option-price-impact" name="price_impact" step="0.01">
+                            <input type="number" id="option-price-impact" name="price_impact" step="0.01" value="0">
                         </div>
                     </div>
                     
@@ -327,21 +1323,16 @@ $total_services = count($services);
                     </div>
                     
                     <?php 
-                    // Remove the old nonce field
-                    // wp_nonce_field('mobooking-option-nonce', 'option_nonce');
-                    
-                    // Add a fresh nonce specifically for service options
+                    // Add security nonces
                     $option_nonce = wp_create_nonce('mobooking-option-nonce');
                     echo '<input type="hidden" name="option_nonce" value="' . esc_attr($option_nonce) . '">';
-                    
-                    // Also add the service nonce that other functions might be using
                     echo '<input type="hidden" name="nonce" value="' . esc_attr(wp_create_nonce('mobooking-service-nonce')) . '">';
                     ?>
-
                 </form>
                 
                 <div class="no-option-selected">
-                    <p><?php _e('Select an option from the list or add a new one.', 'mobooking'); ?></p>
+                    <span class="dashicons dashicons-admin-generic"></span>
+                    <p><?php _e('Select an option from the list or add a new one to customize your service.', 'mobooking'); ?></p>
                 </div>
             </div>
         </div>
@@ -356,6 +1347,7 @@ $total_services = count($services);
         <h2><?php _e('Delete Service', 'mobooking'); ?></h2>
         
         <p><?php _e('Are you sure you want to delete this service? This action cannot be undone.', 'mobooking'); ?></p>
+        <p class="warning"><?php _e('Warning: Deleting this service will also remove all associated options and customizations.', 'mobooking'); ?></p>
         
         <div class="form-actions">
             <button type="button" class="button button-secondary cancel-delete"><?php _e('Cancel', 'mobooking'); ?></button>
@@ -364,15 +1356,25 @@ $total_services = count($services);
     </div>
 </div>
 
+<!-- Notification System -->
+<div id="mobooking-notification" style="display: none;"></div>
+
 <script>
 jQuery(document).ready(function($) {
-    // First, check if mobooking_services is defined, and if not, define it
+    // Ensure mobooking_services is defined
     if (typeof mobooking_services === 'undefined') {
-        console.log('mobooking_services not defined, creating a default object');
         window.mobooking_services = {
             ajax_url: '<?php echo admin_url('admin-ajax.php'); ?>',
             nonce: '<?php echo wp_create_nonce('mobooking-service-nonce'); ?>'
         };
+    }
+    
+    // Notification system
+    function showNotification(message, type = 'success') {
+        const notification = $('#mobooking-notification');
+        notification.attr('class', '').addClass('notification-' + type);
+        notification.html(message);
+        notification.fadeIn(300).delay(3000).fadeOut(300);
     }
     
     // Initialize the media uploader
@@ -457,7 +1459,7 @@ jQuery(document).ready(function($) {
     });
     
     // Open edit service modal
-    $('.edit-service').on('click', function() {
+    $(document).on('click', '.edit-service', function() {
         var serviceId = $(this).data('id');
         
         // Set modal title
@@ -508,8 +1510,7 @@ jQuery(document).ready(function($) {
                     // Reset tabs
                     $('.tab-button[data-tab="basic-info"]').click();
                 } else {
-                    alert(response.data.message || response.data);
-                    $('#service-modal').fadeOut();
+                    showNotification(response.data.message || 'Error loading service data', 'error');
                 }
                 
                 // Remove loading indicator
@@ -517,20 +1518,121 @@ jQuery(document).ready(function($) {
             },
             error: function(xhr, status, error) {
                 console.error('AJAX Error:', error);
-                alert('<?php _e('Error loading service data. Please try again.', 'mobooking'); ?>');
-                $('#service-modal').fadeOut();
+                showNotification('Error loading service data. Please try again.', 'error');
                 $('#service-modal').removeClass('loading');
             }
         });
     });
     
+    // Submit service form
+    $('#service-form').on('submit', function(e) {
+        e.preventDefault();
+        
+        // Validate form data
+        var serviceName = $('#service-name').val().trim();
+        var servicePrice = parseFloat($('#service-price').val());
+        var serviceDuration = parseInt($('#service-duration').val());
+        
+        if (!serviceName) {
+            showNotification('Service name is required', 'error');
+            $('#service-name').focus();
+            return;
+        }
+        
+        if (isNaN(servicePrice) || servicePrice <= 0) {
+            showNotification('Service price must be greater than zero', 'error');
+            $('#service-price').focus();
+            return;
+        }
+        
+        if (isNaN(serviceDuration) || serviceDuration < 15) {
+            showNotification('Service duration must be at least 15 minutes', 'error');
+            $('#service-duration').focus();
+            return;
+        }
+        
+        // Show loading indicator
+        $('#service-modal').addClass('loading');
+        
+        // Prepare form data
+        var formData = $(this).serialize();
+        formData += '&action=mobooking_save_service&nonce=' + mobooking_services.nonce;
+        
+        // Submit via AJAX
+        $.ajax({
+            url: mobooking_services.ajax_url,
+            type: 'POST',
+            data: formData,
+            success: function(response) {
+                if (response.success) {
+                    showNotification('Service saved successfully', 'success');
+                    
+                    // Reload page to show updated services
+                    location.reload();
+                } else {
+                    showNotification(response.data.message || 'Error saving service', 'error');
+                    $('#service-modal').removeClass('loading');
+                }
+            },
+            error: function(xhr, status, error) {
+                console.error('AJAX Error:', error);
+                showNotification('Error saving service. Please try again.', 'error');
+                $('#service-modal').removeClass('loading');
+            }
+        });
+    });
+    
+    // Open delete confirmation modal
+    $(document).on('click', '.delete-service', function() {
+        var serviceId = $(this).data('id');
+        $('.confirm-delete').data('id', serviceId);
+        $('#delete-modal').fadeIn();
+    });
+    
+    // Confirm delete service
+    $('.confirm-delete').on('click', function() {
+        var serviceId = $(this).data('id');
+        
+        // Show loading indicator
+        $('#delete-modal').addClass('loading');
+        
+        // Submit delete request via AJAX
+        $.ajax({
+            url: mobooking_services.ajax_url,
+            type: 'POST',
+            data: {
+                action: 'mobooking_delete_service',
+                id: serviceId,
+                nonce: mobooking_services.nonce
+            },
+            success: function(response) {
+                if (response.success) {
+                    showNotification('Service deleted successfully', 'success');
+                    
+                    // Reload page to show updated services
+                    location.reload();
+                } else {
+                    showNotification(response.data.message || 'Error deleting service', 'error');
+                    $('#delete-modal').removeClass('loading');
+                }
+            },
+            error: function(xhr, status, error) {
+                console.error('AJAX Error:', error);
+                showNotification('Error deleting service. Please try again.', 'error');
+                $('#delete-modal').removeClass('loading');
+            }
+        });
+    });
+    
+    // ================ SERVICE OPTIONS MANAGEMENT ================
+    
     // Open manage options modal
-    $('.manage-options').on('click', function() {
+    $(document).on('click', '.manage-options', function() {
         var serviceId = $(this).data('id');
         var serviceName = $(this).data('name');
         
-        // Set modal title
-        $('.options-modal-title .service-name').text(serviceName);
+        // Set modal title and service info
+        $('#options-modal-title .service-name').text(serviceName);
         
         // Set service ID in the form
         $('#option-service-id').val(serviceId);
@@ -564,20 +1666,39 @@ jQuery(document).ready(function($) {
                     // Clear options list
                     $('.options-list').empty();
                     
-                    if (response.data.options.length === 0) {
-                        $('.options-list').html('<div class="options-list-empty"><?php _e('No options configured yet.', 'mobooking'); ?></div>');
+                    if (!response.data.options || response.data.options.length === 0) {
+                        $('.options-list').html(
+                            '<div class="options-list-empty"><?php _e('No options configured yet. Add your first option to customize this service.', 'mobooking'); ?></div>'
+                        );
                     } else {
                         // Populate options list
                         $.each(response.data.options, function(index, option) {
-                            var optionItem = $('<div class="option-item" data-id="' + option.id + '">' +
+                            var optionItem = $('<div class="option-item" data-id="' + option.id + '" data-order="' + (option.display_order || index) + '">' +
+                                '<div class="option-drag-handle">' +
+                                '<span class="dashicons dashicons-menu"></span>' +
+                                '</div>' +
+                                '<div class="option-content">' +
                                 '<span class="option-name">' + option.name + '</span>' +
-                                '<span class="option-type">' + option.type + '</span>' +
+                                '<div class="option-meta">' +
+                                '<span class="option-type">' + getOptionTypeLabel(option.type) + '</span>' +
+                                (option.is_required == 1 ? '<span class="option-required">Required</span>' : '') +
+                                '</div>' +
+                                '</div>' +
+                                '<div class="option-preview">' +
+                                generateOptionPreview(option) +
+                                '</div>' +
                                 '</div>');
+                            
                             $('.options-list').append(optionItem);
                         });
+                        
+                        // Initialize sortable functionality for options
+                        if (!$('.options-list').hasClass('ui-sortable') && response.data.options.length > 1) {
+                            initOptionsSortable(serviceId);
+                        }
                     }
                 } else {
-                    alert(response.data.message || response.data);
+                    showNotification(response.data.message || 'Error loading options', 'error');
                 }
                 
                 // Remove loading indicator
@@ -585,68 +1706,137 @@ jQuery(document).ready(function($) {
             },
             error: function(xhr, status, error) {
                 console.error('AJAX Error:', error);
-                alert('<?php _e('Error loading service options. Please try again.', 'mobooking'); ?>');
+                showNotification('Error loading service options. Please try again.', 'error');
                 $('#options-modal').removeClass('loading');
             }
         });
     }
     
-    // Handle clicking on an option in the list
-    $(document).on('click', '.option-item', function() {
-        var optionId = $(this).data('id');
+    // Helper function to get option type label
+    function getOptionTypeLabel(type) {
+        const labels = {
+            'checkbox': 'Checkbox',
+            'number': 'Number Input',
+            'select': 'Dropdown',
+            'text': 'Text Input',
+            'textarea': 'Text Area',
+            'radio': 'Radio Buttons',
+            'quantity': 'Quantity'
+        };
         
-        // Show loading indicator
-        $('#options-modal').addClass('loading');
+        return labels[type] || type;
+    }
+    
+    // Helper function to generate option preview
+    function generateOptionPreview(option) {
+        let preview = '';
         
-        // Get option data
+        switch (option.type) {
+            case 'checkbox':
+                preview = '<div class="preview-checkbox"><input type="checkbox" ' +
+                    (option.default_value == '1' ? 'checked' : '') + ' disabled /></div>';
+                break;
+                
+            case 'select':
+                preview = '<div class="preview-select"><select disabled><option>Options...</option></select></div>';
+                break;
+                
+            case 'radio':
+                preview = '<div class="preview-radio"><span class="radio-dot"></span></div>';
+                break;
+                
+            case 'number':
+            case 'quantity':
+                preview = '<div class="preview-number">123</div>';
+                break;
+                
+            case 'text':
+                preview = '<div class="preview-text">Text</div>';
+                break;
+                
+            case 'textarea':
+                preview = '<div class="preview-textarea">Text Area</div>';
+                break;
+                
+            default:
+                preview = '';
+        }
+        
+        // Add price info if applicable
+        if (option.price_impact && option.price_impact != 0 && option.price_type !== 'none') {
+            const sign = option.price_impact > 0 ? '+' : '';
+            let priceDisplay = '';
+            
+            if (option.price_type === 'percentage') {
+                priceDisplay = sign + option.price_impact + '%';
+            } else if (option.price_type === 'fixed') {
+                priceDisplay = sign + ' + Math.abs(parseFloat(option.price_impact)).toFixed(2);
+            } else if (option.price_type === 'multiply') {
+                priceDisplay = '×' + option.price_impact;
+            }
+            
+            if (priceDisplay) {
+                preview += '<div class="price-indicator">' + priceDisplay + '</div>';
+            }
+        }
+        
+        return preview;
+    }
+    
+    // Initialize sortable functionality for options
+    function initOptionsSortable(serviceId) {
+        $('.options-list').sortable({
+            handle: '.option-drag-handle',
+            placeholder: 'option-item-placeholder',
+            axis: 'y',
+            opacity: 0.8,
+            tolerance: 'pointer',
+            start: function(event, ui) {
+                ui.item.addClass('sorting');
+                ui.placeholder.height(ui.item.outerHeight());
+            },
+            stop: function(event, ui) {
+                ui.item.removeClass('sorting');
+            },
+            update: function(event, ui) {
+                updateOptionsOrder(serviceId);
+            }
+        }).addClass('sortable-enabled');
+    }
+    
+    // Function to update options order
+    function updateOptionsOrder(serviceId) {
+        const orderData = [];
+        
+        $('.options-list .option-item').each(function(index) {
+            orderData.push({
+                id: $(this).data('id'),
+                order: index
+            });
+        });
+        
         $.ajax({
             url: mobooking_services.ajax_url,
             type: 'POST',
             data: {
-                action: 'mobooking_get_service_option',
-                id: optionId,
+                action: 'mobooking_update_options_order',
+                service_id: serviceId,
+                order_data: JSON.stringify(orderData),
                 nonce: mobooking_services.nonce
             },
             success: function(response) {
                 if (response.success) {
-                    var option = response.data.option;
-                    
-                    // Fill the form with option data
-                    $('#option-id').val(option.id);
-                    $('#option-name').val(option.name);
-                    $('#option-type').val(option.type);
-                    $('#option-required').val(option.is_required);
-                    $('#option-description').val(option.description);
-                    $('#option-price-type').val(option.price_type);
-                    $('#option-price-impact').val(option.price_impact);
-                    
-                    // Generate type-specific fields
-                    generateDynamicFields(option.type, option);
-                    
-                    // Show delete button
-                    $('.delete-option').show();
-                    
-                    // Show the form
-                    $('.no-option-selected').hide();
-                    $('#option-form').show();
-                    
-                    // Highlight selected option
-                    $('.option-item').removeClass('active');
-                    $('.option-item[data-id="' + optionId + '"]').addClass('active');
+                    showNotification('Options order updated', 'success');
                 } else {
-                    alert(response.data.message || response.data);
+                    showNotification(response.data.message || 'Error updating order', 'error');
                 }
-                
-                // Remove loading indicator
-                $('#options-modal').removeClass('loading');
             },
             error: function(xhr, status, error) {
                 console.error('AJAX Error:', error);
-                alert('<?php _e('Error loading option data. Please try again.', 'mobooking'); ?>');
-                $('#options-modal').removeClass('loading');
+                showNotification('Error updating options order', 'error');
             }
         });
-    });
+    }
     
     // Add new option button
     $('.add-new-option').on('click', function() {
@@ -654,8 +1844,10 @@ jQuery(document).ready(function($) {
         $('#option-id').val('');
         $('#option-form')[0].reset();
         
-        // Set service ID from the modal
-        // (Already set when opening the options modal)
+        // Set default values
+        $('#option-price-type').val('fixed');
+        $('#option-price-impact').val('0');
+        $('#option-type').val('checkbox');
         
         // Generate empty dynamic fields for default type
         generateDynamicFields('checkbox');
@@ -671,9 +1863,71 @@ jQuery(document).ready(function($) {
         $('.option-item').removeClass('active');
     });
     
+    // Handle clicking on an option in the list
+    $(document).on('click', '.option-item', function(e) {
+        // Don't react if clicking on the drag handle
+        if ($(e.target).hasClass('option-drag-handle') || $(e.target).closest('.option-drag-handle').length) {
+            return;
+        }
+        
+        const optionId = $(this).data('id');
+        
+        // Show loading indicator
+        $('#options-modal').addClass('loading');
+        
+        // Get option data
+        $.ajax({
+            url: mobooking_services.ajax_url,
+            type: 'POST',
+            data: {
+                action: 'mobooking_get_service_option',
+                id: optionId,
+                nonce: mobooking_services.nonce
+            },
+            success: function(response) {
+                if (response.success) {
+                    const option = response.data.option;
+                    
+                    // Fill the form with option data
+                    $('#option-id').val(option.id);
+                    $('#option-name').val(option.name);
+                    $('#option-type').val(option.type);
+                    $('#option-required').val(option.is_required);
+                    $('#option-description').val(option.description);
+                    $('#option-price-type').val(option.price_type || 'fixed');
+                    $('#option-price-impact').val(option.price_impact || 0);
+                    
+                    // Generate type-specific fields
+                    generateDynamicFields(option.type, option);
+                    
+                    // Show delete button
+                    $('.delete-option').show();
+                    
+                    // Show the form
+                    $('.no-option-selected').hide();
+                    $('#option-form').show();
+                    
+                    // Highlight selected option
+                    $('.option-item').removeClass('active');
+                    $(`.option-item[data-id="${optionId}"]`).addClass('active');
+                } else {
+                    showNotification(response.data.message || 'Error loading option', 'error');
+                }
+                
+                // Remove loading indicator
+                $('#options-modal').removeClass('loading');
+            },
+            error: function(xhr, status, error) {
+                console.error('AJAX Error:', error);
+                showNotification('Error loading option data. Please try again.', 'error');
+                $('#options-modal').removeClass('loading');
+            }
+        });
+    });
+    
     // Handle option type change
     $('#option-type').on('change', function() {
-        var optionType = $(this).val();
+        const optionType = $(this).val();
         if (optionType) {
             generateDynamicFields(optionType);
         }
@@ -686,20 +1940,30 @@ jQuery(document).ready(function($) {
     
     // Function to update price fields based on selected price type
     function updatePriceFields(priceType) {
-        var valueField = $('.price-impact-value');
+        const valueField = $('.price-impact-value');
+        
+        valueField.show();
         
         if (priceType === 'custom') {
             valueField.find('label').text('<?php _e('Formula', 'mobooking'); ?>');
             valueField.find('input').attr('type', 'text').attr('placeholder', 'price + (value * 5)');
+        } else if (priceType === 'none') {
+            valueField.hide();
+        } else if (priceType === 'percentage') {
+            valueField.find('label').text('<?php _e('Percentage (%)', 'mobooking'); ?>');
+            valueField.find('input').attr('type', 'number').attr('placeholder', '10');
+        } else if (priceType === 'multiply') {
+            valueField.find('label').text('<?php _e('Multiplier', 'mobooking'); ?>');
+            valueField.find('input').attr('type', 'number').attr('step', '0.1').attr('placeholder', '1.5');
         } else {
-            valueField.find('label').text('<?php _e('Price Value', 'mobooking'); ?>');
-            valueField.find('input').attr('type', 'number').attr('placeholder', '');
+            valueField.find('label').text('<?php _e('Amount ($)', 'mobooking'); ?>');
+            valueField.find('input').attr('type', 'number').attr('step', '0.01').attr('placeholder', '9.99');
         }
     }
     
     // Function to generate dynamic fields based on option type
     function generateDynamicFields(optionType, optionData) {
-        var dynamicFields = $('.dynamic-fields');
+        const dynamicFields = $('.dynamic-fields');
         dynamicFields.empty();
         
         optionData = optionData || {};
@@ -715,6 +1979,10 @@ jQuery(document).ready(function($) {
                                 '<option value="1" ' + (optionData.default_value == '1' ? 'selected' : '') + '><?php _e('Checked', 'mobooking'); ?></option>' +
                             '</select>' +
                         '</div>' +
+                        '<div class="form-group half">' +
+                            '<label for="option-label"><?php _e('Option Label', 'mobooking'); ?></label>' +
+                            '<input type="text" id="option-label" name="option_label" value="' + (optionData.option_label || '') + '" placeholder="<?php _e('Check this box to add...', 'mobooking'); ?>">' +
+                        '</div>' +
                     '</div>'
                 );
                 break;
@@ -724,11 +1992,11 @@ jQuery(document).ready(function($) {
                     '<div class="form-row">' +
                         '<div class="form-group half">' +
                             '<label for="option-min-value"><?php _e('Minimum Value', 'mobooking'); ?></label>' +
-                            '<input type="number" id="option-min-value" name="min_value" value="' + (optionData.min_value || 0) + '">' +
+                            '<input type="number" id="option-min-value" name="min_value" value="' + (optionData.min_value !== null ? optionData.min_value : 0) + '">' +
                         '</div>' +
                         '<div class="form-group half">' +
                             '<label for="option-max-value"><?php _e('Maximum Value', 'mobooking'); ?></label>' +
-                            '<input type="number" id="option-max-value" name="max_value" value="' + (optionData.max_value || '') + '">' +
+                            '<input type="number" id="option-max-value" name="max_value" value="' + (optionData.max_value !== null ? optionData.max_value : '') + '">' +
                         '</div>' +
                     '</div>' +
                     '<div class="form-row">' +
@@ -740,6 +2008,16 @@ jQuery(document).ready(function($) {
                             '<label for="option-placeholder"><?php _e('Placeholder', 'mobooking'); ?></label>' +
                             '<input type="text" id="option-placeholder" name="placeholder" value="' + (optionData.placeholder || '') + '">' +
                         '</div>' +
+                    '</div>' +
+                    '<div class="form-row">' +
+                        '<div class="form-group half">' +
+                            '<label for="option-step"><?php _e('Step', 'mobooking'); ?></label>' +
+                            '<input type="number" id="option-step" name="step" value="' + (optionData.step || '1') + '" step="0.01">' +
+                        '</div>' +
+                        '<div class="form-group half">' +
+                            '<label for="option-unit"><?php _e('Unit Label', 'mobooking'); ?></label>' +
+                            '<input type="text" id="option-unit" name="unit" value="' + (optionData.unit || '') + '" placeholder="<?php _e('sq ft, hours, etc.', 'mobooking'); ?>">' +
+                        '</div>' +
                     '</div>'
                 );
                 break;
@@ -748,9 +2026,21 @@ jQuery(document).ready(function($) {
             case 'radio':
                 dynamicFields.append(
                     '<div class="form-group">' +
-                        '<label for="option-choices"><?php _e('Choices (one per line, format: value|label)', 'mobooking'); ?></label>' +
-                        '<textarea id="option-choices" name="options" rows="4">' + (optionData.options || '') + '</textarea>' +
-                        '<p class="field-hint"><?php _e('Example: small|Small Size (10-20 sq ft)', 'mobooking'); ?></p>' +
+                        '<label><?php _e('Choices', 'mobooking'); ?></label>' +
+                        '<div class="choices-container">' +
+                            '<div class="choices-header">' +
+                                '<div class="choice-value"><?php _e('Value', 'mobooking'); ?></div>' +
+                                '<div class="choice-label"><?php _e('Label', 'mobooking'); ?></div>' +
+                                '<div class="choice-price"><?php _e('Price', 'mobooking'); ?></div>' +
+                                '<div class="choice-actions"></div>' +
+                            '</div>' +
+                            '<div class="choices-list"></div>' +
+                            '<div class="add-choice-container">' +
+                                '<button type="button" class="button add-choice"><?php _e('Add Choice', 'mobooking'); ?></button>' +
+                            '</div>' +
+                        '</div>' +
+                        '<input type="hidden" id="option-choices" name="options">' +
+                        '<p class="field-hint"><?php _e('Each choice has a value (used internally) and a label (displayed to customers).', 'mobooking'); ?></p>' +
                     '</div>' +
                     '<div class="form-group">' +
                         '<label for="option-default-value"><?php _e('Default Value', 'mobooking'); ?></label>' +
@@ -758,6 +2048,31 @@ jQuery(document).ready(function($) {
                         '<p class="field-hint"><?php _e('Enter the value (not the label) of the default choice', 'mobooking'); ?></p>' +
                     '</div>'
                 );
+                
+                // Parse existing options and populate choices
+                if (optionData.options) {
+                    const choices = parseOptionsString(optionData.options);
+                    const choicesList = dynamicFields.find('.choices-list');
+                    
+                    if (choices.length === 0) {
+                        // Add a blank choice if none exist
+                        addChoiceRow(choicesList);
+                    } else {
+                        // Add each choice
+                        choices.forEach(choice => {
+                            addChoiceRow(choicesList, choice.value, choice.label, choice.price);
+                        });
+                    }
+                    
+                    // Update the hidden field
+                    $('#option-choices').val(optionData.options);
+                } else {
+                    // Add a blank choice for new options
+                    addChoiceRow(dynamicFields.find('.choices-list'));
+                }
+                
+                // Make choices sortable
+                initChoicesSortable();
                 break;
                 
             case 'text':
@@ -770,6 +2085,16 @@ jQuery(document).ready(function($) {
                         '<div class="form-group half">' +
                             '<label for="option-placeholder"><?php _e('Placeholder', 'mobooking'); ?></label>' +
                             '<input type="text" id="option-placeholder" name="placeholder" value="' + (optionData.placeholder || '') + '">' +
+                        '</div>' +
+                    '</div>' +
+                    '<div class="form-row">' +
+                        '<div class="form-group half">' +
+                            '<label for="option-min-length"><?php _e('Minimum Length', 'mobooking'); ?></label>' +
+                            '<input type="number" id="option-min-length" name="min_length" value="' + (optionData.min_length !== null ? optionData.min_length : '') + '" min="0">' +
+                        '</div>' +
+                        '<div class="form-group half">' +
+                            '<label for="option-max-length"><?php _e('Maximum Length', 'mobooking'); ?></label>' +
+                            '<input type="number" id="option-max-length" name="max_length" value="' + (optionData.max_length !== null ? optionData.max_length : '') + '" min="0">' +
                         '</div>' +
                     '</div>'
                 );
@@ -784,6 +2109,16 @@ jQuery(document).ready(function($) {
                     '<div class="form-group">' +
                         '<label for="option-placeholder"><?php _e('Placeholder', 'mobooking'); ?></label>' +
                         '<input type="text" id="option-placeholder" name="placeholder" value="' + (optionData.placeholder || '') + '">' +
+                    '</div>' +
+                    '<div class="form-row">' +
+                        '<div class="form-group half">' +
+                            '<label for="option-rows"><?php _e('Rows', 'mobooking'); ?></label>' +
+                            '<input type="number" id="option-rows" name="rows" value="' + (optionData.rows || '3') + '" min="2">' +
+                        '</div>' +
+                        '<div class="form-group half">' +
+                            '<label for="option-max-length"><?php _e('Maximum Length', 'mobooking'); ?></label>' +
+                            '<input type="number" id="option-max-length" name="max_length" value="' + (optionData.max_length !== null ? optionData.max_length : '') + '" min="0">' +
+                        '</div>' +
                     '</div>'
                 );
                 break;
@@ -793,17 +2128,27 @@ jQuery(document).ready(function($) {
                     '<div class="form-row">' +
                         '<div class="form-group half">' +
                             '<label for="option-min-value"><?php _e('Minimum Quantity', 'mobooking'); ?></label>' +
-                            '<input type="number" id="option-min-value" name="min_value" value="' + (optionData.min_value || 0) + '" min="0">' +
+                            '<input type="number" id="option-min-value" name="min_value" value="' + (optionData.min_value !== null ? optionData.min_value : 0) + '" min="0">' +
                         '</div>' +
                         '<div class="form-group half">' +
                             '<label for="option-max-value"><?php _e('Maximum Quantity', 'mobooking'); ?></label>' +
-                            '<input type="number" id="option-max-value" name="max_value" value="' + (optionData.max_value || '') + '" min="0">' +
+                            '<input type="number" id="option-max-value" name="max_value" value="' + (optionData.max_value !== null ? optionData.max_value : '') + '" min="0">' +
                         '</div>' +
                     '</div>' +
                     '<div class="form-row">' +
                         '<div class="form-group half">' +
                             '<label for="option-default-value"><?php _e('Default Quantity', 'mobooking'); ?></label>' +
                             '<input type="number" id="option-default-value" name="default_value" value="' + (optionData.default_value || 0) + '" min="0">' +
+                        '</div>' +
+                        '<div class="form-group half">' +
+                            '<label for="option-step"><?php _e('Step', 'mobooking'); ?></label>' +
+                            '<input type="number" id="option-step" name="step" value="' + (optionData.step || '1') + '" min="1">' +
+                        '</div>' +
+                    '</div>' +
+                    '<div class="form-row">' +
+                        '<div class="form-group half">' +
+                            '<label for="option-unit"><?php _e('Unit Label', 'mobooking'); ?></label>' +
+                            '<input type="text" id="option-unit" name="unit" value="' + (optionData.unit || '') + '" placeholder="<?php _e('items, people, etc.', 'mobooking'); ?>">' +
                         '</div>' +
                     '</div>'
                 );
@@ -814,67 +2159,167 @@ jQuery(document).ready(function($) {
         updatePriceFields(optionData.price_type || 'fixed');
     }
     
-    // Close modals
-    $('.modal-close, .cancel-service, .cancel-option, .cancel-delete').on('click', function() {
-        $('.mobooking-modal').fadeOut('fast');
-    });
-    
-    // Cancel option editing
-    $('.cancel-option').on('click', function() {
-        $('#option-form').hide();
-        $('.no-option-selected').show();
-        $('.option-item').removeClass('active');
-    });
-    
-    // Submit service form
-    $('#service-form').on('submit', function(e) {
-        e.preventDefault();
+    // Function to parse options string into array of objects
+    function parseOptionsString(optionsString) {
+        const options = [];
+        if (!optionsString) return options;
         
-        // Show loading indicator
-        $('#service-modal').addClass('loading');
+        const lines = optionsString.split('\n');
         
-        // Prepare form data
-        var formData = $(this).serialize();
-        formData += '&action=mobooking_save_service&nonce=' + mobooking_services.nonce;
-        
-        // Submit via AJAX
-        $.ajax({
-            url: mobooking_services.ajax_url,
-            type: 'POST',
-            data: formData,
-            success: function(response) {
-                if (response.success) {
-                    // Reload page to show updated services
-                    location.reload();
-                } else {
-                    alert(response.data.message || response.data);
-                    $('#service-modal').removeClass('loading');
-                }
-            },
-            error: function(xhr, status, error) {
-                console.error('AJAX Error:', error);
-                alert('<?php _e('Error saving service. Please try again.', 'mobooking'); ?>');
-                $('#service-modal').removeClass('loading');
+        lines.forEach(line => {
+            if (!line.trim()) return;
+            
+            const parts = line.split('|');
+            if (parts.length < 2) return;
+            
+            const value = parts[0]?.trim() || '';
+            const labelPriceParts = parts[1]?.split(':') || [''];
+            
+            const label = labelPriceParts[0]?.trim() || '';
+            const price = parseFloat(labelPriceParts[1] || 0) || 0;
+            
+            if (value) {
+                options.push({
+                    value: value,
+                    label: label,
+                    price: price
+                });
             }
         });
+        
+        return options;
+    }
+    
+    // Function to serialize choices to string format
+    function serializeChoices() {
+        const choices = [];
+        
+        $('.choices-list .choice-row').each(function() {
+            const value = $(this).find('.choice-value-input').val().trim();
+            const label = $(this).find('.choice-label-input').val().trim();
+            const price = parseFloat($(this).find('.choice-price-input').val()) || 0;
+            
+            if (value) {
+                choices.push(value + '|' + label + (price ? ':' + price : ''));
+            }
+        });
+        
+        return choices.join('\n');
+    }
+    
+    // Function to add a new choice row
+    function addChoiceRow(container, value = '', label = '', price = 0) {
+        const row = $(
+            '<div class="choice-row">' +
+                '<div class="choice-drag-handle">' +
+                    '<span class="dashicons dashicons-menu"></span>' +
+                '</div>' +
+                '<div class="choice-value">' +
+                    '<input type="text" class="choice-value-input" value="' + value + '" placeholder="value">' +
+                '</div>' +
+                '<div class="choice-label">' +
+                    '<input type="text" class="choice-label-input" value="' + label + '" placeholder="Display Label">' +
+                '</div>' +
+                '<div class="choice-price">' +
+                    '<input type="number" class="choice-price-input" value="' + price + '" step="0.01" placeholder="0.00">' +
+                '</div>' +
+                '<div class="choice-actions">' +
+                    '<button type="button" class="button-link remove-choice">' +
+                        '<span class="dashicons dashicons-trash"></span>' +
+                    '</button>' +
+                '</div>' +
+            '</div>'
+        );
+        
+        container.append(row);
+        
+        // Focus on the value input for new rows
+        if (!value) {
+            row.find('.choice-value-input').focus();
+        }
+        
+        // Update the hidden input
+        updateOptionsField();
+        
+        return row;
+    }
+    
+    // Function to initialize choices sortable
+    function initChoicesSortable() {
+        $('.choices-list').sortable({
+            handle: '.choice-drag-handle',
+            placeholder: 'choice-row-placeholder',
+            axis: 'y',
+            cursor: 'move',
+            opacity: 0.8,
+            tolerance: 'pointer',
+            start: function(event, ui) {
+                ui.placeholder.height(ui.item.outerHeight());
+            },
+            update: function() {
+                // When order changes, update the hidden input
+                updateOptionsField();
+            }
+        });
+    }
+    
+    // Add new choice button handler
+    $(document).on('click', '.add-choice', function() {
+        const choicesList = $(this).closest('.choices-container').find('.choices-list');
+        addChoiceRow(choicesList);
     });
+    
+    // Remove choice button handler
+    $(document).on('click', '.remove-choice', function() {
+        const choiceRow = $(this).closest('.choice-row');
+        
+        // Don't remove if it's the only choice
+        if ($('.choice-row').length <= 1) {
+            showNotification('You must have at least one choice', 'warning');
+            return;
+        }
+        
+        // Animate removal
+        choiceRow.slideUp(200, function() {
+            $(this).remove();
+            updateOptionsField();
+        });
+    });
+    
+    // Update options field when choice inputs change
+    $(document).on('input', '.choice-value-input, .choice-label-input, .choice-price-input', function() {
+        updateOptionsField();
+    });
+    
+    // Function to update the hidden options field
+    function updateOptionsField() {
+        const serialized = serializeChoices();
+        $('#option-choices').val(serialized);
+    }
     
     // Submit option form
     $('#option-form').on('submit', function(e) {
         e.preventDefault();
         
+        // Validate form
+        if (!validateOptionForm()) {
+            return;
+        }
+        
         // Show loading indicator
         $('#options-modal').addClass('loading');
         
         // Prepare form data
-        var formData = $(this).serialize();
-        formData += '&action=mobooking_save_service_option&nonce=' + mobooking_services.nonce;
+        var formData = new FormData(this);
+        formData.append('action', 'mobooking_save_service_option');
         
-        // Submit via AJAX
+        // Send the AJAX request
         $.ajax({
             url: mobooking_services.ajax_url,
             type: 'POST',
             data: formData,
+            processData: false,
+            contentType: false,
             success: function(response) {
                 if (response.success) {
                     // Reload options list
@@ -883,597 +2328,56 @@ jQuery(document).ready(function($) {
                     // Hide the form
                     $('#option-form').hide();
                     $('.no-option-selected').show();
-                } else {
-                    alert(response.data.message || response.data);
-                    $('#options-modal').removeClass('loading');
-                }
-            },
-            error: function(xhr, status, error) {
-                console.error('AJAX Error:', error);
-                alert('<?php _e('Error saving option. Please try again.', 'mobooking'); ?>');
-                $('#options-modal').removeClass('loading');
-            }
-        });
-    });
-    
-    // Delete option button click
-    $('.delete-option').on('click', function() {
-        var optionId = $('#option-id').val();
-        
-        if (!optionId) {
-            return;
-        }
-        
-        if (!confirm('<?php _e('Are you sure you want to delete this option? This action cannot be undone.', 'mobooking'); ?>')) {
-            return;
-        }
-        
-        // Show loading indicator
-        $('#options-modal').addClass('loading');
-        
-        // Submit delete request via AJAX
-        $.ajax({
-            url: mobooking_services.ajax_url,
-            type: 'POST',
-            data: {
-                action: 'mobooking_delete_service_option',
-                id: optionId,
-                nonce: mobooking_services.nonce
-            },
-            success: function(response) {
-                if (response.success) {
-                    // Reload options list
-                    loadServiceOptions($('#option-service-id').val());
                     
-                    // Hide the form
-                    $('#option-form').hide();
-                    $('.no-option-selected').show();
+                    // Show success notification
+                    showNotification('Option ' + ($('#option-id').val() ? 'updated' : 'created') + ' successfully', 'success');
                 } else {
-                    alert(response.data.message || response.data);
-                    $('#options-modal').removeClass('loading');
+                    showNotification(response.data.message || 'Error saving option', 'error');
                 }
+                
+                $('#options-modal').removeClass('loading');
             },
             error: function(xhr, status, error) {
                 console.error('AJAX Error:', error);
-                alert('<?php _e('Error deleting option. Please try again.', 'mobooking'); ?>');
+                console.log('Full response:', xhr.responseText);
+                showNotification('Error saving option. Please try again.', 'error');
                 $('#options-modal').removeClass('loading');
             }
         });
     });
     
-    // Open delete confirmation modal
-    $('.delete-service').on('click', function() {
-        var serviceId = $(this).data('id');
-        $('.confirm-delete').data('id', serviceId);
-        $('#delete-modal').fadeIn();
-    });
-    
-    // Confirm delete service
-    $('.confirm-delete').on('click', function() {
-        var serviceId = $(this).data('id');
+    // Function to validate the option form
+    function validateOptionForm() {
+        // Check required fields
+        const name = $('#option-name').val().trim();
+        const type = $('#option-type').val();
         
-        // Show loading indicator
-        $('#delete-modal').addClass('loading');
+        if (!name) {
+            showNotification('Option name is required', 'error');
+            $('#option-name').focus();
+            return false;
+        }
         
-        // Submit delete request via AJAX
-        $.ajax({
-            url: mobooking_services.ajax_url,
-            type: 'POST',
-            data: {
-                action: 'mobooking_delete_service',
-                id: serviceId,
-                nonce: mobooking_services.nonce
-            },
-            success: function(response) {
-                if (response.success) {
-                    // Reload page to show updated services
-                    location.reload();
-                } else {
-                    alert(response.data.message || response.data);
-                    $('#delete-modal').removeClass('loading');
-                }
-            },
-            error: function(xhr, status, error) {
-                console.error('AJAX Error:', error);
-                alert('<?php _e('Error deleting service. Please try again.', 'mobooking'); ?>');
-                $('#delete-modal').removeClass('loading');
+        if (!type) {
+            showNotification('Option type is required', 'error');
+            $('#option-type').focus();
+            return false;
+        }
+        
+        // Validate choices for select/radio options
+        if (type === 'select' || type === 'radio') {
+            const hasValidChoices = $('.choice-row').toArray().some(row => {
+                return $(row).find('.choice-value-input').val().trim() !== '';
+            });
+            
+            if (!hasValidChoices) {
+                showNotification('At least one choice with a value is required', 'error');
+                $('.choices-list .choice-value-input:first').focus();
+                return false;
             }
-        });
-    });
-});
-</script>
-
-<style>
-    /* Updated Services specific styling */
-    .section-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        margin-bottom: 1.5rem;
-    }
-    
-    .services-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-        gap: 1.5rem;
-        margin-top: 1rem;
-    }
-    
-    .service-card {
-        background-color: var(--card-bg);
-        border-radius: var(--radius);
-        box-shadow: var(--shadow);
-        transition: var(--transition);
-        overflow: hidden;
-        display: flex;
-        flex-direction: column;
-        height: 100%;
-    border: 1px solid var(--border-color);    }
-    
-    .service-card:hover {
-        transform: translateY(-3px);
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
-    }
-    
-    .service-header {
-        display: flex;
-        align-items: flex-start;
-        padding: 1rem;
-        border-bottom: 1px solid var(--border-color);
-        background-color: rgba(0, 0, 0, 0.02);
-    }
-    
-    .service-image {
-        width: 50px;
-        height: 50px;
-        background-size: cover;
-        background-position: center;
-        border-radius: 6px;
-        margin-right: 0.75rem;
-    }
-    
-    .service-icon {
-        width: 50px;
-        height: 50px;
-        background-color: var(--primary-color);
-        color: white;
-        border-radius: 6px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        margin-right: 0.75rem;
-    }
-    
-    .service-icon .dashicons {
-        font-size: 1.5rem;
-        width: 1.5rem;
-        height: 1.5rem;
-    }
-    
-    .service-title {
-        flex: 1;
-    }
-    
-    .service-title h3 {
-        margin: 0 0 0.25rem;
-        font-size: 1.1rem;
-        font-weight: 600;
-        line-height: 1.3;
-    }
-    
-    .service-status-price {
-        display: flex;
-        flex-direction: column;
-        align-items: flex-end;
-        margin-left: 0.75rem;
-    }
-    
-    .service-price {
-        font-weight: 700;
-        font-size: 1.1rem;
-        color: var(--primary-color);
-        margin-bottom: 0.25rem;
-    }
-    
-    .service-status {
-        font-size: 0.75rem;
-        padding: 2px 8px;
-        border-radius: 50px;
-    }
-    
-    .service-status-active {
-        background-color: rgba(76, 175, 80, 0.15);
-        color: var(--success-color);
-    }
-    
-    .service-status-inactive {
-        background-color: rgba(158, 158, 158, 0.15);
-        color: var(--text-light);
-    }
-    
-    .service-body {
-        padding: 1rem;
-        flex-grow: 1;
-    }
-    
-    .service-meta {
-        margin-bottom: 0.75rem;
-        color: var(--text-light);
-        font-size: 0.875rem;
-        display: flex;
-        align-items: center;
-    }
-    
-    .service-meta .dashicons {
-        font-size: 1rem;
-        width: 1rem;
-        height: 1rem;
-        vertical-align: middle;
-        margin-right: 0.25rem;
-    }
-    
-    .service-duration {
-        margin-right: 1rem;
-    }
-    
-    .service-options-badge {
-        background-color: rgba(33, 150, 243, 0.15);
-        color: var(--info-color);
-        padding: 2px 8px;
-        border-radius: 50px;
-        font-size: 0.75rem;
-    }
-    
-    .service-description {
-        font-size: 0.9375rem;
-        line-height: 1.5;
-        color: var(--text-color);
-    }
-    
-    .service-actions {
-        padding: 1rem;
-        border-top: 1px solid var(--border-color);
-        display: flex;
-        justify-content: space-between;
-    }
-    
-    .service-actions button {
-        padding: 0.5rem;
-        font-size: 0.875rem;
-    }
-    
-    .service-actions button .dashicons {
-        margin-right: 0.25rem;
-    }
-    
-    .top-actions {
-        display: flex;
-        gap: 1rem;
-        align-items: center;
-    }
-    
-    .filter-controls {
-        display: flex;
-        align-items: center;
-    }
-    
-    .filter-controls label {
-        margin-right: 0.5rem;
-        margin-bottom: 0;
-    }
-    
-    /* Modal styling enhancements */
-    .mobooking-modal {
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        background-color: rgba(0, 0, 0, 0.5);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        z-index: 1000;
-    }
-    
-    .modal-content {
-        background-color: var(--card-bg);
-        border-radius: var(--radius);
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-        width: 90%;
-        max-width: 600px;
-        max-height: 90vh;
-        overflow-y: auto;
-        position: relative;
-        padding: 1.5rem;
-    }
-    
-    .modal-lg {
-        max-width: 900px;
-    }
-    
-    .modal-close {
-        position: absolute;
-        top: 1rem;
-        right: 1rem;
-        font-size: 1.5rem;
-        cursor: pointer;
-        transition: var(--transition);
-        line-height: 1;
-        width: 24px;
-        height: 24px;
-        text-align: center;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        border-radius: 50%;
-    }
-    
-    .modal-close:hover {
-        color: var(--primary-color);
-        background-color: rgba(0, 0, 0, 0.05);
-    }
-    
-    .form-row {
-        display: flex;
-        gap: 1rem;
-        margin-bottom: 1rem;
-    }
-    
-    .form-group.half {
-        flex: 1;
-    }
-    
-    .form-actions {
-        display: flex;
-        justify-content: flex-end;
-        gap: 1rem;
-        margin-top: 1.5rem;
-    }
-    
-    .form-actions .spacer {
-        flex-grow: 1;
-    }
-    
-    /* Tab styling */
-    .modal-tabs {
-        display: flex;
-        border-bottom: 1px solid var(--border-color);
-        margin-bottom: 1.5rem;
-    }
-    
-    .tab-button {
-        background: none;
-        border: none;
-        padding: 0.75rem 1.25rem;
-        margin-right: 0.5rem;
-        cursor: pointer;
-        color: var(--text-light);
-        position: relative;
-        font-weight: 500;
-    }
-    
-    .tab-button.active {
-        color: var(--primary-color);
-    }
-    
-    .tab-button.active::after {
-        content: '';
-        position: absolute;
-        bottom: -1px;
-        left: 0;
-        right: 0;
-        height: 2px;
-        background-color: var(--primary-color);
-    }
-    
-    .tab-content {
-        margin-bottom: 1rem;
-    }
-    
-    .tab-pane {
-        display: none;
-    }
-    
-    .tab-pane.active {
-        display: block;
-    }
-    
-    /* Image preview styling */
-    .image-upload-container {
-        display: flex;
-        gap: 0.5rem;
-    }
-    
-    .image-preview {
-        margin-top: 0.5rem;
-        max-width: 100%;
-    }
-    
-    .image-preview img {
-        max-width: 200px;
-        max-height: 100px;
-        border-radius: var(--radius);
-        object-fit: cover;
-    }
-    
-    .icon-preview-container {
-        margin-top: 0.5rem;
-        text-align: center;
-    }
-    
-    .icon-preview {
-        display: inline-flex;
-        width: 40px;
-        height: 40px;
-        background-color: var(--primary-color);
-        color: white;
-        border-radius: 6px;
-        align-items: center;
-        justify-content: center;
-    }
-    
-    .icon-preview .dashicons {
-        font-size: 1.25rem;
-        width: 1.25rem;
-        height: 1.25rem;
-    }
-    
-    /* Options modal styling */
-    .options-container {
-        display: flex;
-        margin-top: 1.5rem;
-        min-height: 300px;
-        border: 1px solid var(--border-color);
-        border-radius: var(--radius);
-    }
-    
-    .options-sidebar {
-        width: 240px;
-        border-right: 1px solid var(--border-color);
-        padding: 1rem;
-        background-color: rgba(0, 0, 0, 0.02);
-    }
-    
-    .options-content {
-        flex: 1;
-        padding: 1.5rem;
-        position: relative;
-    }
-    
-    .options-list {
-        margin-top: 1rem;
-        max-height: 400px;
-        overflow-y: auto;
-    }
-    
-    .options-list-empty {
-        color: var(--text-light);
-        font-style: italic;
-        margin-top: 1rem;
-        text-align: center;
-    }
-    
-    .option-item {
-        padding: 0.75rem;
-        border: 1px solid var(--border-color);
-        border-radius: var(--radius);
-        margin-bottom: 0.5rem;
-        cursor: pointer;
-        transition: var(--transition);
-        display: flex;
-        flex-direction: column;
-    }
-    
-    .option-item:hover {
-        border-color: var(--primary-color);
-        background-color: rgba(0, 0, 0, 0.01);
-    }
-    
-    .option-item.active {
-        border-color: var(--primary-color);
-        background-color: rgba(76, 175, 80, 0.05);
-    }
-    
-    .option-name {
-        font-weight: 500;
-        margin-bottom: 0.25rem;
-    }
-    
-    .option-type {
-        font-size: 0.75rem;
-        color: var(--text-light);
-        text-transform: capitalize;
-    }
-    
-    .no-option-selected {
-        display: flex;
-        height: 100%;
-        align-items: center;
-        justify-content: center;
-        color: var(--text-light);
-        text-align: center;
-        padding: 2rem;
-    }
-    
-    .field-hint {
-        font-size: 0.75rem;
-        color: var(--text-light);
-        margin-top: 0.25rem;
-        margin-bottom: 0;
-    }
-    
-    /* Loading state */
-    .loading {
-        position: relative;
-    }
-    
-    .loading::after {
-        content: '';
-        position: absolute;
-        top: 0;
-        left: 0;
-        right: 0;
-        bottom: 0;
-        background-color: rgba(255, 255, 255, 0.7);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        z-index: 1;
-        border-radius: var(--radius);
-    }
-    
-    .loading::before {
-        content: '';
-        position: absolute;
-        top: 50%;
-        left: 50%;
-        transform: translate(-50%, -50%);
-        width: 30px;
-        height: 30px;
-        border: 3px solid var(--primary-color);
-        border-top-color: transparent;
-        border-radius: 50%;
-        animation: spin 1s linear infinite;
-        z-index: 2;
-    }
-    
-    @keyframes spin {
-        to {
-            transform: translate(-50%, -50%) rotate(360deg);
-        }
-    }
-    
-    /* Responsive adjustments */
-    @media (max-width: 768px) {
-        .form-row {
-            flex-direction: column;
-            gap: 0;
         }
         
-        .top-actions {
-            flex-direction: column;
-            align-items: flex-start;
-            gap: 1rem;
-        }
-        
-        .service-actions {
-            flex-direction: column;
-            gap: 0.5rem;
-        }
-        
-        .service-actions button {
-            width: 100%;
-        }
-        
-        .options-container {
-            flex-direction: column;
-        }
-        
-        .options-sidebar {
-            width: 100%;
-            border-right: none;
-            border-bottom: 1px solid var(--border-color);
-        }
+        return true;
     }
-</style>
+    
+    //
