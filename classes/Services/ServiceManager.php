@@ -23,7 +23,8 @@ class ServiceManager {
         // Enqueue assets for the editor
         add_action('wp_enqueue_scripts', array($this, 'enqueue_editor_assets'));
     }
-    
+
+
     /**
      * Enqueue assets for the service editor
      */
@@ -85,6 +86,82 @@ class ServiceManager {
         return $service;
     }
     
+/**
+ * Get services for a user
+ */
+public function get_user_services($user_id) {
+    global $wpdb;
+    $services_table = $wpdb->prefix . 'mobooking_services';
+    
+    return $wpdb->get_results($wpdb->prepare(
+        "SELECT * FROM $services_table WHERE user_id = %d ORDER BY name ASC",
+        $user_id
+    ));
+}
+
+/**
+ * Get a specific service (original method from Manager)
+ */
+public function get_service($service_id, $user_id = null) {
+    global $wpdb;
+    $services_table = $wpdb->prefix . 'mobooking_services';
+    
+    if ($user_id) {
+        // Get service only if it belongs to the user
+        return $wpdb->get_row($wpdb->prepare(
+            "SELECT * FROM $services_table WHERE id = %d AND user_id = %d",
+            $service_id, $user_id
+        ));
+    }
+    
+    return $wpdb->get_row($wpdb->prepare(
+        "SELECT * FROM $services_table WHERE id = %d",
+        $service_id
+    ));
+}
+
+/**
+ * Check if a service has any options (original method from OptionsManager)
+ */
+public function has_service_options($service_id) {
+    global $wpdb;
+    $options_table = $wpdb->prefix . 'mobooking_service_options';
+    
+    $count = $wpdb->get_var($wpdb->prepare(
+        "SELECT COUNT(*) FROM $options_table WHERE service_id = %d",
+        $service_id
+    ));
+    
+    return $count > 0;
+}
+
+/**
+ * Get service options (original method from OptionsManager)
+ */
+public function get_service_options($service_id) {
+    global $wpdb;
+    $options_table = $wpdb->prefix . 'mobooking_service_options';
+    
+    return $wpdb->get_results($wpdb->prepare(
+        "SELECT * FROM $options_table WHERE service_id = %d ORDER BY display_order ASC, id ASC",
+        $service_id
+    ));
+}
+
+/**
+ * Get a specific service option (original method from OptionsManager)
+ */
+public function get_service_option($option_id) {
+    global $wpdb;
+    $options_table = $wpdb->prefix . 'mobooking_service_options';
+    
+    return $wpdb->get_row($wpdb->prepare(
+        "SELECT * FROM $options_table WHERE id = %d",
+        $option_id
+    ));
+}
+
+
     /**
      * Save complete service with options
      */
