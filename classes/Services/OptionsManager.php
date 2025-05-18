@@ -303,93 +303,61 @@ public function save_service_option($data) {
         return $count > 0;
     }
     
-// /**
-//  * AJAX handler to save service option
-//  */
-// public function ajax_save_service_option() {
-//     // Add more comprehensive debugging
-//     error_log('AJAX save_service_option called');
-//     error_log('POST data: ' . print_r($_POST, true));
-    
-//     // First, check if we're receiving the option_nonce
-//     if (isset($_POST['option_nonce'])) {
-//         $nonce = $_POST['option_nonce'];
-//         $action = 'mobooking-option-nonce';
-//         error_log("Checking option_nonce: $nonce against action: $action");
-        
-//         // Verify nonce directly and log the result
-//         $valid = wp_verify_nonce($nonce, $action);
-//         error_log("Nonce verification result: " . ($valid ? "Valid ($valid)" : "Invalid"));
-        
-//         if (!$valid) {
-//             wp_send_json_error(array(
-//                 'message' => __('Security verification failed with option_nonce.', 'mobooking'),
-//                 'debug' => 'Option nonce check failed'
-//             ));
-//             return;
-//         }
-//     } 
-//     // Then check the regular nonce
-//     elseif (isset($_POST['nonce'])) {
-//         $nonce = $_POST['nonce'];
-//         $action = 'mobooking-service-nonce';
-//         error_log("Checking regular nonce: $nonce against action: $action");
-        
-//         // Verify nonce directly and log the result
-//         $valid = wp_verify_nonce($nonce, $action);
-//         error_log("Nonce verification result: " . ($valid ? "Valid ($valid)" : "Invalid"));
-        
-//         if (!$valid) {
-//             wp_send_json_error(array(
-//                 'message' => __('Security verification failed with regular nonce.', 'mobooking'),
-//                 'debug' => 'Regular nonce check failed'
-//             ));
-//             return;
-//         }
-//     } 
-//     // No valid nonce found
-//     else {
-//         error_log('No nonce field found in request');
-//         wp_send_json_error(array(
-//             'message' => __('Security verification failed. No security token found.', 'mobooking'),
-//             'debug' => 'No nonce provided'
-//         ));
-//         return;
-//     }
-    
-//     // Continue with the rest of the validation
-//     // Check permissions
-//     if (!current_user_can('mobooking_business_owner') && !current_user_can('administrator')) {
-//         wp_send_json_error(array('message' => __('You do not have permission to do this.', 'mobooking')));
-//         return;
-//     }
-    
-//     // Check required fields
-//     if (empty($_POST['service_id']) || empty($_POST['name']) || empty($_POST['type'])) {
-//         wp_send_json_error(array('message' => __('Missing required fields.', 'mobooking')));
-//         return;
-//     }
-    
-//     // Save option
-//     $result = $this->save_service_option($_POST);
-    
-//     if (!$result['success']) {
-//         wp_send_json_error(array('message' => $result['message']));
-//         return;
-//     }
-    
-//     wp_send_json_success(array(
-//         'id' => $result['id'],
-//         'message' => $result['message']
-//     ));
-// }
+/**
+ * AJAX handler to save service option
+ */
 public function ajax_save_service_option() {
-    // COMPLETELY BYPASS NONCE CHECK FOR TEMPORARY TESTING ONLY
-    // WARNING: REMOVE THIS IN PRODUCTION
+    // Add more comprehensive debugging
+    error_log('AJAX save_service_option called');
+    error_log('POST data: ' . print_r($_POST, true));
     
-    // Log incoming data
-    error_log('AJAX request data: ' . print_r($_POST, true));
+    // First, check if we're receiving the option_nonce
+    if (isset($_POST['option_nonce'])) {
+        $nonce = $_POST['option_nonce'];
+        $action = 'mobooking-option-nonce';
+        error_log("Checking option_nonce: $nonce against action: $action");
+        
+        // Verify nonce directly and log the result
+        $valid = wp_verify_nonce($nonce, $action);
+        error_log("Nonce verification result: " . ($valid ? "Valid ($valid)" : "Invalid"));
+        
+        if (!$valid) {
+            wp_send_json_error(array(
+                'message' => __('Security verification failed with option_nonce.', 'mobooking'),
+                'debug' => 'Option nonce check failed'
+            ));
+            return;
+        }
+    } 
+    // Then check the regular nonce
+    elseif (isset($_POST['nonce'])) {
+        $nonce = $_POST['nonce'];
+        $action = 'mobooking-service-nonce';
+        error_log("Checking regular nonce: $nonce against action: $action");
+        
+        // Verify nonce directly and log the result
+        $valid = wp_verify_nonce($nonce, $action);
+        error_log("Nonce verification result: " . ($valid ? "Valid ($valid)" : "Invalid"));
+        
+        if (!$valid) {
+            wp_send_json_error(array(
+                'message' => __('Security verification failed with regular nonce.', 'mobooking'),
+                'debug' => 'Regular nonce check failed'
+            ));
+            return;
+        }
+    } 
+    // No valid nonce found
+    else {
+        error_log('No nonce field found in request');
+        wp_send_json_error(array(
+            'message' => __('Security verification failed. No security token found.', 'mobooking'),
+            'debug' => 'No nonce provided'
+        ));
+        return;
+    }
     
+    // Continue with the rest of the validation
     // Check permissions
     if (!current_user_can('mobooking_business_owner') && !current_user_can('administrator')) {
         wp_send_json_error(array('message' => __('You do not have permission to do this.', 'mobooking')));
@@ -415,6 +383,7 @@ public function ajax_save_service_option() {
         'message' => $result['message']
     ));
 }
+
     /**
      * AJAX handler to delete service option
      */

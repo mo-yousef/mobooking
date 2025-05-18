@@ -86,7 +86,7 @@ function mobooking_register_service_options_manager() {
     new \MoBooking\Services\OptionsManager();
     
     // Enqueue scripts for admin users or business owners
-    if (is_admin() || current_user_can('mobooking_business_owner')) {
+    // if (is_admin() || current_user_can('mobooking_business_owner')) {
         // jQuery UI for sortable functionality
         wp_enqueue_script('jquery-ui-sortable');
         
@@ -106,7 +106,7 @@ function mobooking_register_service_options_manager() {
             MOBOOKING_VERSION,
             true
         );
-    }
+    // }
 }
 add_action('init', 'mobooking_register_service_options_manager');
 
