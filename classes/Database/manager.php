@@ -10,7 +10,6 @@ class Manager {
      */
     private $tables = array(
         'services',
-        'service_options',
         'bookings',
         'discounts',
         'areas',
@@ -27,6 +26,33 @@ class Manager {
                 $this->$method();
             }
         }
+        
+        // Run services migration if needed
+        $this->maybe_migrate_services();
+    }
+    
+    /**
+     * Check if we need to migrate services data
+     */
+    private function maybe_migrate_services() {
+        global $wpdb;
+        $services_table = $wpdb->prefix . 'mobooking_services';
+        $options_table = $wpdb->prefix . 'mobooking_service_options';
+        
+        // Check if both tables exist and if services table has entity_type column
+        $services_exists = $wpdb->get_var("SHOW TABLES LIKE '$services_table'") == $services_table;
+        $options_exists = $wpdb->get_var("SHOW TABLES LIKE '$options_table'") == $options_table;
+        
+        if ($services_exists) {
+            $columns = $wpdb->get_results("SHOW COLUMNS FROM $services_table");
+            $column_names = array_map(function($col) { return $col->Field; }, $columns);
+            
+            // If services table exists but doesn't have entity_type, we need to migrate
+            if (!in_array('entity_type', $column_names) && $options_exists) {
+                $migration = new ServicesTableMigration();
+                $migration->run();
+            }
+        }
     }
     
     /**
@@ -41,45 +67,23 @@ class Manager {
         $sql = "CREATE TABLE $table_name (
             id bigint(20) NOT NULL AUTO_INCREMENT,
             user_id bigint(20) NOT NULL,
+            entity_type varchar(20) DEFAULT 'service',
+            parent_id bigint(20) NULL,
             name varchar(255) NOT NULL,
             description text NULL,
-            price decimal(10,2) NOT NULL,
-            duration int(11) NOT NULL,
+            price decimal(10,2) NOT NULL DEFAULT 0,
+            duration int(11) NOT NULL DEFAULT 0,
             icon varchar(255) NULL,
             image_url varchar(255) NULL,
             category varchar(255) NULL,
             status varchar(20) DEFAULT 'active',
-            created_at datetime DEFAULT CURRENT_TIMESTAMP,
-            updated_at datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-            PRIMARY KEY  (id),
-            KEY user_id (user_id)
-        ) $charset_collate;";
-        
-        require_once(ABSPATH . 'wp-admin/includes/upgrade.php');
-        dbDelta($sql);
-    }
-    
-    /**
-     * Create service options table
-     */
-    private function create_service_options_table() {
-        global $wpdb;
-        $table_name = $wpdb->prefix . 'mobooking_service_options';
-        
-        $charset_collate = $wpdb->get_charset_collate();
-        
-        $sql = "CREATE TABLE $table_name (
-            id bigint(20) NOT NULL AUTO_INCREMENT,
-            service_id bigint(20) NOT NULL,
-            name varchar(255) NOT NULL,
-            description text NULL,
-            type varchar(50) NOT NULL,
-            is_required tinyint(1) NOT NULL DEFAULT 0,
+            type varchar(50) NULL,
+            is_required tinyint(1) DEFAULT 0,
             default_value text NULL,
             placeholder text NULL,
             min_value float NULL,
             max_value float NULL,
-            price_impact decimal(10,2) NULL,
+            price_impact decimal(10,2) DEFAULT 0,
             price_type varchar(20) DEFAULT 'fixed',
             options text NULL,
             option_label text NULL,
@@ -88,18 +92,20 @@ class Manager {
             min_length int(11) NULL,
             max_length int(11) NULL,
             rows int(11) NULL,
-            display_order int(11) NOT NULL DEFAULT 0,
+            display_order int(11) DEFAULT 0,
             created_at datetime DEFAULT CURRENT_TIMESTAMP,
             updated_at datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
             PRIMARY KEY  (id),
-            KEY service_id (service_id)
+            KEY user_id (user_id),
+            KEY entity_type (entity_type),
+            KEY parent_id (parent_id)
         ) $charset_collate;";
         
         require_once(ABSPATH . 'wp-admin/includes/upgrade.php');
         dbDelta($sql);
     }
-
-
+    
+    // Other table creation methods remain the same
     
     /**
      * Create bookings table

@@ -155,4 +155,20 @@ class Manager {
         include MOBOOKING_PATH . '/dashboard/index.php';
         return ob_get_clean();
     }
+
+    // Add this to classes/Database/Manager.php
+    public function force_recreate_services_table() {
+        global $wpdb;
+        $table_name = $wpdb->prefix . 'mobooking_services';
+        
+        // Drop the table if it exists
+        $wpdb->query("DROP TABLE IF EXISTS $table_name");
+        
+        // Recreate the table
+        $this->create_services_table();
+        
+        // Run the migration
+        $migration = new ServicesTableMigration();
+        $migration->run();
+    }
 }

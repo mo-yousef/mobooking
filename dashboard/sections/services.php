@@ -1078,3 +1078,41 @@ wp_localize_script('mobooking-service-options-manager', 'mobooking_data', array(
   }
 }
 </style>
+
+<!-- Add this near the end of the dashboard/sections/services.php file, before the closing </div> -->
+<div id="debug-output" style="display: none; margin-top: 20px; padding: 15px; background-color: #f5f5f5; border: 1px solid #ddd; border-radius: 5px;">
+    <h3>Debug Information</h3>
+    <pre id="debug-content"></pre>
+    <button type="button" class="button" onclick="document.getElementById('debug-output').style.display='none';">Close</button>
+</div>
+
+<script>
+// Add this to your JavaScript
+function debugOutput(data) {
+    document.getElementById('debug-output').style.display = 'block';
+    document.getElementById('debug-content').textContent = typeof data === 'object' ? JSON.stringify(data, null, 2) : data;
+}
+
+// Modify the form submission to include debugging
+$('#option-form').on('submit', function(e) {
+    e.preventDefault();
+    
+    // Collect all form data
+    const formData = new FormData(this);
+    const formDataObj = {};
+    
+    for (let [key, value] of formData.entries()) {
+        formDataObj[key] = value;
+    }
+    
+    // Display what's being sent
+    debugOutput({
+        "Form Fields": formDataObj,
+        "Action URL": mobooking_services.ajax_url,
+        "Nonce": mobooking_services.nonce
+    });
+    
+    // Continue with normal form submission
+    // ... your existing code
+});
+</script>

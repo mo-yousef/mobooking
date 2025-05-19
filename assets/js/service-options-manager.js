@@ -248,6 +248,51 @@ jQuery(document).ready(function ($) {
     });
   });
 
+  // In service-options-manager.js, update the form submission handler:
+
+  // Add a console.log to debug the form data before submission
+  $("#option-form").on("submit", function (e) {
+    e.preventDefault();
+
+    // Validate form
+    if (!validateOptionForm()) {
+      return;
+    }
+
+    // Show loading indicator
+    $("#options-modal").addClass("loading");
+
+    // Prepare form data
+    var formData = new FormData(this);
+
+    // Add action
+    formData.append("action", "mobooking_save_service_option");
+
+    // Debug - Log what's being sent
+    console.log("Form data being sent:");
+    for (var pair of formData.entries()) {
+      console.log(pair[0] + ": " + pair[1]);
+    }
+
+    // Send the AJAX request
+    $.ajax({
+      url: mobooking_services.ajax_url,
+      type: "POST",
+      data: formData,
+      processData: false,
+      contentType: false,
+      success: function (response) {
+        console.log("Server response:", response);
+        // Rest of your success handler
+      },
+      error: function (xhr, status, error) {
+        console.error("AJAX Error:", error);
+        console.log("Full error response:", xhr.responseText);
+        // Rest of your error handler
+      },
+    });
+  });
+
   /**
    * Submit service form
    */
