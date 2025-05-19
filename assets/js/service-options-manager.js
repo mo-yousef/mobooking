@@ -1,7 +1,6 @@
 /**
- * Enhanced Service Options Manager for MoBooking
- * Provides a modern, intuitive interface for managing service options
- * with sortable functionality and improved UI/UX
+ * Enhanced Service Manager for MoBooking
+ * Unified interface for managing services and their options
  */
 
 jQuery(document).ready(function ($) {
@@ -10,16 +9,23 @@ jQuery(document).ready(function ($) {
     return;
   }
 
-  console.log("Service Options Manager script loaded");
+  console.log("Service Manager loaded");
 
   // Initialize variables
   let currentServiceId = null;
   let currentServiceName = null;
   let optionsChanged = false;
-  let sortableInitialized = false;
+  let optionsSortableInitialized = false;
+  let choicesSortableInitialized = false;
+  let serviceFormMode = "add"; // 'add' or 'edit'
 
-  // Notification system
-  const createNotification = (message, type = "info") => {
+  // ========================= UTILITY FUNCTIONS =========================
+
+  /**
+   * Notification system
+   * Shows a notification with a given message and type
+   */
+  function showNotification(message, type = "info") {
     // Create notification element if it doesn't exist
     if ($("#mobooking-notification").length === 0) {
       $("body").append('<div id="mobooking-notification"></div>');
@@ -29,47 +35,369 @@ jQuery(document).ready(function ($) {
     notification.attr("class", "").addClass("notification-" + type);
     notification.html(message);
     notification.fadeIn(300).delay(3000).fadeOut(300);
-  };
+  }
 
-  // ==== SERVICE OPTIONS MANAGEMENT ====
+  /**
+   * Helper function to safely get labels from mobooking_data.labels
+   */
+  function getLabel(key, fallback) {
+    if (
+      typeof mobooking_data !== "undefined" &&
+      mobooking_data.labels &&
+      mobooking_data.labels[key]
+    ) {
+      return mobooking_data.labels[key];
+    }
+    return fallback;
+  }
 
-  // Open manage options modal
-  $(document).on("click", ".manage-options", function () {
-    currentServiceId = $(this).data("id");
-    currentServiceName = $(this).data("name");
+  /**
+   * Get AJAX URL from localized data
+   */
+  function getAjaxUrl() {
+    return mobooking_data.ajax_url || ajaxurl || "/wp-admin/admin-ajax.php";
+  }
 
-    // Reset state
-    optionsChanged = false;
+  /**
+   * Get nonce from localized data
+   */
+  function getNonce() {
+    return mobooking_data.nonce || "";
+  }
 
-    // Set modal title
-    $("#options-modal-title .service-name").text(currentServiceName);
+  // Tab switching
+  $(".tab-button").on("click", function () {
+    var targetTab = $(this).data("tab");
 
-    // Set service ID in the form
-    $("#option-service-id").val(currentServiceId);
+    // Update active tab button
+    $(".tab-button").removeClass("active");
+    $(this).addClass("active");
 
-    // Reset option form
-    $("#option-form").hide();
-    $("#option-id").val("");
-    $("#option-form")[0].reset();
-    $(".no-option-selected").show();
-
-    // Show loading indicator
-    $("#options-modal").addClass("loading");
-    $("#options-modal").fadeIn(300);
-
-    // Load service options
-    loadServiceOptions(currentServiceId);
+    // Show target tab content
+    $(".tab-pane").removeClass("active");
+    $("#" + targetTab).addClass("active");
   });
 
-  // Function to load service options
+  // Service filter
+  $("#service-filter").on("change", function () {
+    var category = $(this).val();
+
+    if (category === "") {
+      $(".service-card").show();
+    } else {
+      $(".service-card").hide();
+      $('.service-card[data-category="' + category + '"]').show();
+    }
+  });
+
+  // Initialize the media uploader
+  let mediaUploader;
+
+  $(".select-image").on("click", function (e) {
+    e.preventDefault();
+
+    // If the uploader object has already been created, reopen the dialog
+    if (mediaUploader) {
+      mediaUploader.open();
+      return;
+    }
+
+    // Create the media uploader
+    mediaUploader = wp.media.frames.file_frame = wp.media({
+      title: "Choose Image",
+      button: {
+        text: "Select",
+      },
+      multiple: false,
+    });
+
+    // When an image is selected, run a callback
+    mediaUploader.on("select", function () {
+      var attachment = mediaUploader.state().get("selection").first().toJSON();
+      $("#service-image").val(attachment.url);
+      $(".image-preview").html('<img src="' + attachment.url + '" alt="">');
+    });
+
+    // Open the uploader dialog
+    mediaUploader.open();
+  });
+
+  // Preview selected icon
+  $("#service-icon").on("change", function () {
+    var iconClass = $(this).val();
+    if (iconClass) {
+      $(".icon-preview").html(
+        '<span class="dashicons ' + iconClass + '"></span>'
+      );
+    } else {
+      $(".icon-preview").empty();
+    }
+  });
+
+  // ========================= SERVICE MANAGEMENT =========================
+
+  /**
+   * Reset the service form to default state
+   */
+  function resetServiceForm() {
+    $("#unified-service-form")[0].reset();
+    $("#service-id").val("");
+    $(".image-preview").empty();
+    $(".icon-preview").empty();
+    $(".options-list").html(
+      '<div class="options-list-empty">No options configured yet. Add your first option to customize this service.</div>'
+    );
+
+    // Reset the option editor
+    $(".option-form-container").hide();
+    $(".no-option-selected").show();
+    $("#option-id").val("");
+
+    // Reset tabs
+    $('.tab-button[data-tab="basic-info"]').click();
+  }
+
+  /**
+   * Open add new service modal
+   */
+  $(".add-new-service").on("click", function () {
+    serviceFormMode = "add";
+    currentServiceId = null;
+    currentServiceName = null;
+
+    $("#modal-title").text("Add New Service");
+    resetServiceForm();
+
+    // Show the modal
+    $("#service-editor-modal").fadeIn(300);
+  });
+
+  /**
+   * Open edit service modal
+   */
+  $(document).on("click", ".edit-service", function () {
+    serviceFormMode = "edit";
+    currentServiceId = $(this).data("id");
+
+    // Set modal title
+    $("#modal-title").text("Edit Service");
+
+    // Show loading indicator
+    $("#service-editor-modal").addClass("loading");
+    $("#service-editor-modal").fadeIn(300);
+
+    // Get service data via AJAX
+    $.ajax({
+      url: getAjaxUrl(),
+      type: "POST",
+      data: {
+        action: "mobooking_get_service",
+        id: currentServiceId,
+        nonce: getNonce(),
+      },
+      success: function (response) {
+        if (response.success) {
+          var service = response.data.service;
+          currentServiceName = service.name;
+
+          // Fill the form with service data
+          $("#service-id").val(service.id);
+          $("#service-name").val(service.name);
+          $("#service-description").val(service.description);
+          $("#service-price").val(service.price);
+          $("#service-duration").val(service.duration);
+          $("#service-category").val(service.category);
+          $("#service-icon").val(service.icon);
+          $("#service-image").val(service.image_url || "");
+          $("#service-status").val(service.status || "active");
+
+          // Preview image if available
+          if (service.image_url) {
+            $(".image-preview").html(
+              '<img src="' + service.image_url + '" alt="">'
+            );
+          } else {
+            $(".image-preview").empty();
+          }
+
+          // Preview icon if available
+          if (service.icon) {
+            $(".icon-preview").html(
+              '<span class="dashicons ' + service.icon + '"></span>'
+            );
+          } else {
+            $(".icon-preview").empty();
+          }
+
+          // Load service options
+          loadServiceOptions(service.id);
+        } else {
+          showNotification(
+            response.data.message ||
+              getLabel("error_loading", "Error loading service data"),
+            "error"
+          );
+          $("#service-editor-modal").removeClass("loading");
+        }
+      },
+      error: function (xhr, status, error) {
+        console.error("AJAX Error:", error);
+        showNotification("Error loading service. Please try again.", "error");
+        $("#service-editor-modal").removeClass("loading");
+      },
+    });
+  });
+
+  /**
+   * Submit service form
+   */
+  $("#unified-service-form").on("submit", function (e) {
+    e.preventDefault();
+
+    // Validate form data
+    var serviceName = $("#service-name").val().trim();
+    var servicePrice = parseFloat($("#service-price").val());
+    var serviceDuration = parseInt($("#service-duration").val());
+
+    if (!serviceName) {
+      showNotification("Service name is required", "error");
+      $("#service-name").focus();
+      return;
+    }
+
+    if (isNaN(servicePrice) || servicePrice <= 0) {
+      showNotification("Service price must be greater than zero", "error");
+      $("#service-price").focus();
+      return;
+    }
+
+    if (isNaN(serviceDuration) || serviceDuration < 15) {
+      showNotification("Service duration must be at least 15 minutes", "error");
+      $("#service-duration").focus();
+      return;
+    }
+
+    // Show loading indicator
+    $("#service-editor-modal").addClass("loading");
+
+    // Prepare form data
+    var formData = $(this).serialize();
+    formData += "&action=mobooking_save_service&nonce=" + getNonce();
+
+    // Submit via AJAX
+    $.ajax({
+      url: getAjaxUrl(),
+      type: "POST",
+      data: formData,
+      success: function (response) {
+        if (response.success) {
+          showNotification(
+            getLabel("success_save", "Service saved successfully"),
+            "success"
+          );
+
+          // If adding a new service, switch to edit mode with the new service ID
+          if (serviceFormMode === "add") {
+            serviceFormMode = "edit";
+            currentServiceId = response.data.id;
+            $("#service-id").val(currentServiceId);
+            currentServiceName = serviceName;
+            $("#modal-title").text("Edit Service: " + serviceName);
+
+            // Switch to options tab
+            $('.tab-button[data-tab="options"]').click();
+
+            // Remove loading indicator
+            $("#service-editor-modal").removeClass("loading");
+          } else {
+            // If editing, just reload the page to show updated services
+            setTimeout(function () {
+              location.reload();
+            }, 1000);
+          }
+        } else {
+          showNotification(
+            response.data.message || "Error saving service",
+            "error"
+          );
+          $("#service-editor-modal").removeClass("loading");
+        }
+      },
+      error: function (xhr, status, error) {
+        console.error("AJAX Error:", error);
+        showNotification("Error saving service. Please try again.", "error");
+        $("#service-editor-modal").removeClass("loading");
+      },
+    });
+  });
+
+  /**
+   * Open delete confirmation modal
+   */
+  $(document).on("click", ".delete-service", function () {
+    var serviceId = $(this).data("id");
+    $(".confirm-delete").data("id", serviceId);
+    $("#delete-modal").fadeIn(300);
+  });
+
+  /**
+   * Confirm delete service
+   */
+  $(".confirm-delete").on("click", function () {
+    var serviceId = $(this).data("id");
+
+    // Show loading indicator
+    $("#delete-modal").addClass("loading");
+
+    // Submit delete request via AJAX
+    $.ajax({
+      url: getAjaxUrl(),
+      type: "POST",
+      data: {
+        action: "mobooking_delete_service",
+        id: serviceId,
+        nonce: getNonce(),
+      },
+      success: function (response) {
+        if (response.success) {
+          showNotification(
+            getLabel("success_delete", "Service deleted successfully"),
+            "success"
+          );
+
+          // Reload page to show updated services
+          setTimeout(function () {
+            location.reload();
+          }, 1000);
+        } else {
+          showNotification(
+            response.data.message || "Error deleting service",
+            "error"
+          );
+          $("#delete-modal").removeClass("loading");
+        }
+      },
+      error: function (xhr, status, error) {
+        console.error("AJAX Error:", error);
+        showNotification("Error deleting service. Please try again.", "error");
+        $("#delete-modal").removeClass("loading");
+      },
+    });
+  });
+
+  // ========================= SERVICE OPTIONS MANAGEMENT =========================
+
+  /**
+   * Load service options
+   */
   function loadServiceOptions(serviceId) {
     $.ajax({
-      url: mobooking_services.ajax_url,
+      url: getAjaxUrl(),
       type: "POST",
       data: {
         action: "mobooking_get_service_options",
         service_id: serviceId,
-        nonce: mobooking_services.nonce,
+        nonce: getNonce(),
       },
       success: function (response) {
         if (response.success) {
@@ -86,136 +414,66 @@ jQuery(document).ready(function ($) {
             const optionsHTML = response.data.options
               .map((option, index) => {
                 return `
-                  <div class="option-item" data-id="${option.id}" data-order="${
+                                <div class="option-item" data-id="${
+                                  option.id
+                                }" data-order="${
                   option.display_order || index
                 }">
-                    <div class="option-drag-handle">
-                      <span class="dashicons dashicons-menu"></span>
-                    </div>
-                    <div class="option-content">
-                      <span class="option-name">${option.name}</span>
-                      <div class="option-meta">
-                        <span class="option-type">${getOptionTypeLabel(
-                          option.type
-                        )}</span>
-                        ${
-                          option.is_required == 1
-                            ? '<span class="option-required">Required</span>'
-                            : ""
-                        }
-                      </div>
-                    </div>
-                    <div class="option-preview">
-                      ${generateOptionPreview(option)}
-                    </div>
-                  </div>
-                `;
+                                    <div class="option-drag-handle">
+                                        <span class="dashicons dashicons-menu"></span>
+                                    </div>
+                                    <div class="option-content">
+                                        <span class="option-name">${
+                                          option.name
+                                        }</span>
+                                        <div class="option-meta">
+                                            <span class="option-type">${getOptionTypeLabel(
+                                              option.type
+                                            )}</span>
+                                            ${
+                                              option.is_required == 1
+                                                ? '<span class="option-required">Required</span>'
+                                                : ""
+                                            }
+                                        </div>
+                                    </div>
+                                    <div class="option-preview">
+                                        ${generateOptionPreview(option)}
+                                    </div>
+                                </div>
+                                `;
               })
               .join("");
 
             $(".options-list").html(optionsHTML);
 
             // Initialize sortable if we have options
-            initSortable();
+            initOptionsSortable();
           }
         } else {
-          createNotification(
+          showNotification(
             response.data.message || "Error loading options",
             "error"
           );
         }
 
         // Remove loading indicator
-        $("#options-modal").removeClass("loading");
+        $("#service-editor-modal").removeClass("loading");
       },
       error: function (xhr, status, error) {
         console.error("AJAX Error:", error);
-        createNotification(
+        showNotification(
           "Error loading service options. Please try again.",
           "error"
         );
-        $("#options-modal").removeClass("loading");
+        $("#service-editor-modal").removeClass("loading");
       },
     });
   }
 
-  // Function to initialize sortable options
-  function initSortable() {
-    if (!sortableInitialized && $(".options-list .option-item").length > 0) {
-      $(".options-list").sortable({
-        handle: ".option-drag-handle",
-        placeholder: "option-item-placeholder",
-        axis: "y",
-        opacity: 0.8,
-        tolerance: "pointer",
-        start: function (event, ui) {
-          ui.item.addClass("sorting");
-          ui.placeholder.height(ui.item.outerHeight());
-        },
-        stop: function (event, ui) {
-          ui.item.removeClass("sorting");
-        },
-        update: function (event, ui) {
-          optionsChanged = true;
-          updateOptionsOrder();
-        },
-      });
-      sortableInitialized = true;
-      $(".options-list").addClass("sortable-enabled");
-    }
-  }
-
-  // Function to disable sortable
-  function disableSortable() {
-    if (sortableInitialized) {
-      try {
-        $(".options-list").sortable("destroy");
-      } catch (e) {
-        console.log("Sortable already destroyed");
-      }
-      sortableInitialized = false;
-      $(".options-list").removeClass("sortable-enabled");
-    }
-  }
-
-  // Function to update options order
-  function updateOptionsOrder() {
-    const orderData = [];
-
-    $(".options-list .option-item").each(function (index) {
-      orderData.push({
-        id: $(this).data("id"),
-        order: index,
-      });
-    });
-
-    $.ajax({
-      url: mobooking_services.ajax_url,
-      type: "POST",
-      data: {
-        action: "mobooking_update_options_order",
-        service_id: currentServiceId,
-        order_data: JSON.stringify(orderData),
-        nonce: mobooking_services.nonce,
-      },
-      success: function (response) {
-        if (response.success) {
-          createNotification("Options order updated", "success");
-        } else {
-          createNotification(
-            response.data.message || "Error updating order",
-            "error"
-          );
-        }
-      },
-      error: function (xhr, status, error) {
-        console.error("AJAX Error:", error);
-        createNotification("Error updating options order", "error");
-      },
-    });
-  }
-
-  // Helper function to get option type label
+  /**
+   * Helper function to get option type label
+   */
   function getOptionTypeLabel(type) {
     const labels = {
       checkbox: "Checkbox",
@@ -230,7 +488,9 @@ jQuery(document).ready(function ($) {
     return labels[type] || type;
   }
 
-  // Helper function to generate option preview
+  /**
+   * Helper function to generate option preview
+   */
   function generateOptionPreview(option) {
     let preview = "";
 
@@ -268,7 +528,7 @@ jQuery(document).ready(function ($) {
         preview = "";
     }
 
-    // Add price info
+    // Add price info if applicable
     if (option.price_impact && option.price_impact != 0) {
       const sign = option.price_impact > 0 ? "+" : "";
       let priceDisplay = "";
@@ -276,7 +536,9 @@ jQuery(document).ready(function ($) {
       if (option.price_type === "percentage") {
         priceDisplay = `${sign}${option.price_impact}%`;
       } else if (option.price_type === "fixed") {
-        priceDisplay = `${sign}$${Math.abs(option.price_impact).toFixed(2)}`;
+        priceDisplay = `${sign}$${Math.abs(
+          parseFloat(option.price_impact)
+        ).toFixed(2)}`;
       } else if (option.price_type === "multiply") {
         priceDisplay = `×${option.price_impact}`;
       }
@@ -289,7 +551,97 @@ jQuery(document).ready(function ($) {
     return preview;
   }
 
-  // Handle clicking on an option in the list
+  /**
+   * Function to initialize sortable options
+   */
+  function initOptionsSortable() {
+    if (
+      !optionsSortableInitialized &&
+      $(".options-list .option-item").length > 1
+    ) {
+      $(".options-list").sortable({
+        handle: ".option-drag-handle",
+        placeholder: "option-item-placeholder",
+        axis: "y",
+        opacity: 0.8,
+        tolerance: "pointer",
+        start: function (event, ui) {
+          ui.item.addClass("sorting");
+          ui.placeholder.height(ui.item.outerHeight());
+        },
+        stop: function (event, ui) {
+          ui.item.removeClass("sorting");
+        },
+        update: function (event, ui) {
+          optionsChanged = true;
+          updateOptionsOrder();
+        },
+      });
+      optionsSortableInitialized = true;
+      $(".options-list").addClass("sortable-enabled");
+    }
+  }
+
+  /**
+   * Function to disable sortable
+   */
+  function disableSortable() {
+    if (optionsSortableInitialized) {
+      try {
+        $(".options-list").sortable("destroy");
+      } catch (e) {
+        console.log("Sortable already destroyed");
+      }
+      optionsSortableInitialized = false;
+      $(".options-list").removeClass("sortable-enabled");
+    }
+  }
+
+  /**
+   * Function to update options order
+   */
+  function updateOptionsOrder() {
+    const orderData = [];
+
+    $(".options-list .option-item").each(function (index) {
+      orderData.push({
+        id: $(this).data("id"),
+        order: index,
+      });
+    });
+
+    $.ajax({
+      url: getAjaxUrl(),
+      type: "POST",
+      data: {
+        action: "mobooking_update_options_order",
+        service_id: currentServiceId,
+        order_data: JSON.stringify(orderData),
+        nonce: getNonce(),
+      },
+      success: function (response) {
+        if (response.success) {
+          showNotification(
+            getLabel("options_order", "Options order updated"),
+            "success"
+          );
+        } else {
+          showNotification(
+            response.data.message || "Error updating order",
+            "error"
+          );
+        }
+      },
+      error: function (xhr, status, error) {
+        console.error("AJAX Error:", error);
+        showNotification("Error updating options order", "error");
+      },
+    });
+  }
+
+  /**
+   * Handle clicking on an option in the list
+   */
   $(document).on("click", ".option-item", function (e) {
     // Don't react if clicking on the drag handle
     if (
@@ -302,16 +654,16 @@ jQuery(document).ready(function ($) {
     const optionId = $(this).data("id");
 
     // Show loading indicator
-    $("#options-modal").addClass("loading");
+    $("#service-editor-modal").addClass("loading");
 
     // Get option data
     $.ajax({
-      url: mobooking_services.ajax_url,
+      url: getAjaxUrl(),
       type: "POST",
       data: {
         action: "mobooking_get_service_option",
         id: optionId,
-        nonce: mobooking_services.nonce,
+        nonce: getNonce(),
       },
       success: function (response) {
         if (response.success) {
@@ -334,42 +686,46 @@ jQuery(document).ready(function ($) {
 
           // Show the form
           $(".no-option-selected").hide();
-          $("#option-form").show();
+          $(".option-form-container").show();
 
           // Highlight selected option
           $(".option-item").removeClass("active");
           $(`.option-item[data-id="${optionId}"]`).addClass("active");
         } else {
-          createNotification(
+          showNotification(
             response.data.message || "Error loading option",
             "error"
           );
         }
 
         // Remove loading indicator
-        $("#options-modal").removeClass("loading");
+        $("#service-editor-modal").removeClass("loading");
       },
       error: function (xhr, status, error) {
         console.error("AJAX Error:", error);
-        createNotification(
+        showNotification(
           "Error loading option data. Please try again.",
           "error"
         );
-        $("#options-modal").removeClass("loading");
+        $("#service-editor-modal").removeClass("loading");
       },
     });
   });
 
-  // Add new option button
+  /**
+   * Add new option button
+   */
   $(".add-new-option").on("click", function () {
     // Reset form
     $("#option-id").val("");
-    $("#option-form")[0].reset();
 
     // Set default values
+    $("#option-name").val("");
+    $("#option-description").val("");
+    $("#option-type").val("checkbox");
+    $("#option-required").val("0");
     $("#option-price-type").val("fixed");
     $("#option-price-impact").val("0");
-    $("#option-type").val("checkbox");
 
     // Generate empty dynamic fields for default type
     generateDynamicFields("checkbox");
@@ -379,13 +735,15 @@ jQuery(document).ready(function ($) {
 
     // Show the form
     $(".no-option-selected").hide();
-    $("#option-form").show();
+    $(".option-form-container").show();
 
     // Deselect any selected option
     $(".option-item").removeClass("active");
   });
 
-  // Handle option type change
+  /**
+   * Handle option type change
+   */
   $("#option-type").on("change", function () {
     const optionType = $(this).val();
     if (optionType) {
@@ -393,12 +751,16 @@ jQuery(document).ready(function ($) {
     }
   });
 
-  // Handle price type change
+  /**
+   * Handle price type change
+   */
   $("#option-price-type").on("change", function () {
     updatePriceFields($(this).val());
   });
 
-  // Function to update price fields based on selected price type
+  /**
+   * Function to update price fields based on selected price type
+   */
   function updatePriceFields(priceType) {
     const valueField = $(".price-impact-value");
 
@@ -432,7 +794,9 @@ jQuery(document).ready(function ($) {
     }
   }
 
-  // Function to generate dynamic fields based on option type
+  /**
+   * Function to generate dynamic fields based on option type
+   */
   function generateDynamicFields(optionType, optionData) {
     const dynamicFields = $(".dynamic-fields");
     dynamicFields.empty();
@@ -445,7 +809,7 @@ jQuery(document).ready(function ($) {
           '<div class="form-row">' +
             '<div class="form-group half">' +
             '<label for="option-default-value">Default Value</label>' +
-            '<select id="option-default-value" name="default_value">' +
+            '<select id="option-default-value" name="option_default_value">' +
             '<option value="0" ' +
             (optionData.default_value == "0" ? "selected" : "") +
             ">Unchecked</option>" +
@@ -469,27 +833,27 @@ jQuery(document).ready(function ($) {
           '<div class="form-row">' +
             '<div class="form-group half">' +
             '<label for="option-min-value">Minimum Value</label>' +
-            '<input type="number" id="option-min-value" name="min_value" value="' +
-            (optionData.min_value || 0) +
+            '<input type="number" id="option-min-value" name="option_min_value" value="' +
+            (optionData.min_value !== null ? optionData.min_value : 0) +
             '">' +
             "</div>" +
             '<div class="form-group half">' +
             '<label for="option-max-value">Maximum Value</label>' +
-            '<input type="number" id="option-max-value" name="max_value" value="' +
-            (optionData.max_value || "") +
+            '<input type="number" id="option-max-value" name="option_max_value" value="' +
+            (optionData.max_value !== null ? optionData.max_value : "") +
             '">' +
             "</div>" +
             "</div>" +
             '<div class="form-row">' +
             '<div class="form-group half">' +
             '<label for="option-default-value">Default Value</label>' +
-            '<input type="number" id="option-default-value" name="default_value" value="' +
+            '<input type="number" id="option-default-value" name="option_default_value" value="' +
             (optionData.default_value || "") +
             '">' +
             "</div>" +
             '<div class="form-group half">' +
             '<label for="option-placeholder">Placeholder</label>' +
-            '<input type="text" id="option-placeholder" name="placeholder" value="' +
+            '<input type="text" id="option-placeholder" name="option_placeholder" value="' +
             (optionData.placeholder || "") +
             '">' +
             "</div>" +
@@ -497,13 +861,13 @@ jQuery(document).ready(function ($) {
             '<div class="form-row">' +
             '<div class="form-group half">' +
             '<label for="option-step">Step</label>' +
-            '<input type="number" id="option-step" name="step" value="' +
+            '<input type="number" id="option-step" name="option_step" value="' +
             (optionData.step || "1") +
             '" step="0.01">' +
             "</div>" +
             '<div class="form-group half">' +
             '<label for="option-unit">Unit Label</label>' +
-            '<input type="text" id="option-unit" name="unit" value="' +
+            '<input type="text" id="option-unit" name="option_unit" value="' +
             (optionData.unit || "") +
             '" placeholder="sq ft, hours, etc.">' +
             "</div>" +
@@ -534,10 +898,11 @@ jQuery(document).ready(function ($) {
             '<button type="button" class="button add-choice">Add Choice</button>' +
             "</div>" +
             "</div>" +
+            '<input type="hidden" id="option-choices" name="option_choices">' +
             "</div>" +
             '<div class="form-group">' +
             '<label for="option-default-value">Default Value</label>' +
-            '<input type="text" id="option-default-value" name="default_value" value="' +
+            '<input type="text" id="option-default-value" name="option_default_value" value="' +
             (optionData.default_value || "") +
             '">' +
             '<p class="field-hint">Enter the value (not the label) of the default choice</p>' +
@@ -558,6 +923,9 @@ jQuery(document).ready(function ($) {
 
         // Make choices sortable
         initChoicesSortable();
+
+        // Update the hidden choices field
+        updateOptionsField();
         break;
 
       case "text":
@@ -565,13 +933,13 @@ jQuery(document).ready(function ($) {
           '<div class="form-row">' +
             '<div class="form-group half">' +
             '<label for="option-default-value">Default Value</label>' +
-            '<input type="text" id="option-default-value" name="default_value" value="' +
+            '<input type="text" id="option-default-value" name="option_default_value" value="' +
             (optionData.default_value || "") +
             '">' +
             "</div>" +
             '<div class="form-group half">' +
             '<label for="option-placeholder">Placeholder</label>' +
-            '<input type="text" id="option-placeholder" name="placeholder" value="' +
+            '<input type="text" id="option-placeholder" name="option_placeholder" value="' +
             (optionData.placeholder || "") +
             '">' +
             "</div>" +
@@ -579,14 +947,14 @@ jQuery(document).ready(function ($) {
             '<div class="form-row">' +
             '<div class="form-group half">' +
             '<label for="option-min-length">Minimum Length</label>' +
-            '<input type="number" id="option-min-length" name="min_length" value="' +
-            (optionData.min_length || "") +
+            '<input type="number" id="option-min-length" name="option_min_length" value="' +
+            (optionData.min_length !== null ? optionData.min_length : "") +
             '" min="0">' +
             "</div>" +
             '<div class="form-group half">' +
             '<label for="option-max-length">Maximum Length</label>' +
-            '<input type="number" id="option-max-length" name="max_length" value="' +
-            (optionData.max_length || "") +
+            '<input type="number" id="option-max-length" name="option_max_length" value="' +
+            (optionData.max_length !== null ? optionData.max_length : "") +
             '" min="0">' +
             "</div>" +
             "</div>"
@@ -597,22 +965,28 @@ jQuery(document).ready(function ($) {
         dynamicFields.append(
           '<div class="form-group">' +
             '<label for="option-default-value">Default Value</label>' +
-            '<textarea id="option-default-value" name="default_value" rows="2">' +
+            '<textarea id="option-default-value" name="option_default_value" rows="2">' +
             (optionData.default_value || "") +
             "</textarea>" +
             "</div>" +
             '<div class="form-group">' +
             '<label for="option-placeholder">Placeholder</label>' +
-            '<input type="text" id="option-placeholder" name="placeholder" value="' +
+            '<input type="text" id="option-placeholder" name="option_placeholder" value="' +
             (optionData.placeholder || "") +
             '">' +
             "</div>" +
             '<div class="form-row">' +
             '<div class="form-group half">' +
             '<label for="option-rows">Rows</label>' +
-            '<input type="number" id="option-rows" name="rows" value="' +
+            '<input type="number" id="option-rows" name="option_rows" value="' +
             (optionData.rows || "3") +
             '" min="2">' +
+            "</div>" +
+            '<div class="form-group half">' +
+            '<label for="option-max-length">Maximum Length</label>' +
+            '<input type="number" id="option-max-length" name="option_max_length" value="' +
+            (optionData.max_length !== null ? optionData.max_length : "") +
+            '" min="0">' +
             "</div>" +
             "</div>"
         );
@@ -623,27 +997,27 @@ jQuery(document).ready(function ($) {
           '<div class="form-row">' +
             '<div class="form-group half">' +
             '<label for="option-min-value">Minimum Quantity</label>' +
-            '<input type="number" id="option-min-value" name="min_value" value="' +
-            (optionData.min_value || 0) +
+            '<input type="number" id="option-min-value" name="option_min_value" value="' +
+            (optionData.min_value !== null ? optionData.min_value : 0) +
             '" min="0">' +
             "</div>" +
             '<div class="form-group half">' +
             '<label for="option-max-value">Maximum Quantity</label>' +
-            '<input type="number" id="option-max-value" name="max_value" value="' +
-            (optionData.max_value || "") +
+            '<input type="number" id="option-max-value" name="option_max_value" value="' +
+            (optionData.max_value !== null ? optionData.max_value : "") +
             '" min="0">' +
             "</div>" +
             "</div>" +
             '<div class="form-row">' +
             '<div class="form-group half">' +
             '<label for="option-default-value">Default Quantity</label>' +
-            '<input type="number" id="option-default-value" name="default_value" value="' +
+            '<input type="number" id="option-default-value" name="option_default_value" value="' +
             (optionData.default_value || 0) +
             '" min="0">' +
             "</div>" +
             '<div class="form-group half">' +
             '<label for="option-step">Step</label>' +
-            '<input type="number" id="option-step" name="step" value="' +
+            '<input type="number" id="option-step" name="option_step" value="' +
             (optionData.step || "1") +
             '" min="1">' +
             "</div>" +
@@ -651,7 +1025,7 @@ jQuery(document).ready(function ($) {
             '<div class="form-row">' +
             '<div class="form-group half">' +
             '<label for="option-unit">Unit Label</label>' +
-            '<input type="text" id="option-unit" name="unit" value="' +
+            '<input type="text" id="option-unit" name="option_unit" value="' +
             (optionData.unit || "") +
             '" placeholder="items, people, etc.">' +
             "</div>" +
@@ -664,7 +1038,9 @@ jQuery(document).ready(function ($) {
     updatePriceFields(optionData.price_type || "fixed");
   }
 
-  // Function to parse options string into array of objects
+  /**
+   * Function to parse options string into array of objects
+   */
   function parseOptionsString(optionsString) {
     const options = [];
     if (!optionsString) return options;
@@ -693,7 +1069,9 @@ jQuery(document).ready(function ($) {
     return options;
   }
 
-  // Function to serialize choices to string format
+  /**
+   * Function to serialize choices to string format
+   */
   function serializeChoices() {
     const choices = [];
 
@@ -710,33 +1088,35 @@ jQuery(document).ready(function ($) {
     return choices.join("\n");
   }
 
-  // Function to add a new choice row
+  /**
+   * Function to add a new choice row
+   */
   function addChoiceRow(container, value = "", label = "", price = 0) {
     const row = $(`
-      <div class="choice-row">
-        <div class="choice-drag-handle">
-          <span class="dashicons dashicons-menu"></span>
-        </div>
-        <div class="choice-value">
-          <input type="text" class="choice-value-input" value="${value}" placeholder="value">
-        </div>
-        <div class="choice-label">
-          <input type="text" class="choice-label-input" value="${label}" placeholder="Display Label">
-        </div>
-        <div class="choice-price">
-          <input type="number" class="choice-price-input" value="${price}" step="0.01" placeholder="0.00">
-        </div>
-        <div class="choice-actions">
-          <button type="button" class="button-link remove-choice">
-            <span class="dashicons dashicons-trash"></span>
-          </button>
-        </div>
-      </div>
-    `);
+            <div class="choice-row">
+                <div class="choice-drag-handle">
+                    <span class="dashicons dashicons-menu"></span>
+                </div>
+                <div class="choice-value">
+                    <input type="text" class="choice-value-input" value="${value}" placeholder="value">
+                </div>
+                <div class="choice-label">
+                    <input type="text" class="choice-label-input" value="${label}" placeholder="Display Label">
+                </div>
+                <div class="choice-price">
+                    <input type="number" class="choice-price-input" value="${price}" step="0.01" placeholder="0.00">
+                </div>
+                <div class="choice-actions">
+                    <button type="button" class="button-link remove-choice">
+                        <span class="dashicons dashicons-trash"></span>
+                    </button>
+                </div>
+            </div>
+        `);
 
     container.append(row);
 
-    // Focus on the value input
+    // Focus on the value input for new choices
     if (!value) {
       row.find(".choice-value-input").focus();
     }
@@ -744,25 +1124,32 @@ jQuery(document).ready(function ($) {
     return row;
   }
 
-  // Function to initialize choices sortable
+  /**
+   * Function to initialize choices sortable
+   */
   function initChoicesSortable() {
-    $(".choices-list").sortable({
-      handle: ".choice-drag-handle",
-      placeholder: "choice-row-placeholder",
-      axis: "y",
-      opacity: 0.8,
-      tolerance: "pointer",
-      start: function (event, ui) {
-        ui.placeholder.height(ui.item.outerHeight());
-      },
-      update: function () {
-        // When order changes, update the hidden input
-        updateOptionsField();
-      },
-    });
+    if (!choicesSortableInitialized) {
+      $(".choices-list").sortable({
+        handle: ".choice-drag-handle",
+        placeholder: "choice-row-placeholder",
+        axis: "y",
+        opacity: 0.8,
+        tolerance: "pointer",
+        start: function (event, ui) {
+          ui.placeholder.height(ui.item.outerHeight());
+        },
+        update: function () {
+          // When order changes, update the hidden input
+          updateOptionsField();
+        },
+      });
+      choicesSortableInitialized = true;
+    }
   }
 
-  // Add new choice button handler
+  /**
+   * Add new choice button handler
+   */
   $(document).on("click", ".add-choice", function () {
     const choicesList = $(this)
       .closest(".choices-container")
@@ -771,18 +1158,29 @@ jQuery(document).ready(function ($) {
     updateOptionsField();
   });
 
-  // Remove choice button handler
+  /**
+   * Remove choice button handler
+   */
   $(document).on("click", ".remove-choice", function () {
     const choiceRow = $(this).closest(".choice-row");
 
-    // Animate removal
-    choiceRow.slideUp(200, function () {
-      $(this).remove();
-      updateOptionsField();
-    });
+    // Don't remove if it's the only choice
+    if ($(".choice-row").length <= 1) {
+      showNotification(
+        getLabel("at_least_one", "You must have at least one choice"),
+        "warning"
+      );
+      return;
+    }
+
+    // Remove the row
+    choiceRow.remove();
+    updateOptionsField();
   });
 
-  // Update options field when choice inputs change
+  /**
+   * Update options field when choice inputs change
+   */
   $(document).on(
     "input",
     ".choice-value-input, .choice-label-input, .choice-price-input",
@@ -791,123 +1189,116 @@ jQuery(document).ready(function ($) {
     }
   );
 
-  // Function to update the hidden options field
+  /**
+   * Function to update the hidden options field
+   */
   function updateOptionsField() {
     const serialized = serializeChoices();
-
-    // Create a hidden input for options if it doesn't exist
-    if ($("#option-choices").length === 0) {
-      $(".choices-container").append(
-        '<input type="hidden" id="option-choices" name="options">'
-      );
-    }
-
     $("#option-choices").val(serialized);
   }
 
-  // Cancel option editing
-  $(".cancel-option").on("click", function () {
-    $("#option-form").hide();
-    $(".no-option-selected").show();
-    $(".option-item").removeClass("active");
+  /**
+   * Save option button click handler
+   */
+  $(".save-option").on("click", function () {
+    // Validate option form
+    if (!validateOptionForm()) {
+      return;
+    }
+
+    // For select/radio options, ensure the hidden field is updated
+    if ($(".choices-list").length) {
+      updateOptionsField();
+    }
+
+    // Show loading indicator
+    $("#service-editor-modal").addClass("loading");
+
+    // Prepare form data
+    let formData = {
+      id: $("#option-id").val(),
+      service_id: currentServiceId,
+      name: $("#option-name").val(),
+      type: $("#option-type").val(),
+      is_required: $("#option-required").val(),
+      description: $("#option-description").val(),
+      price_type: $("#option-price-type").val(),
+      price_impact: $("#option-price-impact").val(),
+      action: "mobooking_save_service_option",
+      nonce: getNonce(),
+    };
+
+    // Add dynamic fields based on option type
+    $(
+      ".dynamic-fields input, .dynamic-fields select, .dynamic-fields textarea"
+    ).each(function () {
+      const name = $(this).attr("name");
+      if (name) {
+        const cleanName = name.replace("option_", "");
+        formData[cleanName] = $(this).val();
+      }
+    });
+
+    // Submit AJAX request
+    $.ajax({
+      url: getAjaxUrl(),
+      type: "POST",
+      data: formData,
+      success: function (response) {
+        if (response.success) {
+          // Reload options list
+          loadServiceOptions(currentServiceId);
+
+          // Hide the form
+          $(".option-form-container").hide();
+          $(".no-option-selected").show();
+
+          // Show success notification
+          showNotification(
+            getLabel("option_saved", "Option saved successfully"),
+            "success"
+          );
+        } else {
+          showNotification(
+            response.data.message || "Error saving option",
+            "error"
+          );
+          $("#service-editor-modal").removeClass("loading");
+        }
+      },
+      error: function (xhr, status, error) {
+        console.error("AJAX Error:", error);
+        showNotification("Error saving option. Please try again.", "error");
+        $("#service-editor-modal").removeClass("loading");
+      },
+    });
   });
 
   /**
-   * Service Option Form Submission Handler
-   * Handles both creation and update of service options
-   */
-  $("#option-form")
-    .off("submit")
-    .on("submit", function (e) {
-      e.preventDefault();
-
-      // Validate form
-      if (!validateOptionForm()) {
-        return false;
-      }
-
-      // Update choices field if needed
-      if ($(".choices-list").length) {
-        updateOptionsField();
-      }
-
-      // Show loading indicator
-      $("#options-modal").addClass("loading");
-
-      // Get form data
-      var formData = new FormData(this);
-
-      // Add the action
-      formData.append("action", "mobooking_save_service_option");
-
-      // Log the data being sent for debugging
-      console.log("Submitting service option data:");
-      for (var pair of formData.entries()) {
-        console.log(pair[0] + ": " + pair[1]);
-      }
-
-      // Send the AJAX request
-      $.ajax({
-        url: mobooking_services.ajax_url,
-        type: "POST",
-        data: formData,
-        processData: false,
-        contentType: false,
-        success: function (response) {
-          console.log("Server response:", response);
-
-          if (response.success) {
-            // Reload options list
-            loadServiceOptions($("#option-service-id").val());
-
-            // Hide the form
-            $("#option-form").hide();
-            $(".no-option-selected").show();
-
-            // Show success notification
-            createNotification(
-              "Option " +
-                ($("#option-id").val() ? "updated" : "created") +
-                " successfully",
-              "success"
-            );
-          } else {
-            console.error("Error response:", response.data);
-            createNotification(
-              response.data.message || "Error saving option",
-              "error"
-            );
-          }
-
-          $("#options-modal").removeClass("loading");
-        },
-        error: function (xhr, status, error) {
-          console.error("AJAX Error:", error);
-          console.log("Full response:", xhr.responseText);
-          createNotification("Error saving option. Please try again.", "error");
-          $("#options-modal").removeClass("loading");
-        },
-      });
-    });
-
-  /**
-   * Option Form Validation
-   * Validates the service option form before submission
+   * Validate option form
    */
   function validateOptionForm() {
     // Check required fields
     const name = $("#option-name").val().trim();
+    const type = $("#option-type").val();
+
     if (!name) {
-      createNotification("Option name is required", "error");
+      showNotification(
+        getLabel("option_required", "Option name is required"),
+        "error"
+      );
       $("#option-name").focus();
       return false;
     }
 
+    if (!type) {
+      showNotification("Option type is required", "error");
+      $("#option-type").focus();
+      return false;
+    }
+
     // Validate choices for select/radio options
-    if (
-      $("#option-type").val() === "select" ||
-      $("#option-type").val() === "radio"
-    ) {
+    if (type === "select" || type === "radio") {
       const hasValidChoices = $(".choice-row")
         .toArray()
         .some((row) => {
@@ -915,8 +1306,11 @@ jQuery(document).ready(function ($) {
         });
 
       if (!hasValidChoices) {
-        createNotification(
-          "At least one choice with a value is required",
+        showNotification(
+          getLabel(
+            "choice_required",
+            "At least one choice with a value is required"
+          ),
           "error"
         );
         $(".choices-list .choice-value-input:first").focus();
@@ -927,7 +1321,9 @@ jQuery(document).ready(function ($) {
     return true;
   }
 
-  // Delete option button click
+  /**
+   * Delete option button
+   */
   $(".delete-option").on("click", function () {
     const optionId = $("#option-id").val();
 
@@ -937,74 +1333,103 @@ jQuery(document).ready(function ($) {
 
     if (
       !confirm(
-        "Are you sure you want to delete this option? This action cannot be undone."
+        getLabel(
+          "confirm_delete",
+          "Are you sure you want to delete this option? This action cannot be undone."
+        )
       )
     ) {
       return;
     }
 
     // Show loading indicator
-    $("#options-modal").addClass("loading");
+    $("#service-editor-modal").addClass("loading");
 
     // Submit delete request via AJAX
     $.ajax({
-      url: mobooking_services.ajax_url,
+      url: getAjaxUrl(),
       type: "POST",
       data: {
         action: "mobooking_delete_service_option",
         id: optionId,
-        nonce: mobooking_services.nonce,
+        nonce: getNonce(),
       },
       success: function (response) {
         if (response.success) {
           // Reload options list
-          loadServiceOptions($("#option-service-id").val());
+          loadServiceOptions(currentServiceId);
 
           // Hide the form
-          $("#option-form").hide();
+          $(".option-form-container").hide();
           $(".no-option-selected").show();
 
           // Show success message
-          createNotification("Option deleted successfully", "success");
+          showNotification(
+            getLabel("option_deleted", "Option deleted successfully"),
+            "success"
+          );
         } else {
-          createNotification(
+          showNotification(
             response.data.message || "Error deleting option",
             "error"
           );
-          $("#options-modal").removeClass("loading");
+          $("#service-editor-modal").removeClass("loading");
         }
       },
       error: function (xhr, status, error) {
         console.error("AJAX Error:", error);
-        createNotification("Error deleting option. Please try again.", "error");
-        $("#options-modal").removeClass("loading");
+        showNotification("Error deleting option. Please try again.", "error");
+        $("#service-editor-modal").removeClass("loading");
       },
     });
   });
 
-  // Close options modal - check if changes need to be saved
-  $(document).on("click", "#options-modal .modal-close", function () {
-    if (optionsChanged) {
-      const confirmMessage =
-        "You have unsaved changes to the options order. Save changes before closing?";
+  /**
+   * Cancel option editing
+   */
+  $(".cancel-option").on("click", function () {
+    $(".option-form-container").hide();
+    $(".no-option-selected").show();
+    $(".option-item").removeClass("active");
+  });
 
-      if (confirm(confirmMessage)) {
-        updateOptionsOrder();
-      }
+  // Filter options with search
+  $("#options-search").on("input", function () {
+    const searchTerm = $(this).val().toLowerCase();
+
+    if (!searchTerm) {
+      $(".option-item").show();
+      return;
     }
 
-    $("#options-modal").fadeOut(300);
+    $(".option-item").each(function () {
+      const optionName = $(this).find(".option-name").text().toLowerCase();
+      const optionType = $(this).find(".option-type").text().toLowerCase();
+
+      if (optionName.includes(searchTerm) || optionType.includes(searchTerm)) {
+        $(this).show();
+      } else {
+        $(this).hide();
+      }
+    });
   });
 
-  // Add animations to modal
-  $(document).on("click", ".manage-options", function () {
-    $("#options-modal").hide().fadeIn(300);
+  // ========================= MODAL MANAGEMENT =========================
+
+  /**
+   * Close modals
+   */
+  $(".modal-close, .cancel-service, .cancel-delete").on("click", function () {
+    $(this).closest(".mobooking-modal").fadeOut(300);
   });
 
-  // Animate option item selection
-  $(document).on("click", ".option-item", function () {
-    if ($(this).hasClass("active")) return;
-    $(".option-item").removeClass("active");
-    $(this).addClass("active");
+  /**
+   * ESC key to close modals
+   */
+  $(document).keydown(function (e) {
+    if (e.keyCode === 27) {
+      // ESC key
+      $(".mobooking-modal:visible").fadeOut(300);
+    }
   });
 });
