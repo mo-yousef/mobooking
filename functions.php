@@ -145,3 +145,124 @@ spl_autoload_register(function ($class) {
         mobooking_debug_log('Successfully loaded class: ' . $class);
     }
 });
+
+
+// In functions.php - replace existing service manager instantiation
+function initialize_service_manager() {
+    // Only initialize the new ServiceManager
+    return new \MoBooking\Services\ServiceManager();
+}
+
+// Use this function instead of directly instantiating either manager
+add_action('init', function() {
+    if (class_exists('\MoBooking\Services\ServiceManager')) {
+        initialize_service_manager();
+    }
+}, 20); // Higher priority to run after autoloading
+
+
+
+
+
+/**
+ * Direct Service Data Access
+ * 
+ * This code creates dedicated AJAX endpoints that directly query the database
+ * to bypass conflicting manager classes.
+ * 
+ * Add this code to your theme's functions.php file.
+ */
+
+// Create dedicated AJAX endpoints
+add_action('wp_ajax_mobooking_direct_get_service', 'mobooking_direct_get_service');
+add_action('wp_ajax_mobooking_direct_get_service_options', 'mobooking_direct_get_service_options');
+
+/**
+ * Custom AJAX handler to get service data directly from the database
+ */
+function mobooking_direct_get_service() {
+    // Check nonce
+    if (!isset($_POST['nonce']) || !wp_verify_nonce($_POST['nonce'], 'mobooking-service-nonce')) {
+        wp_send_json_error(array('message' => 'Security verification failed.'));
+    }
+    
+    // Check permissions
+    if (!current_user_can('mobooking_business_owner') && !current_user_can('administrator')) {
+        wp_send_json_error(array('message' => 'You do not have permission to do this.'));
+    }
+    
+    // Check service ID
+    if (!isset($_POST['id']) || empty($_POST['id'])) {
+        wp_send_json_error(array('message' => 'No service specified.'));
+    }
+    
+    global $wpdb;
+    $service_id = absint($_POST['id']);
+    $user_id = get_current_user_id();
+    $table_name = $wpdb->prefix . 'mobooking_services';
+    
+    // Direct database query
+    $service = $wpdb->get_row($wpdb->prepare(
+        "SELECT * FROM $table_name WHERE id = %d AND user_id = %d AND entity_type = 'service'",
+        $service_id, $user_id
+    ));
+    
+    if (!$service) {
+        // Try without entity_type filter in case you're using the old table structure
+        $service = $wpdb->get_row($wpdb->prepare(
+            "SELECT * FROM $table_name WHERE id = %d AND user_id = %d",
+            $service_id, $user_id
+        ));
+    }
+    
+    if (!$service) {
+        wp_send_json_error(array('message' => 'Service not found or you do not have permission to view it.'));
+    }
+    
+    wp_send_json_success(array(
+        'service' => $service
+    ));
+}
+
+/**
+ * Custom AJAX handler to get service options directly from the database
+ */
+function mobooking_direct_get_service_options() {
+    // Check nonce
+    if (!isset($_POST['nonce']) || !wp_verify_nonce($_POST['nonce'], 'mobooking-service-nonce')) {
+        wp_send_json_error(array('message' => 'Security verification failed.'));
+    }
+    
+    // Check service ID
+    if (!isset($_POST['service_id']) || empty($_POST['service_id'])) {
+        wp_send_json_error(array('message' => 'No service specified.'));
+    }
+    
+    global $wpdb;
+    $service_id = absint($_POST['service_id']);
+    $table_name = $wpdb->prefix . 'mobooking_services';
+    
+    // First check if we're using the new unified table structure
+    $options = $wpdb->get_results($wpdb->prepare(
+        "SELECT * FROM $table_name WHERE parent_id = %d AND entity_type = 'option' ORDER BY display_order ASC, id ASC",
+        $service_id
+    ));
+    
+    // If no options found, check for old table structure with service_options table
+    if (empty($options)) {
+        $options_table = $wpdb->prefix . 'mobooking_service_options';
+        // Check if table exists
+        $table_exists = $wpdb->get_var("SHOW TABLES LIKE '$options_table'");
+        
+        if ($table_exists) {
+            $options = $wpdb->get_results($wpdb->prepare(
+                "SELECT * FROM $options_table WHERE service_id = %d ORDER BY display_order ASC, id ASC",
+                $service_id
+            ));
+        }
+    }
+    
+    wp_send_json_success(array(
+        'options' => $options ?: array()
+    ));
+}
