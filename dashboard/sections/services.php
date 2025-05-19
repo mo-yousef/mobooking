@@ -1,86 +1,3 @@
-<?php
-    // Delete option button click
-    $('.delete-option').on('click', function() {
-        const optionId = $('#option-id').val();
-        
-        if (!optionId) {
-            return;
-        }
-        
-        if (!confirm('<?php _e('Are you sure you want to delete this option? This action cannot be undone.', 'mobooking'); ?>')) {
-            return;
-        }
-        
-        // Show loading indicator
-        $('#options-modal').addClass('loading');
-        
-        // Submit delete request via AJAX
-        $.ajax({
-            url: mobooking_services.ajax_url,
-            type: 'POST',
-            data: {
-                action: 'mobooking_delete_service_option',
-                id: optionId,
-                nonce: mobooking_services.nonce
-            },
-            success: function(response) {
-                if (response.success) {
-                    // Reload options list
-                    loadServiceOptions($('#option-service-id').val());
-                    
-                    // Hide the form
-                    $('#option-form').hide();
-                    $('.no-option-selected').show();
-                    
-                    // Show success message
-                    showNotification('Option deleted successfully', 'success');
-                } else {
-                    showNotification(response.data.message || 'Error deleting option', 'error');
-                }
-                
-                $('#options-modal').removeClass('loading');
-            },
-            error: function(xhr, status, error) {
-                console.error('AJAX Error:', error);
-                showNotification('Error deleting option. Please try again.', 'error');
-                $('#options-modal').removeClass('loading');
-            }
-        });
-    });
-    
-    // Cancel option editing
-    $('.cancel-option').on('click', function() {
-        $('#option-form').hide();
-        $('.no-option-selected').show();
-        $('.option-item').removeClass('active');
-    });
-    
-    // Close modals
-    $('.modal-close, .cancel-service, .cancel-delete').on('click', function() {
-        $(this).closest('.mobooking-modal').fadeOut(300);
-    });
-    
-    // Close options modal - check if changes need to be saved
-    $(document).on('click', '#options-modal .modal-close', function() {
-        const serviceId = $('#option-service-id').val();
-        
-        // Check if options list is sortable and has been reordered
-        if ($('.options-list').hasClass('ui-sortable') && $('.options-list').sortable('option', 'disabled') === false) {
-            // Ensure any pending order changes are saved
-            updateOptionsOrder(serviceId);
-        }
-        
-        $('#options-modal').fadeOut(300);
-    });
-    
-    // ESC key to close modals
-    $(document).keydown(function(e) {
-        if (e.keyCode === 27) { // ESC key
-            $('.mobooking-modal:visible').fadeOut(300);
-        }
-    });
-});
-</script>
 
 <style>
 /* Enhanced Services Styling */
@@ -992,7 +909,9 @@
         padding: 1rem;
     }
 }
-</style> Prevent direct access
+</style> 
+<?php
+//Prevent direct access
 if (!defined('ABSPATH')) {
     exit;
 }
