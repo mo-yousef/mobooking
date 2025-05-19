@@ -363,6 +363,60 @@ wp_localize_script('mobooking-service-options-manager', 'mobooking_data', array(
             <?php wp_nonce_field('mobooking-service-nonce', 'service_nonce'); ?>
         </form>
     </div>
+
+<!-- Add this near the end of the dashboard/sections/services.php file, before the closing </div> -->
+<div id="debug-output" style="display: none; margin-top: 20px; padding: 15px; background-color: #f5f5f5; border: 1px solid #ddd; border-radius: 5px;">
+    <h3>Debug Information</h3>
+    <pre id="debug-content"></pre>
+    <button type="button" class="button" onclick="document.getElementById('debug-output').style.display='none';">Close</button>
+</div>
+
+<script>
+// Debugging utilities
+function debugOutput(data) {
+    document.getElementById('debug-output').style.display = 'block';
+    document.getElementById('debug-content').textContent = typeof data === 'object' ? JSON.stringify(data, null, 2) : data;
+}
+
+// Add a debug button to toolbar
+jQuery(document).ready(function($) {
+    $('.section-header .top-actions').append(
+        '<button type="button" class="button debug-button" style="margin-left: 10px;">' +
+        '<span class="dashicons dashicons-admin-tools"></span> Debug Mode</button>'
+    );
+    
+    $('.debug-button').on('click', function() {
+        // Get environment info
+        const debugInfo = {
+            'WordPress Version': '<?php echo get_bloginfo("version"); ?>',
+            'Theme Version': '<?php echo MOBOOKING_VERSION; ?>',
+            'Browser': navigator.userAgent,
+            'JS Globals': {
+                'mobooking_data': typeof mobooking_data !== 'undefined',
+                'mobooking_services': typeof mobooking_services !== 'undefined',
+                'mobooking_areas': typeof mobooking_areas !== 'undefined',
+                'mobooking_discounts': typeof mobooking_discounts !== 'undefined',
+                'mobooking_bookings': typeof mobooking_bookings !== 'undefined'
+            },
+            'JS Variable Details': {
+                'mobooking_data': typeof mobooking_data !== 'undefined' ? 
+                    { nonce: mobooking_data.nonce ? 'Set (partial value: ' + mobooking_data.nonce.substr(0, 5) + '...)' : 'Missing',
+                      ajax_url: mobooking_data.ajax_url || 'Missing' } : 'Undefined',
+                'mobooking_services': typeof mobooking_services !== 'undefined' ? 
+                    { nonce: mobooking_services.nonce ? 'Set (partial value: ' + mobooking_services.nonce.substr(0, 5) + '...)' : 'Missing',
+                      ajax_url: mobooking_services.ajax_url || 'Missing' } : 'Undefined'
+            },
+            'PHP Info': {
+                'User ID': <?php echo get_current_user_id(); ?>,
+                'Is Admin': <?php echo current_user_can('administrator') ? 'true' : 'false'; ?>,
+                'Service Manager Exists': <?php echo class_exists('\\MoBooking\\Services\\ServiceManager') ? 'true' : 'false'; ?>,
+                'Manager Exists': <?php echo class_exists('\\MoBooking\\Services\\Manager') ? 'true' : 'false'; ?>,
+            }
+        };
+        
+        debugOutput(debugInfo);
+    });
+});</script>
 </div>
 
 <!-- Delete Confirmation Modal -->
@@ -1078,41 +1132,3 @@ wp_localize_script('mobooking-service-options-manager', 'mobooking_data', array(
   }
 }
 </style>
-
-<!-- Add this near the end of the dashboard/sections/services.php file, before the closing </div> -->
-<div id="debug-output" style="display: none; margin-top: 20px; padding: 15px; background-color: #f5f5f5; border: 1px solid #ddd; border-radius: 5px;">
-    <h3>Debug Information</h3>
-    <pre id="debug-content"></pre>
-    <button type="button" class="button" onclick="document.getElementById('debug-output').style.display='none';">Close</button>
-</div>
-
-<script>
-// Add this to your JavaScript
-function debugOutput(data) {
-    document.getElementById('debug-output').style.display = 'block';
-    document.getElementById('debug-content').textContent = typeof data === 'object' ? JSON.stringify(data, null, 2) : data;
-}
-
-// Modify the form submission to include debugging
-$('#option-form').on('submit', function(e) {
-    e.preventDefault();
-    
-    // Collect all form data
-    const formData = new FormData(this);
-    const formDataObj = {};
-    
-    for (let [key, value] of formData.entries()) {
-        formDataObj[key] = value;
-    }
-    
-    // Display what's being sent
-    debugOutput({
-        "Form Fields": formDataObj,
-        "Action URL": mobooking_services.ajax_url,
-        "Nonce": mobooking_services.nonce
-    });
-    
-    // Continue with normal form submission
-    // ... your existing code
-});
-</script>

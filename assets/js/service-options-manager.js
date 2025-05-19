@@ -55,14 +55,37 @@ jQuery(document).ready(function ($) {
    * Get AJAX URL from localized data
    */
   function getAjaxUrl() {
-    return mobooking_data.ajax_url || ajaxurl || "/wp-admin/admin-ajax.php";
+    if (typeof mobooking_data !== "undefined" && mobooking_data.ajax_url) {
+      return mobooking_data.ajax_url;
+    } else if (
+      typeof mobooking_services !== "undefined" &&
+      mobooking_services.ajax_url
+    ) {
+      return mobooking_services.ajax_url;
+    }
+
+    console.error("AJAX URL not found in localized data");
+    return "/wp-admin/admin-ajax.php";
   }
 
   /**
    * Get nonce from localized data
    */
   function getNonce() {
-    return mobooking_data.nonce || "";
+    // Check both possible nonce locations
+    if (typeof mobooking_data !== "undefined" && mobooking_data.nonce) {
+      return mobooking_data.nonce;
+    } else if (
+      typeof mobooking_services !== "undefined" &&
+      mobooking_services.nonce
+    ) {
+      return mobooking_services.nonce;
+    }
+
+    console.error(
+      "Nonce not found in either mobooking_data or mobooking_services"
+    );
+    return "";
   }
 
   // Tab switching
@@ -248,51 +271,6 @@ jQuery(document).ready(function ($) {
     });
   });
 
-  // In service-options-manager.js, update the form submission handler:
-
-  // Add a console.log to debug the form data before submission
-  $("#option-form").on("submit", function (e) {
-    e.preventDefault();
-
-    // Validate form
-    if (!validateOptionForm()) {
-      return;
-    }
-
-    // Show loading indicator
-    $("#options-modal").addClass("loading");
-
-    // Prepare form data
-    var formData = new FormData(this);
-
-    // Add action
-    formData.append("action", "mobooking_save_service_option");
-
-    // Debug - Log what's being sent
-    console.log("Form data being sent:");
-    for (var pair of formData.entries()) {
-      console.log(pair[0] + ": " + pair[1]);
-    }
-
-    // Send the AJAX request
-    $.ajax({
-      url: mobooking_services.ajax_url,
-      type: "POST",
-      data: formData,
-      processData: false,
-      contentType: false,
-      success: function (response) {
-        console.log("Server response:", response);
-        // Rest of your success handler
-      },
-      error: function (xhr, status, error) {
-        console.error("AJAX Error:", error);
-        console.log("Full error response:", xhr.responseText);
-        // Rest of your error handler
-      },
-    });
-  });
-
   /**
    * Submit service form
    */
@@ -325,16 +303,32 @@ jQuery(document).ready(function ($) {
     // Show loading indicator
     $("#service-editor-modal").addClass("loading");
 
-    // Prepare form data
-    var formData = $(this).serialize();
-    formData += "&action=mobooking_save_service&nonce=" + getNonce();
+    // Prepare form data as an object for better debugging
+    var formObj = {
+      action: "mobooking_save_service",
+      nonce: getNonce(),
+      id: $("#service-id").val(),
+      name: serviceName,
+      description: $("#service-description").val(),
+      price: servicePrice,
+      duration: serviceDuration,
+      category: $("#service-category").val(),
+      icon: $("#service-icon").val(),
+      image_url: $("#service-image").val(),
+      status: $("#service-status").val() || "active",
+    };
+
+    // Log what we're sending
+    console.log("Submitting service data:", formObj);
 
     // Submit via AJAX
     $.ajax({
       url: getAjaxUrl(),
       type: "POST",
-      data: formData,
+      data: formObj,
       success: function (response) {
+        debugAjax("save_service", formObj, response);
+
         if (response.success) {
           showNotification(
             getLabel("success_save", "Service saved successfully"),
@@ -369,13 +363,13 @@ jQuery(document).ready(function ($) {
         }
       },
       error: function (xhr, status, error) {
+        debugAjax("save_service", formObj, { xhr, status, error }, true);
         console.error("AJAX Error:", error);
         showNotification("Error saving service. Please try again.", "error");
         $("#service-editor-modal").removeClass("loading");
       },
     });
   });
-
   /**
    * Open delete confirmation modal
    */
@@ -1259,8 +1253,10 @@ jQuery(document).ready(function ($) {
     // Show loading indicator
     $("#service-editor-modal").addClass("loading");
 
-    // Prepare form data
+    // Prepare form data with all fields for debugging
     let formData = {
+      action: "mobooking_save_service_option",
+      nonce: getNonce(),
       id: $("#option-id").val(),
       service_id: currentServiceId,
       name: $("#option-name").val(),
@@ -1269,8 +1265,6 @@ jQuery(document).ready(function ($) {
       description: $("#option-description").val(),
       price_type: $("#option-price-type").val(),
       price_impact: $("#option-price-impact").val(),
-      action: "mobooking_save_service_option",
-      nonce: getNonce(),
     };
 
     // Add dynamic fields based on option type
@@ -1279,10 +1273,13 @@ jQuery(document).ready(function ($) {
     ).each(function () {
       const name = $(this).attr("name");
       if (name) {
-        const cleanName = name.replace("option_", "");
-        formData[cleanName] = $(this).val();
+        const fieldName = name.replace("option_", "");
+        formData[fieldName] = $(this).val();
       }
     });
+
+    // Log what we're sending
+    console.log("Submitting option data:", formData);
 
     // Submit AJAX request
     $.ajax({
@@ -1290,6 +1287,8 @@ jQuery(document).ready(function ($) {
       type: "POST",
       data: formData,
       success: function (response) {
+        debugAjax("save_service_option", formData, response);
+
         if (response.success) {
           // Reload options list
           loadServiceOptions(currentServiceId);
@@ -1312,6 +1311,12 @@ jQuery(document).ready(function ($) {
         }
       },
       error: function (xhr, status, error) {
+        debugAjax(
+          "save_service_option",
+          formData,
+          { xhr, status, error },
+          true
+        );
         console.error("AJAX Error:", error);
         showNotification("Error saving option. Please try again.", "error");
         $("#service-editor-modal").removeClass("loading");

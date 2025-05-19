@@ -28,20 +28,26 @@ class ServiceManager {
         add_action('wp_enqueue_scripts', array($this, 'enqueue_service_assets'));
     }
 
-    /**
-     * Enqueue assets for the service editor
-     */
-    public function enqueue_service_assets() {
-        // Only enqueue on dashboard pages that need it
-        if (is_page('dashboard') || strpos($_SERVER['REQUEST_URI'], '/dashboard/') !== false) {
-            wp_enqueue_script('mobooking-service-options-manager', MOBOOKING_URL . '/assets/js/service-options-manager.js', array('jquery', 'jquery-ui-sortable'), MOBOOKING_VERSION, true);
-            
-            wp_localize_script('mobooking-service-options-manager', 'mobooking_services', array(
-                'ajax_url' => admin_url('admin-ajax.php'),
-                'nonce' => wp_create_nonce('mobooking-service-nonce')
-            ));
-        }
+
+/**
+ * Enqueue assets for the service editor
+ */
+public function enqueue_service_assets() {
+    // Only enqueue on dashboard pages that need it
+    if (is_page('dashboard') || strpos($_SERVER['REQUEST_URI'], '/dashboard/') !== false) {
+        wp_enqueue_script('mobooking-service-options-manager', 
+                         MOBOOKING_URL . '/assets/js/service-options-manager.js', 
+                         array('jquery', 'jquery-ui-sortable'), 
+                         MOBOOKING_VERSION, 
+                         true);
+        
+        // Use mobooking_data for consistency with other localized data
+        wp_localize_script('mobooking-service-options-manager', 'mobooking_data', array(
+            'ajax_url' => admin_url('admin-ajax.php'),
+            'nonce' => wp_create_nonce('mobooking-service-nonce')
+        ));
     }
+}
     
     /**
      * Get service with all options
