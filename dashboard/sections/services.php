@@ -4,6 +4,9 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
+// Start output buffering immediately to prevent "headers already sent" errors
+ob_start();
+
 // Get current view: list, add, edit
 $current_view = isset($_GET['view']) ? sanitize_text_field($_GET['view']) : 'list';
 $service_id = isset($_GET['service_id']) ? intval($_GET['service_id']) : 0;
@@ -11,240 +14,8 @@ $service_id = isset($_GET['service_id']) ? intval($_GET['service_id']) : 0;
 // Initialize the service manager
 $services_manager = new \MoBooking\Services\ServiceManager();
 
-
-// Process form submissions first, before any output
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $redirect_url = '';
-    
-    // Handle service actions
-    if (isset($_POST['service_action'])) {
-        $nonce = isset($_POST['service_nonce']) ? $_POST['service_nonce'] : '';
-        
-        if (wp_verify_nonce($nonce, 'mobooking-service-nonce')) {
-            // Save service
-            if ($_POST['service_action'] === 'save') {
-                // Build service data from POST
-                $service_data = array(
-                    'user_id' => $user_id,
-                    'name' => isset($_POST['name']) ? sanitize_text_field($_POST['name']) : '',
-                    'description' => isset($_POST['description']) ? sanitize_textarea_field($_POST['description']) : '',
-                    'price' => isset($_POST['price']) ? floatval($_POST['price']) : 0,
-                    'duration' => isset($_POST['duration']) ? intval($_POST['duration']) : 60,
-                    'icon' => isset($_POST['icon']) ? sanitize_text_field($_POST['icon']) : '',
-                    'category' => isset($_POST['category']) ? sanitize_text_field($_POST['category']) : '',
-                    'image_url' => isset($_POST['image_url']) ? esc_url_raw($_POST['image_url']) : '',
-                    'status' => isset($_POST['status']) ? sanitize_text_field($_POST['status']) : 'active'
-                );
-                
-                // Add ID if editing
-                if ($service_id > 0) {
-                    $service_data['id'] = $service_id;
-                }
-                
-                // Validate required fields
-                $errors = array();
-                if (empty($service_data['name'])) {
-                    $errors[] = __('Service name is required', 'mobooking');
-                }
-                if ($service_data['price'] <= 0) {
-                    $errors[] = __('Price must be greater than zero', 'mobooking');
-                }
-                if ($service_data['duration'] < 15) {
-                    $errors[] = __('Duration must be at least 15 minutes', 'mobooking');
-                }
-                
-                if (empty($errors)) {
-                    // Save service
-                    $new_service_id = $services_manager->save_service($service_data);
-                    
-                    if ($new_service_id) {
-                        // Set success message
-                        $message = $service_id > 0 ? 
-                            __('Service updated successfully', 'mobooking') : 
-                            __('Service created successfully', 'mobooking');
-                        
-                        // Store message in transient
-                        set_transient('mobooking_service_message', array(
-                            'type' => 'success',
-                            'text' => $message
-                        ), 30);
-                        
-                        // Redirect to service list or edit page
-                        $redirect_url = add_query_arg('view', 'list', remove_query_arg(array('service_id')));
-                    } else {
-                        // Set error message
-                        $errors[] = __('Failed to save service. Please try again.', 'mobooking');
-                    }
-                }
-                
-                // Store errors if any
-                if (!empty($errors)) {
-                    set_transient('mobooking_service_errors', $errors, 30);
-                    $redirect_url = add_query_arg(array('view' => $service_id > 0 ? 'edit' : 'add', 'service_id' => $service_id), remove_query_arg(array()));
-                }
-            }
-            
-            // Delete service
-            else if ($_POST['service_action'] === 'delete' && $service_id > 0) {
-                // Delete the service
-                $result = $services_manager->delete_service($service_id, $user_id);
-                
-                if ($result) {
-                    // Set success message
-                    set_transient('mobooking_service_message', array(
-                        'type' => 'success',
-                        'text' => __('Service deleted successfully', 'mobooking')
-                    ), 30);
-                    
-                    // Redirect to service list
-                    $redirect_url = add_query_arg('view', 'list', remove_query_arg(array('service_id')));
-                } else {
-                    // Set error message
-                    set_transient('mobooking_service_errors', array(__('Failed to delete service', 'mobooking')), 30);
-                    $redirect_url = add_query_arg(array('view' => 'edit', 'service_id' => $service_id), remove_query_arg(array()));
-                }
-            }
-        }
-    }
-    
-    // Handle option actions
-    elseif (isset($_POST['option_action'])) {
-        $nonce = isset($_POST['option_nonce']) ? $_POST['option_nonce'] : '';
-        
-        if (wp_verify_nonce($nonce, 'mobooking-option-nonce')) {
-            $option_service_id = isset($_POST['service_id']) ? intval($_POST['service_id']) : 0;
-            $option_id = isset($_POST['option_id']) ? intval($_POST['option_id']) : 0;
-            
-            // Only process if we have a valid service ID
-            if ($option_service_id > 0) {
-                // Save option
-                if ($_POST['option_action'] === 'save') {
-                    // Build option data from POST
-                    $option_data = array(
-                        'service_id' => $option_service_id,
-                        'name' => isset($_POST['name']) ? sanitize_text_field($_POST['name']) : '',
-                        'type' => isset($_POST['type']) ? sanitize_text_field($_POST['type']) : 'checkbox',
-                        'is_required' => isset($_POST['is_required']) ? intval($_POST['is_required']) : 0,
-                        'description' => isset($_POST['description']) ? sanitize_textarea_field($_POST['description']) : '',
-                        'default_value' => isset($_POST['default_value']) ? sanitize_text_field($_POST['default_value']) : '',
-                        'placeholder' => isset($_POST['placeholder']) ? sanitize_text_field($_POST['placeholder']) : '',
-                        'min_value' => isset($_POST['min_value']) && $_POST['min_value'] !== '' ? floatval($_POST['min_value']) : null,
-                        'max_value' => isset($_POST['max_value']) && $_POST['max_value'] !== '' ? floatval($_POST['max_value']) : null,
-                        'price_impact' => isset($_POST['price_impact']) ? floatval($_POST['price_impact']) : 0,
-                        'price_type' => isset($_POST['price_type']) ? sanitize_text_field($_POST['price_type']) : 'fixed',
-                        'step' => isset($_POST['step']) ? sanitize_text_field($_POST['step']) : '',
-                        'unit' => isset($_POST['unit']) ? sanitize_text_field($_POST['unit']) : '',
-                        'min_length' => isset($_POST['min_length']) && $_POST['min_length'] !== '' ? intval($_POST['min_length']) : null,
-                        'max_length' => isset($_POST['max_length']) && $_POST['max_length'] !== '' ? intval($_POST['max_length']) : null,
-                        'rows' => isset($_POST['rows']) && $_POST['rows'] !== '' ? intval($_POST['rows']) : null
-                    );
-                    
-                    // Add ID if editing
-                    if ($option_id > 0) {
-                        $option_data['id'] = $option_id;
-                    }
-                    
-                    // Handle choices for select/radio options
-                    if (($option_data['type'] === 'select' || $option_data['type'] === 'radio') && isset($_POST['choice_value']) && is_array($_POST['choice_value'])) {
-                        $choices = array();
-                        $choice_values = $_POST['choice_value'];
-                        $choice_labels = isset($_POST['choice_label']) ? $_POST['choice_label'] : array();
-                        $choice_prices = isset($_POST['choice_price']) ? $_POST['choice_price'] : array();
-                        
-                        for ($i = 0; $i < count($choice_values); $i++) {
-                            $value = trim($choice_values[$i]);
-                            if (empty($value)) continue; // Skip empty values
-                            
-                            $label = isset($choice_labels[$i]) ? trim($choice_labels[$i]) : $value;
-                            $price = isset($choice_prices[$i]) ? floatval($choice_prices[$i]) : 0;
-                            
-                            if ($price > 0) {
-                                $choices[] = "$value|$label:$price";
-                            } else {
-                                $choices[] = "$value|$label";
-                            }
-                        }
-                        
-                        $option_data['options'] = implode("\n", $choices);
-                    }
-                    
-                    // Validate required fields
-                    $errors = array();
-                    if (empty($option_data['name'])) {
-                        $errors[] = __('Option name is required', 'mobooking');
-                    }
-                    if (empty($option_data['type'])) {
-                        $errors[] = __('Option type is required', 'mobooking');
-                    }
-                    
-                    if (empty($errors)) {
-                        // Save option
-                        $new_option_id = $services_manager->save_option($option_data);
-                        
-                        if ($new_option_id) {
-                            // Set success message
-                            $message = $option_id > 0 ? 
-                                __('Option updated successfully', 'mobooking') : 
-                                __('Option created successfully', 'mobooking');
-                            
-                            // Store message in transient
-                            set_transient('mobooking_service_message', array(
-                                'type' => 'success',
-                                'text' => $message
-                            ), 30);
-                            
-                            // Redirect to edit service page
-                            $redirect_url = add_query_arg(array('view' => 'edit', 'service_id' => $option_service_id, 'active_tab' => 'options'), remove_query_arg('option_id'));
-                        } else {
-                            // Set error message
-                            $errors[] = __('Failed to save option. Please try again.', 'mobooking');
-                        }
-                    }
-                    
-                    // Store errors if any
-                    if (!empty($errors)) {
-                        set_transient('mobooking_service_errors', $errors, 30);
-                        $redirect_url = add_query_arg(array('view' => 'edit', 'service_id' => $option_service_id, 'active_tab' => 'options'), remove_query_arg('option_id'));
-                    }
-                }
-                
-                // Delete option
-                elseif ($_POST['option_action'] === 'delete' && $option_id > 0) {
-                    // Delete the option
-                    $result = $services_manager->delete_service_option($option_id);
-                    
-                    if ($result) {
-                        // Set success message
-                        set_transient('mobooking_service_message', array(
-                            'type' => 'success',
-                            'text' => __('Option deleted successfully', 'mobooking')
-                        ), 30);
-                    } else {
-                        // Set error message
-                        set_transient('mobooking_service_errors', array(__('Failed to delete option', 'mobooking')), 30);
-                    }
-                    
-                    // Redirect to edit service page
-                    $redirect_url = add_query_arg(array('view' => 'edit', 'service_id' => $option_service_id, 'active_tab' => 'options'), remove_query_arg('option_id'));
-                }
-            }
-        }
-    }
-    
-    // If we have a redirect URL, perform the redirect
-    if (!empty($redirect_url)) {
-        // Clean the output buffer before redirecting
-        ob_clean();
-        
-        // Redirect
-        wp_safe_redirect($redirect_url);
-        exit;
-    }
-
-}
-
 // Get services
-$services = $services_manager->get_user_services($user_id);
+$services = $services_manager->get_user_services(get_current_user_id());
 
 // Set categories for filtering
 $categories = array(
@@ -277,7 +48,29 @@ wp_enqueue_style('mobooking-dashboard-style', MOBOOKING_URL . '/assets/css/dashb
 wp_enqueue_style('mobooking-service-options-style', MOBOOKING_URL . '/assets/css/service-options.css', array(), MOBOOKING_VERSION);
 wp_enqueue_media(); // Enable WordPress Media Uploader
 
-// Display messages
+// Get active tab if specified in URL
+$active_tab = isset($_GET['active_tab']) ? sanitize_text_field($_GET['active_tab']) : 'basic-info';
+
+// Get service data if editing
+$service = null;
+if ($current_view === 'edit' && $service_id > 0) {
+    $service = $services_manager->get_service($service_id, get_current_user_id());
+    
+    // Redirect to list if service not found
+    if (!$service) {
+        wp_redirect(add_query_arg('view', 'list', remove_query_arg(array('service_id'))));
+        exit;
+    }
+    
+    // Get service options
+    if (method_exists($services_manager, 'get_service_options')) {
+        $options = $services_manager->get_service_options($service_id);
+    } else {
+        $options = array();
+    }
+}
+
+// Display any stored transient messages if they exist
 $messages = get_transient('mobooking_service_message');
 $errors = get_transient('mobooking_service_errors');
 
@@ -288,9 +81,6 @@ if ($messages) {
 if ($errors) {
     delete_transient('mobooking_service_errors');
 }
-
-// Get active tab if specified in URL
-$active_tab = isset($_GET['active_tab']) ? sanitize_text_field($_GET['active_tab']) : 'basic-info';
 ?>
 
 <div class="dashboard-section services-section">
@@ -342,7 +132,8 @@ $active_tab = isset($_GET['active_tab']) ? sanitize_text_field($_GET['active_tab
         <?php else : ?>
             <div class="services-grid">
                 <?php foreach ($services as $service) : 
-                    $has_options = $services_manager->has_service_options($service->id);
+                    $has_options = method_exists($services_manager, 'has_service_options') ? 
+                        $services_manager->has_service_options($service->id) : false;
                 ?>
                     <div class="service-card" data-id="<?php echo esc_attr($service->id); ?>" data-category="<?php echo esc_attr($service->category); ?>">
                         <div class="service-header">
@@ -406,9 +197,8 @@ $active_tab = isset($_GET['active_tab']) ? sanitize_text_field($_GET['active_tab
                                 <span class="dashicons dashicons-edit"></span> <?php _e('Edit', 'mobooking'); ?>
                             </a>
                             
-                            <form method="post" class="delete-service-form" onsubmit="return confirm('<?php esc_attr_e('Are you sure you want to delete this service? This action cannot be undone.', 'mobooking'); ?>');">
+                            <form class="delete-service-form">
                                 <?php wp_nonce_field('mobooking-service-nonce', 'service_nonce'); ?>
-                                <input type="hidden" name="service_action" value="delete">
                                 <input type="hidden" name="service_id" value="<?php echo esc_attr($service->id); ?>">
                                 <button type="submit" class="button button-danger">
                                     <span class="dashicons dashicons-trash"></span> <?php _e('Delete', 'mobooking'); ?>
@@ -422,24 +212,8 @@ $active_tab = isset($_GET['active_tab']) ? sanitize_text_field($_GET['active_tab
         
     <?php elseif ($current_view === 'add' || $current_view === 'edit'): ?>
         <?php
-        // Get service data if editing
-        $service = null;
-        if ($current_view === 'edit' && $service_id > 0) {
-            $service = $services_manager->get_service($service_id, $user_id);
-            
-            // Redirect to list if service not found
-            if (!$service) {
-                wp_redirect(add_query_arg('view', 'list', remove_query_arg(array('service_id'))));
-                exit;
-            }
-            
-            // Get service options
-            $options = $services_manager->get_service_options($service_id);
-        }
-        
         // Set page title based on view
         $page_title = $current_view === 'add' ? __('Add New Service', 'mobooking') : __('Edit Service', 'mobooking');
-        $form_action = $current_view === 'add' ? add_query_arg('view', 'add') : add_query_arg(array('view' => 'edit', 'service_id' => $service_id));
         ?>
         
         <!-- Add/Edit Service Form -->
@@ -489,8 +263,7 @@ $active_tab = isset($_GET['active_tab']) ? sanitize_text_field($_GET['active_tab
                         <?php endif; ?>
                     </div>
                     
-                    <form id="service-form" method="post" action="<?php echo esc_url($form_action); ?>">
-                        <input type="hidden" name="service_action" value="save">
+                    <form id="service-form" method="post">
                         <input type="hidden" name="service_id" value="<?php echo esc_attr($service_id); ?>">
                         <?php wp_nonce_field('mobooking-service-nonce', 'service_nonce'); ?>
                         
@@ -501,30 +274,30 @@ $active_tab = isset($_GET['active_tab']) ? sanitize_text_field($_GET['active_tab
                                     <div class="form-grid">
                                         <div class="form-column">
                                             <div class="form-group">
-                                                <label for="service-name"><?php _e('Service Name', 'mobooking'); ?> <span class="required">*</span></label>
-                                                <input type="text" id="service-name" name="name" value="<?php echo $service ? esc_attr($service->name) : ''; ?>" required>
+                                                <label for="name"><?php _e('Service Name', 'mobooking'); ?> <span class="required">*</span></label>
+                                                <input type="text" id="name" name="name" value="<?php echo $service ? esc_attr($service->name) : ''; ?>" required>
                                             </div>
                                             
                                             <div class="form-group">
-                                                <label for="service-description"><?php _e('Description', 'mobooking'); ?></label>
-                                                <textarea id="service-description" name="description" rows="4"><?php echo $service ? esc_textarea($service->description) : ''; ?></textarea>
+                                                <label for="description"><?php _e('Description', 'mobooking'); ?></label>
+                                                <textarea id="description" name="description" rows="4"><?php echo $service ? esc_textarea($service->description) : ''; ?></textarea>
                                             </div>
                                         </div>
                                         
                                         <div class="form-column">
                                             <div class="form-row">
                                                 <div class="form-group half">
-                                                    <label for="service-price"><?php _e('Base Price', 'mobooking'); ?> <span class="required">*</span></label>
+                                                    <label for="price"><?php _e('Base Price', 'mobooking'); ?> <span class="required">*</span></label>
                                                     <div class="input-prefix">
                                                         <span class="prefix">$</span>
-                                                        <input type="number" id="service-price" name="price" min="0" step="0.01" value="<?php echo $service ? esc_attr($service->price) : '0.00'; ?>" required>
+                                                        <input type="number" id="price" name="price" min="0" step="0.01" value="<?php echo $service ? esc_attr($service->price) : '0.00'; ?>" required>
                                                     </div>
                                                 </div>
                                                 
                                                 <div class="form-group half">
-                                                    <label for="service-duration"><?php _e('Duration (min)', 'mobooking'); ?> <span class="required">*</span></label>
+                                                    <label for="duration"><?php _e('Duration (min)', 'mobooking'); ?> <span class="required">*</span></label>
                                                     <div class="input-suffix">
-                                                        <input type="number" id="service-duration" name="duration" min="15" step="15" value="<?php echo $service ? esc_attr($service->duration) : '60'; ?>" required>
+                                                        <input type="number" id="duration" name="duration" min="15" step="15" value="<?php echo $service ? esc_attr($service->duration) : '60'; ?>" required>
                                                         <span class="suffix">min</span>
                                                     </div>
                                                 </div>
@@ -532,8 +305,8 @@ $active_tab = isset($_GET['active_tab']) ? sanitize_text_field($_GET['active_tab
                                             
                                             <div class="form-row">
                                                 <div class="form-group half">
-                                                    <label for="service-category"><?php _e('Category', 'mobooking'); ?></label>
-                                                    <select id="service-category" name="category">
+                                                    <label for="category"><?php _e('Category', 'mobooking'); ?></label>
+                                                    <select id="category" name="category">
                                                         <option value=""><?php _e('Select Category', 'mobooking'); ?></option>
                                                         <?php foreach ($categories as $slug => $name) : ?>
                                                             <option value="<?php echo esc_attr($slug); ?>" <?php selected($service && $service->category === $slug); ?>>
@@ -544,8 +317,8 @@ $active_tab = isset($_GET['active_tab']) ? sanitize_text_field($_GET['active_tab
                                                 </div>
                                                 
                                                 <div class="form-group half">
-                                                    <label for="service-status"><?php _e('Status', 'mobooking'); ?></label>
-                                                    <select id="service-status" name="status">
+                                                    <label for="status"><?php _e('Status', 'mobooking'); ?></label>
+                                                    <select id="status" name="status">
                                                         <option value="active" <?php selected($service && $service->status === 'active'); ?>><?php _e('Active', 'mobooking'); ?></option>
                                                         <option value="inactive" <?php selected($service && $service->status === 'inactive'); ?>><?php _e('Inactive', 'mobooking'); ?></option>
                                                     </select>
@@ -562,9 +335,9 @@ $active_tab = isset($_GET['active_tab']) ? sanitize_text_field($_GET['active_tab
                                     <div class="form-grid">
                                         <div class="form-column">
                                             <div class="form-group">
-                                                <label for="service-icon"><?php _e('Icon', 'mobooking'); ?></label>
+                                                <label for="icon"><?php _e('Icon', 'mobooking'); ?></label>
                                                 <div class="icon-selector">
-                                                    <select id="service-icon" name="icon">
+                                                    <select id="icon" name="icon">
                                                         <option value=""><?php _e('None', 'mobooking'); ?></option>
                                                         <option value="dashicons-admin-home" <?php selected($service && $service->icon === 'dashicons-admin-home'); ?>><?php _e('Home', 'mobooking'); ?></option>
                                                         <option value="dashicons-admin-tools" <?php selected($service && $service->icon === 'dashicons-admin-tools'); ?>><?php _e('Tools', 'mobooking'); ?></option>
@@ -624,9 +397,9 @@ $active_tab = isset($_GET['active_tab']) ? sanitize_text_field($_GET['active_tab
                                         
                                         <div class="form-column">
                                             <div class="form-group">
-                                                <label for="service-image"><?php _e('Image', 'mobooking'); ?></label>
+                                                <label for="image_url"><?php _e('Image', 'mobooking'); ?></label>
                                                 <div class="image-upload-container">
-                                                    <input type="text" id="service-image" name="image_url" value="<?php echo $service ? esc_attr($service->image_url) : ''; ?>" placeholder="https://...">
+                                                    <input type="text" id="image_url" name="image_url" value="<?php echo $service ? esc_attr($service->image_url) : ''; ?>" placeholder="https://...">
                                                     <button type="button" class="button select-image"><?php _e('Select', 'mobooking'); ?></button>
                                                 </div>
                                                 <div class="image-preview">
@@ -757,7 +530,13 @@ $active_tab = isset($_GET['active_tab']) ? sanitize_text_field($_GET['active_tab
                         
                         <div class="form-actions">
                             <a href="<?php echo esc_url(add_query_arg('view', 'list', remove_query_arg(array('service_id')))); ?>" class="button button-secondary"><?php _e('Cancel', 'mobooking'); ?></a>
-                            <button type="submit" class="button button-primary"><?php _e('Save Service', 'mobooking'); ?></button>
+                            <button type="submit" class="button button-primary" id="save-service-button">
+                                <span class="normal-state"><?php _e('Save Service', 'mobooking'); ?></span>
+                                <span class="loading-state" style="display: none;">
+                                    <span class="spinner-icon"></span>
+                                    <?php _e('Saving...', 'mobooking'); ?>
+                                </span>
+                            </button>
                         </div>
                     </form>
                 </div>
@@ -843,251 +622,586 @@ $active_tab = isset($_GET['active_tab']) ? sanitize_text_field($_GET['active_tab
     <?php endif; ?>
 </div>
 
+<style>
+/* AJAX Form Styling */
+.spinner-icon {
+    display: inline-block;
+    width: 16px;
+    height: 16px;
+    border: 2px solid rgba(255, 255, 255, 0.3);
+    border-radius: 50%;
+    border-top-color: #fff;
+    animation: spin 1s linear infinite;
+    margin-right: 8px;
+}
+
+.loading-state {
+    display: inline-flex;
+    align-items: center;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+/* Notification styling */
+#mobooking-notification {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    padding: 12px 20px;
+    border-radius: 6px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    z-index: 9999;
+    transition: opacity 0.3s ease;
+    max-width: 400px;
+}
+
+#mobooking-notification.notification-success {
+    background-color: #43a047;
+    color: white;
+}
+
+#mobooking-notification.notification-error {
+    background-color: #e53935;
+    color: white;
+}
+
+#mobooking-notification.notification-info {
+    background-color: #1e88e5;
+    color: white;
+}
+</style>
+
 <script>
-jQuery(document).ready(function($) {
+// Add to functions.php to register AJAX endpoints
+<?php 
+// This code is for reference - should be in functions.php
+/*
+function mobooking_register_service_ajax_endpoints() {
+    add_action('wp_ajax_mobooking_save_service_ajax', 'mobooking_save_service_ajax_handler');
+    add_action('wp_ajax_mobooking_delete_service_ajax', 'mobooking_delete_service_ajax_handler');
+}
+add_action('init', 'mobooking_register_service_ajax_endpoints');
+
+function mobooking_save_service_ajax_handler() {
+    // Check nonce
+    if (!isset($_POST['service_nonce']) || !wp_verify_nonce($_POST['service_nonce'], 'mobooking-service-nonce')) {
+        wp_send_json_error(['message' => __('Security verification failed.', 'mobooking')]);
+    }
+    
+    // Check permissions
+    if (!current_user_can('mobooking_business_owner') && !current_user_can('administrator')) {
+        wp_send_json_error(['message' => __('You do not have permission to do this.', 'mobooking')]);
+    }
+    
+    // Get current user ID
+    $user_id = get_current_user_id();
+    
+    // Build service data from POST
+    $service_data = array(
+        'user_id' => $user_id,
+        'name' => isset($_POST['name']) ? sanitize_text_field($_POST['name']) : '',
+        'description' => isset($_POST['description']) ? sanitize_textarea_field($_POST['description']) : '',
+        'price' => isset($_POST['price']) ? floatval($_POST['price']) : 0,
+        'duration' => isset($_POST['duration']) ? intval($_POST['duration']) : 60,
+        'icon' => isset($_POST['icon']) ? sanitize_text_field($_POST['icon']) : '',
+        'category' => isset($_POST['category']) ? sanitize_text_field($_POST['category']) : '',
+        'image_url' => isset($_POST['image_url']) ? esc_url_raw($_POST['image_url']) : '',
+        'status' => isset($_POST['status']) ? sanitize_text_field($_POST['status']) : 'active'
+    );
+    
+    // Add ID if editing
+    $service_id = isset($_POST['service_id']) ? intval($_POST['service_id']) : 0;
+    if ($service_id > 0) {
+        $service_data['id'] = $service_id;
+    }
+    
+    // Validate required fields
+    $errors = array();
+    if (empty($service_data['name'])) {
+        $errors[] = __('Service name is required', 'mobooking');
+    }
+    if ($service_data['price'] <= 0) {
+        $errors[] = __('Price must be greater than zero', 'mobooking');
+    }
+    if ($service_data['duration'] < 15) {
+        $errors[] = __('Duration must be at least 15 minutes', 'mobooking');
+    }
+    
+    if (!empty($errors)) {
+        wp_send_json_error(['message' => implode('<br>', $errors)]);
+        return;
+    }
+    
+    // Initialize the service manager
+    $services_manager = new \MoBooking\Services\ServiceManager();
+    
+    // Save service
+    $new_service_id = $services_manager->save_service($service_data);
+    
+    if (!$new_service_id) {
+        wp_send_json_error(['message' => __('Failed to save service. Please try again.', 'mobooking')]);
+        return;
+    }
+    
+    // Return success
+    wp_send_json_success([
+        'id' => $new_service_id,
+        'message' => $service_id > 0 ? 
+            __('Service updated successfully', 'mobooking') : 
+            __('Service created successfully', 'mobooking')
+    ]);
+}
+
+function mobooking_delete_service_ajax_handler() {
+    // Check nonce
+    if (!isset($_POST['service_nonce']) || !wp_verify_nonce($_POST['service_nonce'], 'mobooking-service-nonce')) {
+        wp_send_json_error(['message' => __('Security verification failed.', 'mobooking')]);
+    }
+    
+    // Check permissions
+    if (!current_user_can('mobooking_business_owner') && !current_user_can('administrator')) {
+        wp_send_json_error(['message' => __('You do not have permission to do this.', 'mobooking')]);
+    }
+    
+    // Check service ID
+    $service_id = isset($_POST['service_id']) ? intval($_POST['service_id']) : 0;
+    if ($service_id <= 0) {
+        wp_send_json_error(['message' => __('Invalid service ID.', 'mobooking')]);
+        return;
+    }
+    
+    // Get current user ID
+    $user_id = get_current_user_id();
+    
+    // Initialize the service manager
+    $services_manager = new \MoBooking\Services\ServiceManager();
+    
+    // Delete service
+    $result = $services_manager->delete_service($service_id, $user_id);
+    
+    if (!$result) {
+        wp_send_json_error(['message' => __('Failed to delete service.', 'mobooking')]);
+        return;
+    }
+    
+    // Return success
+    wp_send_json_success([
+        'message' => __('Service deleted successfully', 'mobooking')
+    ]);
+}
+*/
+?>
+
+document.addEventListener('DOMContentLoaded', function() {
     // Tab switching
-    $('.tab-button').on('click', function() {
-        var tabId = $(this).data('tab');
-        
-        // Toggle active class on buttons
-        $('.tab-button').removeClass('active');
-        $(this).addClass('active');
-        
-        // Show selected tab content
-        $('.tab-pane').removeClass('active');
-        $('#' + tabId).addClass('active');
-    });
+    const tabButtons = document.querySelectorAll('.tab-button');
+    if (tabButtons.length > 0) {
+        tabButtons.forEach(button => {
+            button.addEventListener('click', function() {
+                const tabId = this.getAttribute('data-tab');
+                
+                // Toggle active class on buttons
+                tabButtons.forEach(btn => btn.classList.remove('active'));
+                this.classList.add('active');
+                
+                // Show selected tab content
+                const tabPanes = document.querySelectorAll('.tab-pane');
+                tabPanes.forEach(pane => pane.classList.remove('active'));
+                document.getElementById(tabId).classList.add('active');
+            });
+        });
+    }
     
     // Service filter
-    $('#service-filter').on('change', function() {
-        var category = $(this).val();
-        
-        if (category === '') {
-            $('.service-card').show();
-        } else {
-            $('.service-card').hide();
-            $('.service-card[data-category="' + category + '"]').show();
-        }
-    });
-    
-    // Service icon selection
-    $('.icon-item').on('click', function() {
-        var iconClass = $(this).data('icon');
-        $('#service-icon').val(iconClass);
-        $('.icon-preview').html('<span class="dashicons ' + iconClass + '"></span>');
-    });
-    
-    // Media uploader for service image
-    var mediaUploader;
-    
-    $('.select-image').on('click', function(e) {
-        e.preventDefault();
-        
-        // If the uploader object has already been created, reopen the dialog
-        if (mediaUploader) {
-            mediaUploader.open();
-            return;
-        }
-        
-        // Create the media uploader
-        mediaUploader = wp.media.frames.file_frame = wp.media({
-            title: '<?php _e("Choose Image", "mobooking"); ?>',
-            button: {
-                text: '<?php _e("Select", "mobooking"); ?>'
-            },
-            multiple: false
-        });
-        
-        // When an image is selected, run a callback
-        mediaUploader.on('select', function() {
-            var attachment = mediaUploader.state().get('selection').first().toJSON();
-            $('#service-image').val(attachment.url);
-            $('.image-preview').html('<img src="' + attachment.url + '" alt="">');
-        });
-        
-        // Open the uploader dialog
-        mediaUploader.open();
-    });
-    
-    // Preview icon when selected
-    $('#service-icon').on('change', function() {
-        var iconClass = $(this).val();
-        if (iconClass) {
-            $('.icon-preview').html('<span class="dashicons ' + iconClass + '"></span>');
-        } else {
-            $('.icon-preview').html('<span class="icon-placeholder"></span>');
-        }
-    });
-    
-    // Options management - click on an option to edit
-    $(document).on('click', '.option-item', function(e) {
-        // Don't trigger if clicking on drag handle
-        if ($(e.target).hasClass('option-drag-handle') || $(e.target).closest('.option-drag-handle').length) {
-            return;
-        }
-        
-        var optionId = $(this).data('id');
-        
-        // Highlight selected option
-        $('.option-item').removeClass('active');
-        $(this).addClass('active');
-        
-        // Load option data via AJAX
-        loadOptionForm(optionId);
-    });
-    
-    // Add new option button
-    $('.add-option-button').on('click', function() {
-        // Deselect any selected option
-        $('.option-item').removeClass('active');
-        
-        // Show new option form
-        loadOptionForm(0);
-    });
-    
-    // Option form cancel button
-    $(document).on('click', '.cancel-option', function() {
-        $('.option-form-container').hide();
-        $('.no-option-selected').show();
-        $('.option-item').removeClass('active');
-    });
-    
-    // Handle option type change
-    $(document).on('change', '#option-type', function() {
-        var optionType = $(this).val();
-        generateDynamicFields(optionType);
-    });
-    
-    // Handle price type change
-    $(document).on('change', '#option-price-type', function() {
-        updatePriceFields($(this).val());
-    });
-    
-    // Delete option button
-    $(document).on('click', '.delete-option', function() {
-        if (confirm('<?php _e("Are you sure you want to delete this option? This action cannot be undone.", "mobooking"); ?>')) {
-            $('#option-form').attr('action', '').append('<input type="hidden" name="option_action" value="delete">').submit();
-        }
-    });
-    
-    // Add choice button
-    $(document).on('click', '.add-choice', function() {
-        const choicesList = $(this).closest('.choices-container').find('.choices-list');
-        const newRow = `
-            <div class="choice-row">
-                <div class="choice-value">
-                    <input type="text" name="choice_value[]" placeholder="<?php _e("value", "mobooking"); ?>">
-                </div>
-                <div class="choice-label">
-                    <input type="text" name="choice_label[]" placeholder="<?php _e("Display Label", "mobooking"); ?>">
-                </div>
-                <div class="choice-price">
-                    <input type="number" name="choice_price[]" step="0.01" placeholder="0.00">
-                </div>
-                <div class="choice-actions">
-                    <button type="button" class="button-link remove-choice">
-                        <span class="dashicons dashicons-trash"></span>
-                    </button>
-                </div>
-            </div>
-        `;
-        choicesList.append(newRow);
-    });
-    
-    // Remove choice button
-    $(document).on('click', '.remove-choice', function() {
-        const choiceRow = $(this).closest('.choice-row');
-        const choicesList = choiceRow.closest('.choices-list');
-        
-        // Don't remove if it's the only choice
-        if (choicesList.find('.choice-row').length <= 1) {
-            alert('<?php _e("You must have at least one choice", "mobooking"); ?>');
-            return;
-        }
-        
-        choiceRow.remove();
-    });
-    
-    // Initialize sortable for options list
-    if ($('.options-list').length && $('.options-list .option-item').length > 1) {
-        $('.options-list').sortable({
-            handle: '.option-drag-handle',
-            placeholder: 'option-item-placeholder',
-            axis: 'y',
-            opacity: 0.8,
-            tolerance: 'pointer',
-            start: function(event, ui) {
-                ui.item.addClass('sorting');
-                ui.placeholder.height(ui.item.outerHeight());
-            },
-            stop: function(event, ui) {
-                ui.item.removeClass('sorting');
-            },
-            update: function(event, ui) {
-                updateOptionsOrder();
+    const serviceFilter = document.getElementById('service-filter');
+    if (serviceFilter) {
+        serviceFilter.addEventListener('change', function() {
+            const category = this.value;
+            const serviceCards = document.querySelectorAll('.service-card');
+            
+            if (category === '') {
+                serviceCards.forEach(card => card.style.display = 'block');
+            } else {
+                serviceCards.forEach(card => {
+                    if (card.getAttribute('data-category') === category) {
+                        card.style.display = 'block';
+                    } else {
+                        card.style.display = 'none';
+                    }
+                });
             }
         });
     }
     
-    // Update options order via AJAX
-    function updateOptionsOrder() {
-        const orderData = [];
-        
-        $('.options-list .option-item').each(function(index) {
-            orderData.push({
-                id: $(this).data('id'),
-                order: index
+    // Service icon selection
+    const iconItems = document.querySelectorAll('.icon-item');
+    if (iconItems.length > 0) {
+        iconItems.forEach(item => {
+            item.addEventListener('click', function() {
+                const iconClass = this.getAttribute('data-icon');
+                const iconSelect = document.getElementById('icon');
+                if (iconSelect) {
+                    iconSelect.value = iconClass;
+                    
+                    // Update preview
+                    const iconPreview = document.querySelector('.icon-preview');
+                    if (iconPreview) {
+                        iconPreview.innerHTML = `<span class="dashicons ${iconClass}"></span>`;
+                    }
+                }
             });
         });
+    }
+    
+    // Media uploader for service image
+    const selectImageBtn = document.querySelector('.select-image');
+    if (selectImageBtn && typeof wp !== 'undefined' && wp.media) {
+        let mediaUploader;
         
-        $.ajax({
-            url: ajaxurl,
-            type: 'POST',
-            data: {
-                action: 'mobooking_update_options_order',
-                service_id: <?php echo intval($service_id); ?>,
-                order_data: JSON.stringify(orderData),
-                nonce: '<?php echo wp_create_nonce('mobooking-service-nonce'); ?>'
-            },
-            success: function(response) {
-                if (response.success) {
-                    showNotification('<?php _e("Options order updated", "mobooking"); ?>', 'success');
+        selectImageBtn.addEventListener('click', function(e) {
+            e.preventDefault();
+            
+            // If the uploader object has already been created, reopen the dialog
+            if (mediaUploader) {
+                mediaUploader.open();
+                return;
+            }
+            
+            // Create the media uploader
+            mediaUploader = wp.media({
+                title: 'Choose Image',
+                button: {
+                    text: 'Select'
+                },
+                multiple: false
+            });
+            
+            // When an image is selected, run a callback
+            mediaUploader.on('select', function() {
+                const attachment = mediaUploader.state().get('selection').first().toJSON();
+                const imageUrlInput = document.getElementById('image_url');
+                const imagePreview = document.querySelector('.image-preview');
+                
+                if (imageUrlInput) {
+                    imageUrlInput.value = attachment.url;
+                }
+                
+                if (imagePreview) {
+                    imagePreview.innerHTML = `<img src="${attachment.url}" alt="">`;
+                }
+            });
+            
+            // Open the uploader dialog
+            mediaUploader.open();
+        });
+    }
+    
+    // Preview icon when selected from dropdown
+    const iconSelect = document.getElementById('icon');
+    if (iconSelect) {
+        iconSelect.addEventListener('change', function() {
+            const iconClass = this.value;
+            const iconPreview = document.querySelector('.icon-preview');
+            
+            if (iconPreview) {
+                if (iconClass) {
+                    iconPreview.innerHTML = `<span class="dashicons ${iconClass}"></span>`;
+                } else {
+                    iconPreview.innerHTML = '<span class="icon-placeholder"></span>';
                 }
             }
         });
     }
     
+    // Service Form Submission
+    const serviceForm = document.getElementById('service-form');
+    if (serviceForm) {
+        serviceForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            // Show loading state
+            const saveButton = document.getElementById('save-service-button');
+            if (saveButton) {
+                const normalState = saveButton.querySelector('.normal-state');
+                const loadingState = saveButton.querySelector('.loading-state');
+                
+                if (normalState) normalState.style.display = 'none';
+                if (loadingState) loadingState.style.display = 'inline-flex';
+                saveButton.disabled = true;
+            }
+            
+            // Get form data
+            const formData = new FormData(serviceForm);
+            formData.append('action', 'mobooking_save_service_ajax');
+            
+            // Submit form via fetch
+            fetch(mobooking_data.ajax_url, {
+                method: 'POST',
+                body: formData,
+                credentials: 'same-origin'
+            })
+            .then(response => response.json())
+            .then(data => {
+                // Reset button state
+                if (saveButton) {
+                    const normalState = saveButton.querySelector('.normal-state');
+                    const loadingState = saveButton.querySelector('.loading-state');
+                    
+                    if (normalState) normalState.style.display = 'inline';
+                    if (loadingState) loadingState.style.display = 'none';
+                    saveButton.disabled = false;
+                }
+                
+                if (data.success) {
+                    // Show success message
+                    showNotification(data.data.message, 'success');
+                    
+                    // If it's a new service, update the form with the new ID
+                    const serviceIdField = serviceForm.querySelector('input[name="service_id"]');
+                    const isNewService = !serviceIdField.value || serviceIdField.value === '0';
+                    
+                    if (isNewService && data.data.id) {
+                        // Update service ID field
+                        serviceIdField.value = data.data.id;
+                        
+                        // Update title and URL
+                        const titleElem = document.querySelector('.section-title');
+                        if (titleElem) {
+                            titleElem.textContent = 'Edit Service';
+                        }
+                        
+                        // Update URL without page reload
+                        const newUrl = window.location.href.replace('view=add', 'view=edit') + '&service_id=' + data.data.id;
+                        window.history.pushState({}, '', newUrl);
+                        
+                        // Show success message announcing the service was created
+                        showNotification('Service created successfully! You can now add options.', 'success');
+                        
+                        // Switch to options tab if available
+                        const optionsTab = document.querySelector('.tab-button[data-tab="options"]');
+                        if (optionsTab) {
+                            setTimeout(() => {
+                                optionsTab.click();
+                            }, 500);
+                        }
+                    } else {
+                        // For existing services, just show the success message
+                        showNotification('Service updated successfully', 'success');
+                    }
+                } else {
+                    // Show error message
+                    showNotification(data.data.message || 'Error saving service', 'error');
+                }
+            })
+            .catch(error => {
+                // Reset button state
+                if (saveButton) {
+                    const normalState = saveButton.querySelector('.normal-state');
+                    const loadingState = saveButton.querySelector('.loading-state');
+                    
+                    if (normalState) normalState.style.display = 'inline';
+                    if (loadingState) loadingState.style.display = 'none';
+                    saveButton.disabled = false;
+                }
+                
+                // Show error message
+                console.error('Error submitting form:', error);
+                showNotification('An error occurred while processing your request. Please try again.', 'error');
+            });
+        });
+    }
+    
+    // Service Delete Button
+    const deleteButtons = document.querySelectorAll('.delete-service-form');
+    if (deleteButtons.length > 0) {
+        deleteButtons.forEach(form => {
+            form.addEventListener('submit', function(e) {
+                e.preventDefault();
+                
+                // Confirm deletion
+                if (!confirm('Are you sure you want to delete this service? This action cannot be undone.')) {
+                    return;
+                }
+                
+                // Show loading state
+                const submitButton = this.querySelector('button[type="submit"]');
+                const originalButtonHTML = submitButton.innerHTML;
+                submitButton.innerHTML = '<span class="spinner-icon"></span> Deleting...';
+                submitButton.disabled = true;
+                
+                // Get form data
+                const formData = new FormData(this);
+                formData.append('action', 'mobooking_delete_service_ajax');
+                
+                // Submit delete request via fetch
+                fetch(mobooking_data.ajax_url, {
+                    method: 'POST',
+                    body: formData,
+                    credentials: 'same-origin'
+                })
+                .then(response => response.json())
+                .then(data => {
+                    // Reset button state
+                    submitButton.innerHTML = originalButtonHTML;
+                    submitButton.disabled = false;
+                    
+                    if (data.success) {
+                        // Show success message
+                        showNotification(data.data.message, 'success');
+                        
+                        // Remove the service card from the UI with animation
+                        const serviceCard = this.closest('.service-card');
+                        if (serviceCard) {
+                            serviceCard.style.opacity = '0';
+                            serviceCard.style.transform = 'translateY(-10px)';
+                            setTimeout(() => {
+                                serviceCard.remove();
+                                
+                                // Check if there are no services left
+                                const servicesGrid = document.querySelector('.services-grid');
+                                if (servicesGrid && servicesGrid.children.length === 0) {
+                                    const noItemsHTML = `
+                                        <div class="no-items">
+                                            <span class="dashicons dashicons-admin-tools"></span>
+                                            <p>You haven't created any services yet.</p>
+                                            <p>Add your first service to start receiving bookings.</p>
+                                            <a href="?view=add" class="button button-primary">Add Your First Service</a>
+                                        </div>
+                                    `;
+                                    servicesGrid.innerHTML = noItemsHTML;
+                                }
+                            }, 300);
+                        }
+                    } else {
+                        // Show error message
+                        showNotification(data.data.message || 'Error deleting service', 'error');
+                    }
+                })
+                .catch(error => {
+                    // Reset button state
+                    submitButton.innerHTML = originalButtonHTML;
+                    submitButton.disabled = false;
+                    
+                    // Show error message
+                    console.error('Error deleting service:', error);
+                    showNotification('An error occurred while deleting the service. Please try again.', 'error');
+                });
+            });
+        });
+    }
+    
+    // Options management - click on an option to edit
+    const optionItems = document.querySelectorAll('.option-item');
+    if (optionItems.length > 0) {
+        optionItems.forEach(item => {
+            item.addEventListener('click', function(e) {
+                // Don't trigger if clicking on drag handle
+                if (e.target.classList.contains('option-drag-handle') || 
+                    e.target.closest('.option-drag-handle')) {
+                    return;
+                }
+                
+                const optionId = this.getAttribute('data-id');
+                
+                // Highlight selected option
+                optionItems.forEach(opt => opt.classList.remove('active'));
+                this.classList.add('active');
+                
+                // Load option data via AJAX
+                loadOptionForm(optionId);
+            });
+        });
+    }
+    
+    // Add new option button
+    const addOptionButtons = document.querySelectorAll('.add-option-button');
+    if (addOptionButtons.length > 0) {
+        addOptionButtons.forEach(button => {
+            button.addEventListener('click', function() {
+                // Deselect any selected option
+                const optionItems = document.querySelectorAll('.option-item');
+                optionItems.forEach(item => item.classList.remove('active'));
+                
+                // Show new option form
+                loadOptionForm(0);
+            });
+        });
+    }
+    
     // Filter options with search
-    $('#options-search').on('input', function() {
-        const searchTerm = $(this).val().toLowerCase();
-        
-        if (!searchTerm) {
-            $('.option-item').show();
-            return;
+    const optionsSearch = document.getElementById('options-search');
+    if (optionsSearch) {
+        optionsSearch.addEventListener('input', function() {
+            const searchTerm = this.value.toLowerCase();
+            const optionItems = document.querySelectorAll('.option-item');
+            
+            if (!searchTerm) {
+                optionItems.forEach(item => item.style.display = 'flex');
+                return;
+            }
+            
+            optionItems.forEach(item => {
+                const optionName = item.querySelector('.option-name').textContent.toLowerCase();
+                const optionType = item.querySelector('.option-type').textContent.toLowerCase();
+                
+                if (optionName.includes(searchTerm) || optionType.includes(searchTerm)) {
+                    item.style.display = 'flex';
+                } else {
+                    item.style.display = 'none';
+                }
+            });
+        });
+    }
+    
+    // Auto-hide notifications after 5 seconds
+    const notifications = document.querySelectorAll('.notification');
+    if (notifications.length > 0) {
+        setTimeout(function() {
+            notifications.forEach(notification => {
+                notification.style.display = 'none';
+            });
+        }, 5000);
+    }
+    
+    // Notification function
+    window.showNotification = function(message, type = 'info') {
+        // Create notification element if it doesn't exist
+        let notification = document.getElementById('mobooking-notification');
+        if (!notification) {
+            notification = document.createElement('div');
+            notification.id = 'mobooking-notification';
+            document.body.appendChild(notification);
         }
         
-        $('.option-item').each(function() {
-            const optionName = $(this).find('.option-name').text().toLowerCase();
-            const optionType = $(this).find('.option-type').text().toLowerCase();
-            
-            if (optionName.includes(searchTerm) || optionType.includes(searchTerm)) {
-                $(this).show();
-            } else {
-                $(this).hide();
-            }
-        });
-    });
+        // Set notification classes and content
+        notification.className = 'notification-' + type;
+        notification.innerHTML = message;
+        notification.style.display = 'block';
+        
+        // Auto-hide after 3 seconds
+        setTimeout(() => {
+            notification.style.opacity = '0';
+            setTimeout(() => {
+                notification.style.display = 'none';
+                notification.style.opacity = '1';
+            }, 300);
+        }, 3000);
+    };
     
-    // Load option form via AJAX
+    // Helper function to load option form via AJAX
     function loadOptionForm(optionId) {
         const isNew = optionId === 0;
-        const templateHtml = $('#option-form-template').html();
+        const templateHtml = document.getElementById('option-form-template').innerHTML;
+        const optionFormContainer = document.querySelector('.option-form-container');
+        const noOptionSelected = document.querySelector('.no-option-selected');
         
         if (isNew) {
             // Create new option form
             let formHtml = templateHtml
                 .replace('{id}', '')
-                .replace('{title}', '<?php _e("Add New Option", "mobooking"); ?>')
+                .replace('{title}', 'Add New Option')
                 .replace('{name}', '')
                 .replace('{description}', '')
                 .replace(/{type_selected_[^}]+}/g, '')
@@ -1099,119 +1213,300 @@ jQuery(document).ready(function($) {
                 .replace('{price_impact}', '0')
                 .replace('{delete_button_visibility}', 'style="display: none;"');
             
-            $('.option-form-container').html(formHtml).show();
-            $('.no-option-selected').hide();
+            if (optionFormContainer) optionFormContainer.innerHTML = formHtml;
+            if (optionFormContainer) optionFormContainer.style.display = 'block';
+            if (noOptionSelected) noOptionSelected.style.display = 'none';
             
             // Initialize dynamic fields for default type
+            initOptionFormHandlers();
             generateDynamicFields('checkbox');
             updatePriceFields('fixed');
         } else {
             // Show loading state
-            $('.option-form-container').html('<div class="loading-spinner"></div>').show();
-            $('.no-option-selected').hide();
+            if (optionFormContainer) {
+                optionFormContainer.innerHTML = '<div class="loading-spinner"></div>';
+                optionFormContainer.style.display = 'block';
+            }
+            if (noOptionSelected) noOptionSelected.style.display = 'none';
             
-            // Load option data
-            $.ajax({
-                url: ajaxurl,
-                type: 'POST',
-                data: {
-                    action: 'mobooking_get_service_option',
-                    id: optionId,
-                    nonce: '<?php echo wp_create_nonce('mobooking-service-nonce'); ?>'
-                },
-                success: function(response) {
-                    if (response.success) {
-                        const option = response.data.option;
-                        
-                        let formHtml = templateHtml
-                            .replace('{id}', option.id)
-                            .replace('{title}', '<?php _e("Edit Option", "mobooking"); ?>')
-                            .replace('{name}', option.name)
-                            .replace('{description}', option.description || '')
-                            .replace(/{type_selected_[^}]+}/g, '')
-                            .replace('{type_selected_' + option.type + '}', 'selected')
-                            .replace('{required_selected_0}', option.is_required == 0 ? 'selected' : '')
-                            .replace('{required_selected_1}', option.is_required == 1 ? 'selected' : '')
-                            .replace(/{price_type_selected_[^}]+}/g, '')
-                            .replace('{price_type_selected_' + (option.price_type || 'fixed') + '}', 'selected')
-                            .replace('{price_impact}', option.price_impact || '0')
-                            .replace('{delete_button_visibility}', '');
-                        
-                        $('.option-form-container').html(formHtml);
-                        
-                        // Initialize dynamic fields based on option type
-                        generateDynamicFields(option.type, option);
-                        updatePriceFields(option.price_type || 'fixed');
-                    } else {
-                        $('.option-form-container').html('<div class="error-message">Error loading option data</div>');
+            // Load option data via AJAX
+            const formData = new FormData();
+            formData.append('action', 'mobooking_get_service_option');
+            formData.append('id', optionId);
+            formData.append('nonce', mobooking_data.nonce);
+            
+            fetch(mobooking_data.ajax_url, {
+                method: 'POST',
+                body: formData,
+                credentials: 'same-origin'
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success && data.data.option) {
+                    const option = data.data.option;
+                    
+                    let formHtml = templateHtml
+                        .replace('{id}', option.id)
+                        .replace('{title}', 'Edit Option')
+                        .replace('{name}', option.name)
+                        .replace('{description}', option.description || '')
+                        .replace(/{type_selected_[^}]+}/g, '')
+                        .replace('{type_selected_' + option.type + '}', 'selected')
+                        .replace('{required_selected_0}', option.is_required == 0 ? 'selected' : '')
+                        .replace('{required_selected_1}', option.is_required == 1 ? 'selected' : '')
+                        .replace(/{price_type_selected_[^}]+}/g, '')
+                        .replace('{price_type_selected_' + (option.price_type || 'fixed') + '}', 'selected')
+                        .replace('{price_impact}', option.price_impact || '0')
+                        .replace('{delete_button_visibility}', '');
+                    
+                    if (optionFormContainer) optionFormContainer.innerHTML = formHtml;
+                    
+                    // Initialize form handlers
+                    initOptionFormHandlers();
+                    
+                    // Initialize dynamic fields based on option type
+                    generateDynamicFields(option.type, option);
+                    updatePriceFields(option.price_type || 'fixed');
+                } else {
+                    if (optionFormContainer) {
+                        optionFormContainer.innerHTML = '<div class="error-message">Error loading option data</div>';
                     }
-                },
-                error: function() {
-                    $('.option-form-container').html('<div class="error-message">Error loading option data</div>');
+                }
+            })
+            .catch(error => {
+                console.error('Error loading option:', error);
+                if (optionFormContainer) {
+                    optionFormContainer.innerHTML = '<div class="error-message">Error loading option data</div>';
                 }
             });
         }
     }
     
-    // Generate dynamic fields based on option type
-    function generateDynamicFields(optionType, optionData) {
-        const dynamicFields = $('#dynamic-fields');
-        dynamicFields.empty();
+    // Initialize event handlers for option form
+    // Initialize event handlers for option form
+    function initOptionFormHandlers() {
+        // Option type change
+        const optionType = document.getElementById('option-type');
+        if (optionType) {
+            optionType.addEventListener('change', function() {
+                generateDynamicFields(this.value);
+            });
+        }
         
+        // Price type change
+        const priceType = document.getElementById('option-price-type');
+        if (priceType) {
+            priceType.addEventListener('change', function() {
+                updatePriceFields(this.value);
+            });
+        }
+        
+        // Cancel button
+        const cancelButton = document.querySelector('.cancel-option');
+        if (cancelButton) {
+            cancelButton.addEventListener('click', function() {
+                const optionFormContainer = document.querySelector('.option-form-container');
+                const noOptionSelected = document.querySelector('.no-option-selected');
+                const optionItems = document.querySelectorAll('.option-item');
+                
+                if (optionFormContainer) optionFormContainer.style.display = 'none';
+                if (noOptionSelected) noOptionSelected.style.display = 'flex';
+                optionItems.forEach(item => item.classList.remove('active'));
+            });
+        }
+        
+        // Delete button
+        const deleteButton = document.querySelector('.delete-option');
+        if (deleteButton) {
+            deleteButton.addEventListener('click', function() {
+                if (confirm('Are you sure you want to delete this option? This action cannot be undone.')) {
+                    const optionForm = document.getElementById('option-form');
+                    if (optionForm) {
+                        const formData = new FormData(optionForm);
+                        formData.append('action', 'mobooking_delete_option_ajax');
+                        
+                        // Show loading state
+                        this.innerHTML = '<span class="spinner-icon"></span> Deleting...';
+                        this.disabled = true;
+                        
+                        fetch(mobooking_data.ajax_url, {
+                            method: 'POST',
+                            body: formData,
+                            credentials: 'same-origin'
+                        })
+                        .then(response => {
+                            if (!response.ok) {
+                                throw new Error('Server returned ' + response.status + ' ' + response.statusText);
+                            }
+                            return response.json();
+                        })
+                        .then(data => {
+                            if (data.success) {
+                                showNotification(data.data.message, 'success');
+                                
+                                // Reload the options list
+                                setTimeout(() => {
+                                    window.location.reload();
+                                }, 1000);
+                            } else {
+                                // Reset button state
+                                this.innerHTML = '<span class="dashicons dashicons-trash"></span> Delete';
+                                this.disabled = false;
+                                
+                                showNotification(data.data?.message || 'Error deleting option', 'error');
+                            }
+                        })
+                        .catch(error => {
+                            // Reset button state
+                            this.innerHTML = '<span class="dashicons dashicons-trash"></span> Delete';
+                            this.disabled = false;
+                            
+                            console.error('Error deleting option:', error);
+                            showNotification('An error occurred while deleting the option', 'error');
+                        });
+                    }
+                }
+            });
+        }
+        
+        // Save button
+        const saveOptionButton = document.querySelector('.save-option');
+        if (saveOptionButton) {
+            saveOptionButton.addEventListener('click', function(e) {
+                e.preventDefault();
+                
+                const optionForm = document.getElementById('option-form');
+                if (optionForm) {
+                    // Basic validation
+                    const nameField = optionForm.querySelector('input[name="name"]');
+                    const typeField = optionForm.querySelector('select[name="type"]');
+                    
+                    if (!nameField || !nameField.value.trim()) {
+                        showNotification('Option name is required', 'error');
+                        if (nameField) nameField.focus();
+                        return;
+                    }
+                    
+                    if (!typeField || !typeField.value) {
+                        showNotification('Option type is required', 'error');
+                        if (typeField) typeField.focus();
+                        return;
+                    }
+                    
+                    // Special validation for select/radio - must have at least one choice
+                    if ((typeField.value === 'select' || typeField.value === 'radio') && optionForm.querySelectorAll('.choice-row').length === 0) {
+                        showNotification('At least one choice is required for ' + typeField.value + ' options', 'error');
+                        return;
+                    }
+                    
+                    // Show loading state
+                    this.innerHTML = '<span class="spinner-icon"></span> Saving...';
+                    this.disabled = true;
+                    
+                    // Submit form
+                    const formData = new FormData(optionForm);
+                    formData.append('action', 'mobooking_save_option_ajax');
+                    
+                    fetch(mobooking_data.ajax_url, {
+                        method: 'POST',
+                        body: formData,
+                        credentials: 'same-origin'
+                    })
+                    .then(response => {
+                        if (!response.ok) {
+                            throw new Error('Server returned ' + response.status + ' ' + response.statusText);
+                        }
+                        return response.json();
+                    })
+                    .then(data => {
+                        // Reset button state
+                        this.innerHTML = 'Save Option';
+                        this.disabled = false;
+                        
+                        if (data.success) {
+                            showNotification(data.data.message, 'success');
+                            
+                            // Reload the page to reflect changes
+                            setTimeout(() => {
+                                window.location.reload();
+                            }, 1000);
+                        } else {
+                            showNotification(data.data?.message || 'Error saving option', 'error');
+                        }
+                    })
+                    .catch(error => {
+                        // Reset button state
+                        this.innerHTML = 'Save Option';
+                        this.disabled = false;
+                        
+                        console.error('Error saving option:', error);
+                        showNotification('An error occurred while saving the option', 'error');
+                    });
+                }
+            });
+        }
+    }
+    
+    // Helper function to generate dynamic fields based on option type
+    function generateDynamicFields(optionType, optionData) {
+        const dynamicFields = document.getElementById('dynamic-fields');
+        if (!dynamicFields) return;
+        
+        dynamicFields.innerHTML = '';
         optionData = optionData || {};
         
         switch (optionType) {
             case 'checkbox':
-                dynamicFields.append(`
+                dynamicFields.innerHTML = `
                     <div class="form-row">
                         <div class="form-group half">
-                            <label for="option-default-value"><?php _e("Default Value", "mobooking"); ?></label>
-                            <select id="option-default-value" name="default_value">
-                                <option value="0" ${optionData.default_value == 1 ? '' : 'selected'}><?php _e("Unchecked", "mobooking"); ?></option>
-                                <option value="1" ${optionData.default_value == 1 ? 'selected' : ''}><?php _e("Checked", "mobooking"); ?></option>
+                            <label for="default_value">Default Value</label>
+                            <select id="default_value" name="default_value">
+                                <option value="0" ${optionData.default_value == 1 ? '' : 'selected'}>Unchecked</option>
+                                <option value="1" ${optionData.default_value == 1 ? 'selected' : ''}>Checked</option>
                             </select>
                         </div>
                         <div class="form-group half">
-                            <label for="option-label"><?php _e("Option Label", "mobooking"); ?></label>
-                            <input type="text" id="option-label" name="option_label" value="${optionData.option_label || ''}" placeholder="<?php _e("Check this box to add...", "mobooking"); ?>">
+                            <label for="option_label">Option Label</label>
+                            <input type="text" id="option_label" name="option_label" value="${optionData.option_label || ''}" placeholder="Check this box to add...">
                         </div>
                     </div>
-                `);
+                `;
                 break;
                 
             case 'number':
-                dynamicFields.append(`
+                dynamicFields.innerHTML = `
                     <div class="form-row">
                         <div class="form-group half">
-                            <label for="option-min-value"><?php _e("Minimum Value", "mobooking"); ?></label>
-                            <input type="number" id="option-min-value" name="min_value" value="${optionData.min_value !== null && optionData.min_value !== undefined ? optionData.min_value : '0'}">
+                            <label for="min_value">Minimum Value</label>
+                            <input type="number" id="min_value" name="min_value" value="${optionData.min_value !== null && optionData.min_value !== undefined ? optionData.min_value : '0'}">
                         </div>
                         <div class="form-group half">
-                            <label for="option-max-value"><?php _e("Maximum Value", "mobooking"); ?></label>
-                            <input type="number" id="option-max-value" name="max_value" value="${optionData.max_value !== null && optionData.max_value !== undefined ? optionData.max_value : ''}">
+                            <label for="max_value">Maximum Value</label>
+                            <input type="number" id="max_value" name="max_value" value="${optionData.max_value !== null && optionData.max_value !== undefined ? optionData.max_value : ''}">
                         </div>
                     </div>
                     <div class="form-row">
                         <div class="form-group half">
-                            <label for="option-default-value"><?php _e("Default Value", "mobooking"); ?></label>
-                            <input type="number" id="option-default-value" name="default_value" value="${optionData.default_value || ''}">
+                            <label for="default_value">Default Value</label>
+                            <input type="number" id="default_value" name="default_value" value="${optionData.default_value || ''}">
                         </div>
                         <div class="form-group half">
-                            <label for="option-placeholder"><?php _e("Placeholder", "mobooking"); ?></label>
-                            <input type="text" id="option-placeholder" name="placeholder" value="${optionData.placeholder || ''}">
+                            <label for="placeholder">Placeholder</label>
+                            <input type="text" id="placeholder" name="placeholder" value="${optionData.placeholder || ''}">
                         </div>
                     </div>
                     <div class="form-row">
                         <div class="form-group half">
-                            <label for="option-step"><?php _e("Step", "mobooking"); ?></label>
-                            <input type="number" id="option-step" name="step" value="${optionData.step || '1'}" step="0.01">
+                            <label for="step">Step</label>
+                            <input type="number" id="step" name="step" value="${optionData.step || '1'}" step="0.01">
                         </div>
                         <div class="form-group half">
-                            <label for="option-unit"><?php _e("Unit Label", "mobooking"); ?></label>
-                            <input type="text" id="option-unit" name="unit" value="${optionData.unit || ''}" placeholder="<?php _e("sq ft, hours, etc.", "mobooking"); ?>">
+                            <label for="unit">Unit Label</label>
+                            <input type="text" id="unit" name="unit" value="${optionData.unit || ''}" placeholder="sq ft, hours, etc.">
                         </div>
                     </div>
-                `);
+                `;
                 break;
                 
             case 'select':
@@ -1222,162 +1517,280 @@ jQuery(document).ready(function($) {
                     choicesArray = parseOptionsString(optionData.options);
                 }
                 
-                dynamicFields.append(`
+                let choicesHTML = `
                     <div class="form-group">
-                        <label><?php _e("Choices", "mobooking"); ?></label>
+                        <label>Choices</label>
                         <div class="choices-container">
                             <div class="choices-header">
-                                <div class="choice-value"><?php _e("Value", "mobooking"); ?></div>
-                                <div class="choice-label"><?php _e("Label", "mobooking"); ?></div>
-                                <div class="choice-price"><?php _e("Price Impact", "mobooking"); ?></div>
+                                <div class="choice-value">Value</div>
+                                <div class="choice-label">Label</div>
+                                <div class="choice-price">Price Impact</div>
                                 <div class="choice-actions"></div>
                             </div>
-                            <div class="choices-list"></div>
+                            <div class="choices-list">
+                `;
+                
+                // Add choices
+                if (choicesArray.length === 0) {
+                    choicesHTML += `
+                        <div class="choice-row">
+                            <div class="choice-drag-handle">
+                                <span class="dashicons dashicons-menu"></span>
+                            </div>
+                            <div class="choice-value">
+                                <input type="text" name="choice_value[]" class="choice-value-input" placeholder="value">
+                            </div>
+                            <div class="choice-label">
+                                <input type="text" name="choice_label[]" class="choice-label-input" placeholder="Display Label">
+                            </div>
+                            <div class="choice-price">
+                                <input type="number" name="choice_price[]" class="choice-price-input" step="0.01" placeholder="0.00">
+                            </div>
+                            <div class="choice-actions">
+                                <button type="button" class="button-link remove-choice">
+                                    <span class="dashicons dashicons-trash"></span>
+                                </button>
+                            </div>
+                        </div>
+                    `;
+                } else {
+                    choicesArray.forEach(choice => {
+                        choicesHTML += `
+                            <div class="choice-row">
+                                <div class="choice-drag-handle">
+                                    <span class="dashicons dashicons-menu"></span>
+                                </div>
+                                <div class="choice-value">
+                                    <input type="text" name="choice_value[]" class="choice-value-input" value="${choice.value}" placeholder="value">
+                                </div>
+                                <div class="choice-label">
+                                    <input type="text" name="choice_label[]" class="choice-label-input" value="${choice.label}" placeholder="Display Label">
+                                </div>
+                                <div class="choice-price">
+                                    <input type="number" name="choice_price[]" class="choice-price-input" value="${choice.price}" step="0.01" placeholder="0.00">
+                                </div>
+                                <div class="choice-actions">
+                                    <button type="button" class="button-link remove-choice">
+                                        <span class="dashicons dashicons-trash"></span>
+                                    </button>
+                                </div>
+                            </div>
+                        `;
+                    });
+                }
+                
+                choicesHTML += `
+                            </div>
                             <div class="add-choice-container">
-                                <button type="button" class="button add-choice"><?php _e("Add Choice", "mobooking"); ?></button>
+                                <button type="button" class="button add-choice">Add Choice</button>
                             </div>
                         </div>
                     </div>
                     <div class="form-group">
-                        <label for="option-default-value"><?php _e("Default Value", "mobooking"); ?></label>
-                        <input type="text" id="option-default-value" name="default_value" value="${optionData.default_value || ''}">
-                        <p class="field-hint"><?php _e("Enter the value (not the label) of the default choice", "mobooking"); ?></p>
+                        <label for="default_value">Default Value</label>
+                        <input type="text" id="default_value" name="default_value" value="${optionData.default_value || ''}">
+                        <p class="field-hint">Enter the value (not the label) of the default choice</p>
                     </div>
-                `);
+                `;
                 
-                // Populate choices
-                const choicesList = dynamicFields.find('.choices-list');
-                if (choicesArray.length === 0) {
-                    // Add a blank choice if none exist
-                    addChoiceRow(choicesList);
-                } else {
-                    // Add each choice
-                    choicesArray.forEach((choice) => {
-                        addChoiceRow(choicesList, choice.value, choice.label, choice.price);
-                    });
-                }
+                dynamicFields.innerHTML = choicesHTML;
                 
-                // Initialize sortable if more than one choice
-                if (choicesList.find('.choice-row').length > 1) {
-                    choicesList.sortable({
-                        handle: '.choice-drag-handle',
-                        placeholder: 'choice-row-placeholder',
-                        axis: 'y',
-                        opacity: 0.8,
-                        tolerance: 'pointer',
-                        update: function() {
-                            // When order changes, update the choice order
-                            // (nothing else needed as the form will be saved with the new order)
-                        }
-                    });
-                }
+                // Add event listeners for choice buttons
+                initializeChoiceControls();
                 break;
                 
             case 'text':
-                dynamicFields.append(`
+                dynamicFields.innerHTML = `
                     <div class="form-row">
                         <div class="form-group half">
-                            <label for="option-default-value"><?php _e("Default Value", "mobooking"); ?></label>
-                            <input type="text" id="option-default-value" name="default_value" value="${optionData.default_value || ''}">
+                            <label for="default_value">Default Value</label>
+                            <input type="text" id="default_value" name="default_value" value="${optionData.default_value || ''}">
                         </div>
                         <div class="form-group half">
-                            <label for="option-placeholder"><?php _e("Placeholder", "mobooking"); ?></label>
-                            <input type="text" id="option-placeholder" name="placeholder" value="${optionData.placeholder || ''}">
+                            <label for="placeholder">Placeholder</label>
+                            <input type="text" id="placeholder" name="placeholder" value="${optionData.placeholder || ''}">
                         </div>
                     </div>
                     <div class="form-row">
                         <div class="form-group half">
-                            <label for="option-min-length"><?php _e("Minimum Length", "mobooking"); ?></label>
-                            <input type="number" id="option-min-length" name="min_length" value="${optionData.min_length !== null && optionData.min_length !== undefined ? optionData.min_length : ''}" min="0">
+                            <label for="min_length">Minimum Length</label>
+                            <input type="number" id="min_length" name="min_length" value="${optionData.min_length !== null && optionData.min_length !== undefined ? optionData.min_length : ''}" min="0">
                         </div>
                         <div class="form-group half">
-                            <label for="option-max-length"><?php _e("Maximum Length", "mobooking"); ?></label>
-                            <input type="number" id="option-max-length" name="max_length" value="${optionData.max_length !== null && optionData.max_length !== undefined ? optionData.max_length : ''}" min="0">
+                            <label for="max_length">Maximum Length</label>
+                            <input type="number" id="max_length" name="max_length" value="${optionData.max_length !== null && optionData.max_length !== undefined ? optionData.max_length : ''}" min="0">
                         </div>
                     </div>
-                `);
+                `;
                 break;
                 
             case 'textarea':
-                dynamicFields.append(`
+                dynamicFields.innerHTML = `
                     <div class="form-group">
-                        <label for="option-default-value"><?php _e("Default Value", "mobooking"); ?></label>
-                        <textarea id="option-default-value" name="default_value" rows="2">${optionData.default_value || ''}</textarea>
+                        <label for="default_value">Default Value</label>
+                        <textarea id="default_value" name="default_value" rows="2">${optionData.default_value || ''}</textarea>
                     </div>
                     <div class="form-group">
-                        <label for="option-placeholder"><?php _e("Placeholder", "mobooking"); ?></label>
-                        <input type="text" id="option-placeholder" name="placeholder" value="${optionData.placeholder || ''}">
+                        <label for="placeholder">Placeholder</label>
+                        <input type="text" id="placeholder" name="placeholder" value="${optionData.placeholder || ''}">
                     </div>
                     <div class="form-row">
                         <div class="form-group half">
-                            <label for="option-rows"><?php _e("Rows", "mobooking"); ?></label>
-                            <input type="number" id="option-rows" name="rows" value="${optionData.rows || '3'}" min="2">
+                            <label for="rows">Rows</label>
+                            <input type="number" id="rows" name="rows" value="${optionData.rows || '3'}" min="2">
                         </div>
                         <div class="form-group half">
-                            <label for="option-max-length"><?php _e("Maximum Length", "mobooking"); ?></label>
-                            <input type="number" id="option-max-length" name="max_length" value="${optionData.max_length !== null && optionData.max_length !== undefined ? optionData.max_length : ''}" min="0">
+                            <label for="max_length">Maximum Length</label>
+                            <input type="number" id="max_length" name="max_length" value="${optionData.max_length !== null && optionData.max_length !== undefined ? optionData.max_length : ''}" min="0">
                         </div>
                     </div>
-                `);
+                `;
                 break;
                 
             case 'quantity':
-                dynamicFields.append(`
+                dynamicFields.innerHTML = `
                     <div class="form-row">
                         <div class="form-group half">
-                            <label for="option-min-value"><?php _e("Minimum Quantity", "mobooking"); ?></label>
-                            <input type="number" id="option-min-value" name="min_value" value="${optionData.min_value !== null && optionData.min_value !== undefined ? optionData.min_value : '0'}" min="0">
+                            <label for="min_value">Minimum Quantity</label>
+                            <input type="number" id="min_value" name="min_value" value="${optionData.min_value !== null && optionData.min_value !== undefined ? optionData.min_value : '0'}" min="0">
                         </div>
                         <div class="form-group half">
-                            <label for="option-max-value"><?php _e("Maximum Quantity", "mobooking"); ?></label>
-                            <input type="number" id="option-max-value" name="max_value" value="${optionData.max_value !== null && optionData.max_value !== undefined ? optionData.max_value : ''}" min="0">
+                            <label for="max_value">Maximum Quantity</label>
+                            <input type="number" id="max_value" name="max_value" value="${optionData.max_value !== null && optionData.max_value !== undefined ? optionData.max_value : ''}" min="0">
                         </div>
                     </div>
                     <div class="form-row">
                         <div class="form-group half">
-                            <label for="option-default-value"><?php _e("Default Quantity", "mobooking"); ?></label>
-                            <input type="number" id="option-default-value" name="default_value" value="${optionData.default_value || '0'}" min="0">
+                            <label for="default_value">Default Quantity</label>
+                            <input type="number" id="default_value" name="default_value" value="${optionData.default_value || '0'}" min="0">
                         </div>
                         <div class="form-group half">
-                            <label for="option-step"><?php _e("Step", "mobooking"); ?></label>
-                            <input type="number" id="option-step" name="step" value="${optionData.step || '1'}" min="1">
+                            <label for="step">Step</label>
+                            <input type="number" id="step" name="step" value="${optionData.step || '1'}" min="1">
                         </div>
                     </div>
                     <div class="form-row">
                         <div class="form-group half">
-                            <label for="option-unit"><?php _e("Unit Label", "mobooking"); ?></label>
-                            <input type="text" id="option-unit" name="unit" value="${optionData.unit || ''}" placeholder="<?php _e("items, people, etc.", "mobooking"); ?>">
+                            <label for="unit">Unit Label</label>
+                            <input type="text" id="unit" name="unit" value="${optionData.unit || ''}" placeholder="items, people, etc.">
                         </div>
                     </div>
-                `);
+                `;
                 break;
+        }
+    }
+    
+    // Initialize event handlers for choice controls
+    function initializeChoiceControls() {
+        // Add choice button
+        const addChoiceButton = document.querySelector('.add-choice');
+        if (addChoiceButton) {
+            addChoiceButton.addEventListener('click', function() {
+                const choicesList = document.querySelector('.choices-list');
+                if (choicesList) {
+                    const newRow = document.createElement('div');
+                    newRow.className = 'choice-row';
+                    newRow.innerHTML = `
+                        <div class="choice-drag-handle">
+                            <span class="dashicons dashicons-menu"></span>
+                        </div>
+                        <div class="choice-value">
+                            <input type="text" name="choice_value[]" class="choice-value-input" placeholder="value">
+                        </div>
+                        <div class="choice-label">
+                            <input type="text" name="choice_label[]" class="choice-label-input" placeholder="Display Label">
+                        </div>
+                        <div class="choice-price">
+                            <input type="number" name="choice_price[]" class="choice-price-input" step="0.01" placeholder="0.00">
+                        </div>
+                        <div class="choice-actions">
+                            <button type="button" class="button-link remove-choice">
+                                <span class="dashicons dashicons-trash"></span>
+                            </button>
+                        </div>
+                    `;
+                    choicesList.appendChild(newRow);
+                    
+                    // Focus new input
+                    setTimeout(() => {
+                        const newInput = newRow.querySelector('.choice-value-input');
+                        if (newInput) newInput.focus();
+                    }, 10);
+                    
+                    // Add event listener to the new remove button
+                    const removeButton = newRow.querySelector('.remove-choice');
+                    if (removeButton) {
+                        removeButton.addEventListener('click', handleRemoveChoice);
+                    }
+                }
+            });
+        }
+        
+        // Remove choice buttons
+        const removeButtons = document.querySelectorAll('.remove-choice');
+        if (removeButtons.length > 0) {
+            removeButtons.forEach(button => {
+                button.addEventListener('click', handleRemoveChoice);
+            });
+        }
+    }
+    
+    // Handler for remove choice button
+    function handleRemoveChoice() {
+        const choiceRow = this.closest('.choice-row');
+        const choicesList = this.closest('.choices-list');
+        
+        if (choicesList && choicesList.children.length <= 1) {
+            showNotification('You must have at least one choice', 'warning');
+            return;
+        }
+        
+        if (choiceRow) {
+            choiceRow.remove();
         }
     }
     
     // Update price fields based on selected price type
     function updatePriceFields(priceType) {
-        const valueField = $('.price-impact-value');
+        const valueField = document.querySelector('.price-impact-value');
+        if (!valueField) return;
         
-        valueField.show();
+        valueField.style.display = 'block';
+        const label = valueField.querySelector('label');
+        const input = valueField.querySelector('input');
         
         if (priceType === 'custom') {
-            valueField.find('label').text('<?php _e("Formula", "mobooking"); ?>');
-            valueField.find('input').attr('type', 'text').attr('placeholder', 'price + (value * 5)');
+            if (label) label.textContent = 'Formula';
+            if (input) {
+                input.setAttribute('type', 'text');
+                input.setAttribute('placeholder', 'price + (value * 5)');
+            }
         } else if (priceType === 'none') {
-            valueField.hide();
+            valueField.style.display = 'none';
         } else if (priceType === 'percentage') {
-            valueField.find('label').text('<?php _e("Percentage (%)", "mobooking"); ?>');
-            valueField.find('input').attr('type', 'number').attr('placeholder', '10');
+            if (label) label.textContent = 'Percentage (%)';
+            if (input) {
+                input.setAttribute('type', 'number');
+                input.setAttribute('placeholder', '10');
+            }
         } else if (priceType === 'multiply') {
-            valueField.find('label').text('<?php _e("Multiplier", "mobooking"); ?>');
-            valueField.find('input').attr('type', 'number').attr('step', '0.1').attr('placeholder', '1.5');
+            if (label) label.textContent = 'Multiplier';
+            if (input) {
+                input.setAttribute('type', 'number');
+                input.setAttribute('step', '0.1');
+                input.setAttribute('placeholder', '1.5');
+            }
         } else {
-            valueField.find('label').text('<?php _e("Amount ($)", "mobooking"); ?>');
-            valueField.find('input').attr('type', 'number').attr('step', '0.01').attr('placeholder', '9.99');
+            if (label) label.textContent = 'Amount ($)';
+            if (input) {
+                input.setAttribute('type', 'number');
+                input.setAttribute('step', '0.01');
+                input.setAttribute('placeholder', '9.99');
+            }
         }
     }
     
-    // Function to parse options string to array of objects
+    // Helper function to parse options string to array of objects
     function parseOptionsString(optionsString) {
         const options = [];
         if (!optionsString) return options;
@@ -1405,60 +1818,12 @@ jQuery(document).ready(function($) {
         
         return options;
     }
-    
-    // Function to add a choice row
-    function addChoiceRow(container, value = "", label = "", price = 0) {
-        const row = $(`
-            <div class="choice-row">
-                <div class="choice-drag-handle">
-                    <span class="dashicons dashicons-menu"></span>
-                </div>
-                <div class="choice-value">
-                    <input type="text" class="choice-value-input" name="choice_value[]" value="${value}" placeholder="<?php _e("value", "mobooking"); ?>">
-                </div>
-                <div class="choice-label">
-                    <input type="text" class="choice-label-input" name="choice_label[]" value="${label}" placeholder="<?php _e("Display Label", "mobooking"); ?>">
-                </div>
-                <div class="choice-price">
-                    <input type="number" class="choice-price-input" name="choice_price[]" value="${price}" step="0.01" placeholder="0.00">
-                </div>
-                <div class="choice-actions">
-                    <button type="button" class="button-link remove-choice">
-                        <span class="dashicons dashicons-trash"></span>
-                    </button>
-                </div>
-            </div>
-        `);
-        
-        container.append(row);
-        
-        // Focus on the value input for new choices
-        if (!value) {
-            row.find('.choice-value-input').focus();
-        }
-        
-        return row;
-    }
-    
-    // Show notification
-    function showNotification(message, type = 'info') {
-        // Create notification element if it doesn't exist
-        if ($('#mobooking-notification').length === 0) {
-            $('body').append('<div id="mobooking-notification"></div>');
-        }
-        
-        const notification = $('#mobooking-notification');
-        notification.attr('class', '').addClass('notification-' + type);
-        notification.html(message);
-        notification.fadeIn(300).delay(3000).fadeOut(300);
-    }
-    
-    // Auto-hide notifications after 5 seconds
-    setTimeout(function() {
-        $('.notification').fadeOut('slow');
-    }, 5000);
 });
 </script>
+<?php
+// End output buffering and flush
+ob_end_flush();
+?>
 
 <style>
 /* Modern, compact styling for services section */
