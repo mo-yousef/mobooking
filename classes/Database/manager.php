@@ -39,16 +39,23 @@ class Manager {
         $services_table = $wpdb->prefix . 'mobooking_services';
         $options_table = $wpdb->prefix . 'mobooking_service_options';
         
-        // Check if both tables exist and if services table has entity_type column
+        // Check if both tables exist
         $services_exists = $wpdb->get_var("SHOW TABLES LIKE '$services_table'") == $services_table;
         $options_exists = $wpdb->get_var("SHOW TABLES LIKE '$options_table'") == $options_table;
         
         if ($services_exists) {
+            // Check if entity_type column exists in services table
+            $column_exists = false;
             $columns = $wpdb->get_results("SHOW COLUMNS FROM $services_table");
-            $column_names = array_map(function($col) { return $col->Field; }, $columns);
+            foreach ($columns as $column) {
+                if ($column->Field == 'entity_type') {
+                    $column_exists = true;
+                    break;
+                }
+            }
             
-            // If services table exists but doesn't have entity_type, we need to migrate
-            if (!in_array('entity_type', $column_names) && $options_exists) {
+            // If services table exists but doesn't have entity_type column, we need to migrate
+            if (!$column_exists && $options_exists) {
                 $migration = new ServicesTableMigration();
                 $migration->run();
             }
@@ -58,13 +65,13 @@ class Manager {
     /**
      * Create services table
      */
-    private function create_services_table() {
+    public function create_services_table() {
         global $wpdb;
         $table_name = $wpdb->prefix . 'mobooking_services';
         
         $charset_collate = $wpdb->get_charset_collate();
         
-        $sql = "CREATE TABLE $table_name (
+        $sql = "CREATE TABLE IF NOT EXISTS $table_name (
             id bigint(20) NOT NULL AUTO_INCREMENT,
             user_id bigint(20) NOT NULL,
             entity_type varchar(20) DEFAULT 'service',
@@ -105,18 +112,16 @@ class Manager {
         dbDelta($sql);
     }
     
-    // Other table creation methods remain the same
-    
     /**
      * Create bookings table
      */
-    private function create_bookings_table() {
+    public function create_bookings_table() {
         global $wpdb;
         $table_name = $wpdb->prefix . 'mobooking_bookings';
         
         $charset_collate = $wpdb->get_charset_collate();
         
-        $sql = "CREATE TABLE $table_name (
+        $sql = "CREATE TABLE IF NOT EXISTS $table_name (
             id bigint(20) NOT NULL AUTO_INCREMENT,
             user_id bigint(20) NOT NULL,
             customer_name varchar(255) NOT NULL,
@@ -147,13 +152,13 @@ class Manager {
     /**
      * Create discounts table
      */
-    private function create_discounts_table() {
+    public function create_discounts_table() {
         global $wpdb;
         $table_name = $wpdb->prefix . 'mobooking_discounts';
         
         $charset_collate = $wpdb->get_charset_collate();
         
-        $sql = "CREATE TABLE $table_name (
+        $sql = "CREATE TABLE IF NOT EXISTS $table_name (
             id bigint(20) NOT NULL AUTO_INCREMENT,
             user_id bigint(20) NOT NULL,
             code varchar(50) NOT NULL,
@@ -177,13 +182,13 @@ class Manager {
     /**
      * Create areas table
      */
-    private function create_areas_table() {
+    public function create_areas_table() {
         global $wpdb;
         $table_name = $wpdb->prefix . 'mobooking_areas';
         
         $charset_collate = $wpdb->get_charset_collate();
         
-        $sql = "CREATE TABLE $table_name (
+        $sql = "CREATE TABLE IF NOT EXISTS $table_name (
             id bigint(20) NOT NULL AUTO_INCREMENT,
             user_id bigint(20) NOT NULL,
             zip_code varchar(20) NOT NULL,
@@ -203,13 +208,13 @@ class Manager {
     /**
      * Create settings table
      */
-    private function create_settings_table() {
+    public function create_settings_table() {
         global $wpdb;
         $table_name = $wpdb->prefix . 'mobooking_settings';
         
         $charset_collate = $wpdb->get_charset_collate();
         
-        $sql = "CREATE TABLE $table_name (
+        $sql = "CREATE TABLE IF NOT EXISTS $table_name (
             id bigint(20) NOT NULL AUTO_INCREMENT,
             user_id bigint(20) NOT NULL,
             company_name varchar(255) NULL,
@@ -228,5 +233,29 @@ class Manager {
         
         require_once(ABSPATH . 'wp-admin/includes/upgrade.php');
         dbDelta($sql);
+    }
+    
+    /**
+     * Force recreation of services table
+     * Use with caution - all service data will be lost
+     */
+    public function force_recreate_services_table() {
+        global $wpdb;
+        $table_name = $wpdb->prefix . 'mobooking_services';
+        
+        // Drop the table if it exists
+        $wpdb->query("DROP TABLE IF EXISTS $table_name");
+        
+        // Recreate the table
+        $this->create_services_table();
+    }
+    
+    /**
+     * Migrate services data from old structure to new unified structure
+     * This is a utility method that can be called directly if needed
+     */
+    public function migrate_services() {
+        $migration = new ServicesTableMigration();
+        return $migration->run();
     }
 }

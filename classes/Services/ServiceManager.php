@@ -23,31 +23,7 @@ class ServiceManager {
         add_action('wp_ajax_mobooking_get_service_options', array($this, 'ajax_get_service_options'));
         add_action('wp_ajax_mobooking_delete_service_option', array($this, 'ajax_delete_service_option'));
         add_action('wp_ajax_mobooking_update_options_order', array($this, 'ajax_update_options_order'));
-        
-        // Enqueue scripts
-        add_action('wp_enqueue_scripts', array($this, 'enqueue_service_assets'));
     }
-
-
-/**
- * Enqueue assets for the service editor
- */
-public function enqueue_service_assets() {
-    // Only enqueue on dashboard pages that need it
-    if (is_page('dashboard') || strpos($_SERVER['REQUEST_URI'], '/dashboard/') !== false) {
-        wp_enqueue_script('mobooking-service-options-manager', 
-                         MOBOOKING_URL . '/assets/js/service-options-manager.js', 
-                         array('jquery', 'jquery-ui-sortable'), 
-                         MOBOOKING_VERSION, 
-                         true);
-        
-        // Use mobooking_data for consistency with other localized data
-        wp_localize_script('mobooking-service-options-manager', 'mobooking_data', array(
-            'ajax_url' => admin_url('admin-ajax.php'),
-            'nonce' => wp_create_nonce('mobooking-service-nonce')
-        ));
-    }
-}
     
     /**
      * Get service with all options
@@ -89,6 +65,9 @@ public function enqueue_service_assets() {
         // Attach options to service
         $service->options = $options;
         
+        // Set the has_options flag
+        $service->has_options = !empty($options);
+        
         return $service;
     }
     
@@ -99,10 +78,21 @@ public function enqueue_service_assets() {
         global $wpdb;
         $table_name = $wpdb->prefix . 'mobooking_services';
         
-        return $wpdb->get_results($wpdb->prepare(
-            "SELECT * FROM $table_name WHERE user_id = %d AND entity_type = 'service' ORDER BY name ASC",
+        $services = $wpdb->get_results($wpdb->prepare(
+            "SELECT s.*, 
+                (SELECT COUNT(*) FROM $table_name o WHERE o.parent_id = s.id AND o.entity_type = 'option') as options_count 
+            FROM $table_name s 
+            WHERE s.user_id = %d AND s.entity_type = 'service' 
+            ORDER BY s.name ASC",
             $user_id
         ));
+        
+        // Add has_options flag to each service
+        foreach ($services as $service) {
+            $service->has_options = (int)$service->options_count > 0;
+        }
+        
+        return $services;
     }
 
     /**
@@ -219,6 +209,7 @@ public function enqueue_service_assets() {
             return $service_id;
         } catch (\Exception $e) {
             $wpdb->query('ROLLBACK');
+            error_log('Error saving service: ' . $e->getMessage());
             return false;
         }
     }
@@ -321,6 +312,7 @@ public function enqueue_service_assets() {
             return true;
         } catch (\Exception $e) {
             $wpdb->query('ROLLBACK');
+            error_log('Error deleting service: ' . $e->getMessage());
             return false;
         }
     }
@@ -363,61 +355,9 @@ public function enqueue_service_assets() {
             return true;
         } catch (\Exception $e) {
             $wpdb->query('ROLLBACK');
+            error_log('Error updating options order: ' . $e->getMessage());
             return false;
         }
-    }
-    
-    /**
-     * Calculate total price for a service with selected options
-     */
-    public function calculate_total_price($service_id, $option_values = []) {
-        $service = $this->get_service_with_options($service_id);
-        
-        if (!$service) {
-            return 0;
-        }
-        
-        $total = $service->price;
-        
-        // Add option price impacts
-        foreach ($service->options as $option) {
-            if (isset($option_values[$option->id])) {
-                $value = $option_values[$option->id];
-                
-                switch ($option->type) {
-                    case 'checkbox':
-                        if ($value) {
-                            $total += floatval($option->price_impact);
-                        }
-                        break;
-                        
-                    case 'select':
-                    case 'radio':
-                        $choices = $this->parse_option_choices($option->options);
-                        foreach ($choices as $choice) {
-                            if ($choice['value'] == $value) {
-                                $total += floatval($choice['price'] ?: $option->price_impact);
-                                break;
-                            }
-                        }
-                        break;
-                        
-                    case 'number':
-                    case 'quantity':
-                        $value = floatval($value);
-                        if ($option->price_type == 'fixed') {
-                            $total += floatval($option->price_impact);
-                        } elseif ($option->price_type == 'multiply') {
-                            $total += $value * floatval($option->price_impact);
-                        } elseif ($option->price_type == 'percentage') {
-                            $total += ($service->price * $value * floatval($option->price_impact)) / 100;
-                        }
-                        break;
-                }
-            }
-        }
-        
-        return $total;
     }
     
     /**
@@ -457,9 +397,6 @@ public function enqueue_service_assets() {
         return $choices;
     }
     
-    // AJAX handlers implementation (omitted for brevity but included in actual code)
-    // All AJAX handlers already use the new table structure
-
     /**
      * AJAX handler to save a service
      */
@@ -473,12 +410,9 @@ public function enqueue_service_assets() {
             wp_send_json_error(array('message' => __('You do not have permission to do this.', 'mobooking')));
         }
         
-        // Get current user ID
-        $user_id = get_current_user_id();
-        
         // Prepare service data
         $service_data = array(
-            'user_id' => $user_id,
+            'user_id' => isset($_POST['user_id']) ? absint($_POST['user_id']) : get_current_user_id(),
             'name' => isset($_POST['name']) ? $_POST['name'] : '',
             'description' => isset($_POST['description']) ? $_POST['description'] : '',
             'price' => isset($_POST['price']) ? $_POST['price'] : 0,
@@ -492,15 +426,9 @@ public function enqueue_service_assets() {
         // Add ID if editing
         if (isset($_POST['id']) && !empty($_POST['id'])) {
             $service_data['id'] = absint($_POST['id']);
-            
-            // Check ownership if editing
-            $existing_service = $this->get_service($service_data['id']);
-            if (!$existing_service || $existing_service->user_id != $user_id) {
-                wp_send_json_error(array('message' => __('You do not have permission to edit this service.', 'mobooking')));
-            }
         }
         
-        // Validate data
+        // Validate required fields
         if (empty($service_data['name'])) {
             wp_send_json_error(array('message' => __('Service name is required.', 'mobooking')));
         }
@@ -526,5 +454,282 @@ public function enqueue_service_assets() {
         ));
     }
 
-    // All other AJAX handlers follow a similar pattern
+    /**
+     * AJAX handler to delete a service
+     */
+    public function ajax_delete_service() {
+        // Check nonce
+        if (!isset($_POST['nonce']) || !wp_verify_nonce($_POST['nonce'], 'mobooking-service-nonce')) {
+            wp_send_json_error(array('message' => __('Security verification failed.', 'mobooking')));
+        }
+        
+        // Check permissions
+        if (!current_user_can('mobooking_business_owner') && !current_user_can('administrator')) {
+            wp_send_json_error(array('message' => __('You do not have permission to do this.', 'mobooking')));
+        }
+        
+        // Check service ID
+        if (!isset($_POST['id']) || empty($_POST['id'])) {
+            wp_send_json_error(array('message' => __('No service specified.', 'mobooking')));
+        }
+        
+        $service_id = absint($_POST['id']);
+        $user_id = get_current_user_id();
+        
+        // Delete service
+        $result = $this->delete_service($service_id, $user_id);
+        
+        if (!$result) {
+            wp_send_json_error(array('message' => __('Failed to delete service.', 'mobooking')));
+        }
+        
+        wp_send_json_success(array(
+            'message' => __('Service deleted successfully.', 'mobooking')
+        ));
+    }
+
+    /**
+     * AJAX handler to get a service
+     */
+    public function ajax_get_service() {
+        // Check nonce
+        if (!isset($_POST['nonce']) || !wp_verify_nonce($_POST['nonce'], 'mobooking-service-nonce')) {
+            wp_send_json_error(array('message' => __('Security verification failed.', 'mobooking')));
+        }
+        
+        // Check service ID
+        if (!isset($_POST['id']) || empty($_POST['id'])) {
+            wp_send_json_error(array('message' => __('No service specified.', 'mobooking')));
+        }
+        
+        $service_id = absint($_POST['id']);
+        $user_id = get_current_user_id();
+        
+        // Get service with options
+        $service = $this->get_service_with_options($service_id, $user_id);
+        
+        if (!$service) {
+            wp_send_json_error(array('message' => __('Service not found or you do not have permission to view it.', 'mobooking')));
+        }
+        
+        wp_send_json_success(array(
+            'service' => $service
+        ));
+    }
+
+    /**
+     * AJAX handler to get services
+     */
+    public function ajax_get_services() {
+        // Check nonce
+        if (!isset($_POST['nonce']) || !wp_verify_nonce($_POST['nonce'], 'mobooking-service-nonce')) {
+            wp_send_json_error(array('message' => __('Security verification failed.', 'mobooking')));
+        }
+        
+        // Check permissions
+        if (!current_user_can('mobooking_business_owner') && !current_user_can('administrator')) {
+            wp_send_json_error(array('message' => __('You do not have permission to do this.', 'mobooking')));
+        }
+        
+        $user_id = get_current_user_id();
+        
+        // Get services
+        $services = $this->get_user_services($user_id);
+        
+        wp_send_json_success(array(
+            'services' => $services
+        ));
+    }
+    
+    /**
+     * AJAX handler to get a service option
+     */
+    public function ajax_get_service_option() {
+        // Check nonce
+        if (!isset($_POST['nonce']) || !wp_verify_nonce($_POST['nonce'], 'mobooking-service-nonce')) {
+            wp_send_json_error(array('message' => __('Security verification failed.', 'mobooking')));
+        }
+        
+        // Check option ID
+        if (!isset($_POST['id']) || empty($_POST['id'])) {
+            wp_send_json_error(array('message' => __('No option specified.', 'mobooking')));
+        }
+        
+        $option_id = absint($_POST['id']);
+        
+        // Get option
+        $option = $this->get_service_option($option_id);
+        
+        if (!$option) {
+            wp_send_json_error(array('message' => __('Option not found.', 'mobooking')));
+        }
+        
+        wp_send_json_success(array(
+            'option' => $option
+        ));
+    }
+
+    /**
+     * AJAX handler to get service options
+     */
+    public function ajax_get_service_options() {
+        // Check nonce
+        if (!isset($_POST['nonce']) || !wp_verify_nonce($_POST['nonce'], 'mobooking-service-nonce')) {
+            wp_send_json_error(array('message' => __('Security verification failed.', 'mobooking')));
+        }
+        
+        // Check service ID
+        if (!isset($_POST['service_id']) || empty($_POST['service_id'])) {
+            wp_send_json_error(array('message' => __('No service specified.', 'mobooking')));
+        }
+        
+        $service_id = absint($_POST['service_id']);
+        
+        // Get options
+        $options = $this->get_service_options($service_id);
+        
+        wp_send_json_success(array(
+            'options' => $options
+        ));
+    }
+
+    /**
+     * AJAX handler to save a service option
+     */
+    public function ajax_save_service_option() {
+        // Check nonce
+        if (!isset($_POST['nonce']) || !wp_verify_nonce($_POST['nonce'], 'mobooking-service-nonce')) {
+            wp_send_json_error(array('message' => __('Security verification failed.', 'mobooking')));
+        }
+        
+        // Check permissions
+        if (!current_user_can('mobooking_business_owner') && !current_user_can('administrator')) {
+            wp_send_json_error(array('message' => __('You do not have permission to do this.', 'mobooking')));
+        }
+        
+        // Check service ID
+        if (!isset($_POST['service_id']) || empty($_POST['service_id'])) {
+            wp_send_json_error(array('message' => __('No service specified.', 'mobooking')));
+        }
+        
+        // Prepare option data
+        $option_data = array(
+            'service_id' => absint($_POST['service_id']),
+            'name' => isset($_POST['name']) ? $_POST['name'] : '',
+            'description' => isset($_POST['description']) ? $_POST['description'] : '',
+            'type' => isset($_POST['type']) ? $_POST['type'] : 'checkbox',
+            'is_required' => isset($_POST['is_required']) ? $_POST['is_required'] : 0,
+            'default_value' => isset($_POST['default_value']) ? $_POST['default_value'] : '',
+            'placeholder' => isset($_POST['placeholder']) ? $_POST['placeholder'] : '',
+            'min_value' => isset($_POST['min_value']) ? $_POST['min_value'] : null,
+            'max_value' => isset($_POST['max_value']) ? $_POST['max_value'] : null,
+            'price_impact' => isset($_POST['price_impact']) ? $_POST['price_impact'] : 0,
+            'price_type' => isset($_POST['price_type']) ? $_POST['price_type'] : 'fixed',
+            'options' => isset($_POST['options']) ? $_POST['options'] : '',
+            'option_label' => isset($_POST['option_label']) ? $_POST['option_label'] : '',
+            'step' => isset($_POST['step']) ? $_POST['step'] : '',
+            'unit' => isset($_POST['unit']) ? $_POST['unit'] : '',
+            'min_length' => isset($_POST['min_length']) ? $_POST['min_length'] : null,
+            'max_length' => isset($_POST['max_length']) ? $_POST['max_length'] : null,
+            'rows' => isset($_POST['rows']) ? $_POST['rows'] : null
+        );
+        
+        // Add ID if editing
+        if (isset($_POST['id']) && !empty($_POST['id'])) {
+            $option_data['id'] = absint($_POST['id']);
+        }
+        
+        // Validate required fields
+        if (empty($option_data['name'])) {
+            wp_send_json_error(array('message' => __('Option name is required.', 'mobooking')));
+        }
+        
+        // Special validation for select/radio types
+        if (in_array($option_data['type'], array('select', 'radio')) && empty($option_data['options'])) {
+            wp_send_json_error(array('message' => __('At least one choice is required for this option type.', 'mobooking')));
+        }
+        
+        // Save option
+        $option_id = $this->save_option($option_data);
+        
+        if (!$option_id) {
+            wp_send_json_error(array('message' => __('Failed to save option.', 'mobooking')));
+        }
+        
+        wp_send_json_success(array(
+            'id' => $option_id,
+            'message' => __('Option saved successfully.', 'mobooking')
+        ));
+    }
+
+    /**
+     * AJAX handler to delete a service option
+     */
+    public function ajax_delete_service_option() {
+        // Check nonce
+        if (!isset($_POST['nonce']) || !wp_verify_nonce($_POST['nonce'], 'mobooking-service-nonce')) {
+            wp_send_json_error(array('message' => __('Security verification failed.', 'mobooking')));
+        }
+        
+        // Check permissions
+        if (!current_user_can('mobooking_business_owner') && !current_user_can('administrator')) {
+            wp_send_json_error(array('message' => __('You do not have permission to do this.', 'mobooking')));
+        }
+        
+        // Check option ID
+        if (!isset($_POST['id']) || empty($_POST['id'])) {
+            wp_send_json_error(array('message' => __('No option specified.', 'mobooking')));
+        }
+        
+        $option_id = absint($_POST['id']);
+        
+        // Delete option
+        $result = $this->delete_service_option($option_id);
+        
+        if (!$result) {
+            wp_send_json_error(array('message' => __('Failed to delete option.', 'mobooking')));
+        }
+        
+        wp_send_json_success(array(
+            'message' => __('Option deleted successfully.', 'mobooking')
+        ));
+    }
+
+    /**
+     * AJAX handler to update options order
+     */
+    public function ajax_update_options_order() {
+        // Check nonce
+        if (!isset($_POST['nonce']) || !wp_verify_nonce($_POST['nonce'], 'mobooking-service-nonce')) {
+            wp_send_json_error(array('message' => __('Security verification failed.', 'mobooking')));
+        }
+        
+        // Check permissions
+        if (!current_user_can('mobooking_business_owner') && !current_user_can('administrator')) {
+            wp_send_json_error(array('message' => __('You do not have permission to do this.', 'mobooking')));
+        }
+        
+        // Check service ID and order data
+        if (!isset($_POST['service_id']) || empty($_POST['service_id']) || !isset($_POST['order_data']) || empty($_POST['order_data'])) {
+            wp_send_json_error(array('message' => __('Missing required data.', 'mobooking')));
+        }
+        
+        $service_id = absint($_POST['service_id']);
+        $order_data = json_decode(stripslashes($_POST['order_data']), true);
+        
+        if (!is_array($order_data)) {
+            wp_send_json_error(array('message' => __('Invalid order data.', 'mobooking')));
+        }
+        
+        // Update options order
+        $result = $this->update_options_order($service_id, $order_data);
+        
+        if (!$result) {
+            wp_send_json_error(array('message' => __('Failed to update options order.', 'mobooking')));
+        }
+        
+        wp_send_json_success(array(
+            'message' => __('Options order updated successfully.', 'mobooking')
+        ));
+    }
 }

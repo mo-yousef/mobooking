@@ -14,57 +14,40 @@ class ServicesTableMigration {
         $services_table = $wpdb->prefix . 'mobooking_services';
         $options_table = $wpdb->prefix . 'mobooking_service_options';
         
-        // Step 1: Update the services table schema
-        $this->update_services_table_schema();
+        // Check if both tables exist
+        $services_exists = $wpdb->get_var("SHOW TABLES LIKE '$services_table'") == $services_table;
+        $options_exists = $wpdb->get_var("SHOW TABLES LIKE '$options_table'") == $options_table;
         
-        // Step 2: Add entity_type to existing services
-        $wpdb->query("UPDATE $services_table SET entity_type = 'service', parent_id = NULL WHERE entity_type IS NULL");
-        
-        // Step 3: Migrate options to the services table
-        $options = $wpdb->get_results("SELECT * FROM $options_table");
-        
-        foreach ($options as $option) {
-            // Get the user_id from the parent service
-            $user_id = $wpdb->get_var($wpdb->prepare(
-                "SELECT user_id FROM $services_table WHERE id = %d",
-                $option->service_id
-            ));
-            
-            // Insert the option into the services table
-            $wpdb->insert(
-                $services_table,
-                array(
-                    'user_id' => $user_id,
-                    'parent_id' => $option->service_id,
-                    'entity_type' => 'option',
-                    'name' => $option->name,
-                    'description' => $option->description,
-                    'price' => 0, // Options don't have a base price
-                    'duration' => 0, // Options don't have a duration
-                    'type' => $option->type,
-                    'is_required' => $option->is_required,
-                    'default_value' => $option->default_value,
-                    'placeholder' => $option->placeholder,
-                    'min_value' => $option->min_value,
-                    'max_value' => $option->max_value,
-                    'price_impact' => $option->price_impact,
-                    'price_type' => $option->price_type,
-                    'options' => $option->options,
-                    'option_label' => $option->option_label,
-                    'step' => $option->step,
-                    'unit' => $option->unit,
-                    'min_length' => $option->min_length,
-                    'max_length' => $option->max_length,
-                    'rows' => $option->rows,
-                    'display_order' => $option->display_order,
-                    'created_at' => $option->created_at,
-                    'updated_at' => $option->updated_at
-                )
-            );
+        if (!$services_exists) {
+            // Services table doesn't exist, create it with the new schema
+            $this->create_services_table();
+            return true;
         }
         
-        // Step 4: Optionally drop the options table (commented out for safety)
-        // $wpdb->query("DROP TABLE IF EXISTS $options_table");
+        // Check if the entity_type column exists in services table
+        $entity_type_exists = false;
+        $columns = $wpdb->get_results("SHOW COLUMNS FROM $services_table");
+        foreach ($columns as $column) {
+            if ($column->Field == 'entity_type') {
+                $entity_type_exists = true;
+                break;
+            }
+        }
+        
+        // Step 1: Update the services table schema if needed
+        if (!$entity_type_exists) {
+            $this->update_services_table_schema();
+            
+            // Step 2: Add entity_type to existing services
+            $wpdb->query("UPDATE $services_table SET entity_type = 'service', parent_id = NULL WHERE entity_type IS NULL");
+        }
+        
+        // Step 3: Migrate options to the services table if options table exists
+        if ($options_exists) {
+            $this->migrate_options($options_table, $services_table);
+        }
+        
+        return true;
     }
     
     /**
@@ -127,7 +110,7 @@ class ServicesTableMigration {
     }
 
     /**
-     * Create the services table from scratch
+     * Create the services table from scratch with the new schema
      */
     private function create_services_table() {
         global $wpdb;
@@ -173,5 +156,69 @@ class ServicesTableMigration {
         
         require_once(ABSPATH . 'wp-admin/includes/upgrade.php');
         dbDelta($sql);
+    }
+    
+    /**
+     * Migrate options from the old options table to the unified services table
+     */
+    private function migrate_options($options_table, $services_table) {
+        global $wpdb;
+        
+        // Get all options
+        $options = $wpdb->get_results("SELECT * FROM $options_table");
+        
+        foreach ($options as $option) {
+            // Get the user_id from the parent service
+            $user_id = $wpdb->get_var($wpdb->prepare(
+                "SELECT user_id FROM $services_table WHERE id = %d",
+                $option->service_id
+            ));
+            
+            if (!$user_id) {
+                continue; // Skip if service doesn't exist
+            }
+            
+            // Check if this option already exists in services table
+            $existing = $wpdb->get_var($wpdb->prepare(
+                "SELECT id FROM $services_table WHERE parent_id = %d AND entity_type = 'option' AND name = %s",
+                $option->service_id, $option->name
+            ));
+            
+            if ($existing) {
+                continue; // Skip if option already exists
+            }
+            
+            // Insert the option into the services table
+            $wpdb->insert(
+                $services_table,
+                array(
+                    'user_id' => $user_id,
+                    'entity_type' => 'option',
+                    'parent_id' => $option->service_id,
+                    'name' => $option->name,
+                    'description' => $option->description,
+                    'price' => 0, // Options don't have a base price
+                    'duration' => 0, // Options don't have a duration
+                    'type' => $option->type,
+                    'is_required' => $option->is_required,
+                    'default_value' => $option->default_value,
+                    'placeholder' => $option->placeholder,
+                    'min_value' => $option->min_value,
+                    'max_value' => $option->max_value,
+                    'price_impact' => $option->price_impact,
+                    'price_type' => $option->price_type,
+                    'options' => $option->options,
+                    'option_label' => $option->option_label,
+                    'step' => $option->step,
+                    'unit' => $option->unit,
+                    'min_length' => $option->min_length,
+                    'max_length' => $option->max_length,
+                    'rows' => $option->rows,
+                    'display_order' => $option->display_order,
+                    'created_at' => $option->created_at,
+                    'updated_at' => $option->updated_at
+                )
+            );
+        }
     }
 }
