@@ -22,8 +22,7 @@ jQuery(document).ready(function ($) {
   // ========================= UTILITY FUNCTIONS =========================
 
   /**
-   * Notification system
-   * Shows a notification with a given message and type
+   * Helper function to show notifications
    */
   function showNotification(message, type = "info") {
     // Create notification element if it doesn't exist
@@ -52,7 +51,7 @@ jQuery(document).ready(function ($) {
   }
 
   /**
-   * Get AJAX URL from localized data
+   * Helper function to get AJAX URL
    */
   function getAjaxUrl() {
     if (typeof mobooking_data !== "undefined" && mobooking_data.ajax_url) {
@@ -69,10 +68,9 @@ jQuery(document).ready(function ($) {
   }
 
   /**
-   * Get nonce from localized data
+   * Helper function to get service nonce
    */
   function getNonce() {
-    // Check both possible nonce locations
     if (typeof mobooking_data !== "undefined" && mobooking_data.nonce) {
       return mobooking_data.nonce;
     } else if (
@@ -82,20 +80,24 @@ jQuery(document).ready(function ($) {
       return mobooking_services.nonce;
     }
 
-    console.error(
-      "Nonce not found in either mobooking_data or mobooking_services"
-    );
+    console.error("Nonce not found in localized data");
     return "";
   }
 
   /**
-   * Get option nonce from localized data
+   * Helper function to get option nonce
    */
   function getOptionNonce() {
     // Check for dedicated option nonce first
     if (typeof mobooking_data !== "undefined" && mobooking_data.option_nonce) {
       return mobooking_data.option_nonce;
+    } else if (
+      typeof mobooking_services !== "undefined" &&
+      mobooking_services.option_nonce
+    ) {
+      return mobooking_services.option_nonce;
     }
+
     // Fall back to service nonce
     return getNonce();
   }
@@ -1594,6 +1596,131 @@ jQuery(document).ready(function ($) {
   });
 });
 
+/**
+ * Enhanced AJAX handler for saving service options
+ */
+$(document).on("click", ".save-option", function (e) {
+  e.preventDefault();
+
+  const optionForm = document.getElementById("option-form");
+  if (!optionForm) return;
+
+  // Basic validation
+  const nameField = optionForm.querySelector('input[name="name"]');
+  const typeField = optionForm.querySelector('select[name="type"]');
+
+  if (!nameField || !nameField.value.trim()) {
+    showNotification("Option name is required", "error");
+    if (nameField) nameField.focus();
+    return;
+  }
+
+  if (!typeField || !typeField.value) {
+    showNotification("Option type is required", "error");
+    if (typeField) typeField.focus();
+    return;
+  }
+
+  // For select/radio, handle choices
+  if (typeField.value === "select" || typeField.value === "radio") {
+    // Collect all choices and format them properly
+    const choices = [];
+    optionForm.querySelectorAll(".choice-row").forEach((row) => {
+      const value = row.querySelector(".choice-value-input").value.trim();
+      const label = row.querySelector(".choice-label-input").value.trim();
+      const price = row.querySelector(".choice-price-input").value;
+
+      if (value) {
+        if (price > 0) {
+          choices.push(`${value}|${label}:${price}`);
+        } else {
+          choices.push(`${value}|${label}`);
+        }
+      }
+    });
+
+    // Make sure we have at least one choice
+    if (choices.length === 0) {
+      showNotification(
+        "At least one choice is required for " + typeField.value + " options",
+        "error"
+      );
+      return;
+    }
+
+    // Add choices to form data
+    const choicesField = document.createElement("input");
+    choicesField.type = "hidden";
+    choicesField.name = "options";
+    choicesField.value = choices.join("\n");
+    optionForm.appendChild(choicesField);
+  }
+
+  // Show loading state
+  this.innerHTML = '<span class="spinner-icon"></span> Saving...';
+  this.disabled = true;
+
+  // Create FormData for submission
+  const formData = new FormData(optionForm);
+
+  // IMPORTANT: Use the correct AJAX action
+  formData.append("action", "mobooking_save_option_ajax");
+
+  // Include current service ID if not already in form
+  if (!formData.has("service_id")) {
+    formData.append("service_id", currentServiceId);
+  }
+
+  // Add nonce
+  formData.append("option_nonce", getOptionNonce());
+
+  // Log what we're sending for debugging
+  console.log("Submitting option data:", Object.fromEntries(formData));
+
+  // Submit via fetch API
+  fetch(getAjaxUrl(), {
+    method: "POST",
+    body: formData,
+    credentials: "same-origin",
+  })
+    .then((response) => {
+      if (!response.ok) {
+        throw new Error(
+          "Server returned " + response.status + " " + response.statusText
+        );
+      }
+      return response.json();
+    })
+    .then((data) => {
+      console.log("Save option response:", data);
+
+      // Reset button state
+      this.innerHTML = "Save Option";
+      this.disabled = false;
+
+      if (data.success) {
+        showNotification(
+          data.data.message || "Option saved successfully",
+          "success"
+        );
+
+        // Reload the page to reflect changes
+        setTimeout(() => {
+          window.location.reload();
+        }, 1000);
+      } else {
+        showNotification(data.data?.message || "Error saving option", "error");
+      }
+    })
+    .catch((error) => {
+      // Reset button state
+      this.innerHTML = "Save Option";
+      this.disabled = false;
+
+      console.error("Error saving option:", error);
+      showNotification("An error occurred while saving the option", "error");
+    });
+});
 /**
  * Debug AJAX calls
  */

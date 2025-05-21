@@ -421,8 +421,17 @@ function mobooking_register_option_ajax_endpoints() {
 add_action('init', 'mobooking_register_option_ajax_endpoints');
 
 /**
- * AJAX handler for saving a service option
+ * Make sure the option nonce is included in the localized script data
  */
+function mobooking_update_localized_data() {
+    wp_localize_script('jquery', 'mobooking_data', array(
+        'ajax_url' => admin_url('admin-ajax.php'),
+        'nonce' => wp_create_nonce('mobooking-service-nonce'),
+        'option_nonce' => wp_create_nonce('mobooking-option-nonce')
+    ));
+}
+add_action('wp_enqueue_scripts', 'mobooking_update_localized_data', 20);
+
 /**
  * Unified AJAX handler for saving service options
  */
@@ -711,49 +720,74 @@ function mobooking_save_option_ajax_handler() {
 // Register the AJAX handler for option saving
 add_action('wp_ajax_mobooking_save_option_ajax', 'mobooking_save_option_ajax_handler');
 
-// Make sure the option nonce is included in the localized script data
-function mobooking_update_localized_data() {
-    wp_localize_script('jquery', 'mobooking_data', array(
-        'ajax_url' => admin_url('admin-ajax.php'),
-        'nonce' => wp_create_nonce('mobooking-service-nonce'),
-        'option_nonce' => wp_create_nonce('mobooking-option-nonce')
-    ));
-}
-add_action('wp_enqueue_scripts', 'mobooking_update_localized_data', 20);
+
 /**
  * AJAX handler for deleting a service option
  */
 function mobooking_delete_option_ajax_handler() {
     // Check nonce
-    if (!isset($_POST['option_nonce']) || !wp_verify_nonce($_POST['option_nonce'], 'mobooking-option-nonce')) {
+    if (!isset($_POST['option_nonce']) && !isset($_POST['nonce'])) {
         wp_send_json_error(['message' => __('Security verification failed.', 'mobooking')]);
+        return;
+    }
+    
+    $nonce_verified = false;
+    if (isset($_POST['option_nonce']) && wp_verify_nonce($_POST['option_nonce'], 'mobooking-option-nonce')) {
+        $nonce_verified = true;
+    } elseif (isset($_POST['nonce']) && wp_verify_nonce($_POST['nonce'], 'mobooking-service-nonce')) {
+        $nonce_verified = true;
+    }
+    
+    if (!$nonce_verified) {
+        wp_send_json_error(['message' => __('Security verification failed.', 'mobooking')]);
+        return;
     }
     
     // Check permissions
     if (!current_user_can('mobooking_business_owner') && !current_user_can('administrator')) {
         wp_send_json_error(['message' => __('You do not have permission to do this.', 'mobooking')]);
+        return;
     }
     
     // Check option ID
     if (!isset($_POST['option_id']) || empty($_POST['option_id'])) {
         wp_send_json_error(['message' => __('No option specified.', 'mobooking')]);
+        return;
     }
     
     $option_id = absint($_POST['option_id']);
     
-    // Initialize the service manager
-    $services_manager = new \MoBooking\Services\ServiceManager();
+    // Delete from appropriate table
+    global $wpdb;
+    $services_table = $wpdb->prefix . 'mobooking_services';
+    $options_table = $wpdb->prefix . 'mobooking_service_options';
     
-    // Delete option
-    $result = $services_manager->delete_service_option($option_id);
+    // Check if entity_type exists in services table
+    $entity_type_exists = $wpdb->get_var("SHOW COLUMNS FROM {$services_table} LIKE 'entity_type'");
     
-    if (!$result) {
+    if ($entity_type_exists) {
+        // Delete from unified table
+        $result = $wpdb->delete(
+            $services_table, 
+            ['id' => $option_id, 'entity_type' => 'option'], 
+            ['%d', '%s']
+        );
+    } else {
+        // Delete from options table
+        $result = $wpdb->delete(
+            $options_table,
+            ['id' => $option_id],
+            ['%d']
+        );
+    }
+    
+    if ($result === false) {
         wp_send_json_error(['message' => __('Failed to delete option.', 'mobooking')]);
         return;
     }
     
-    // Return success
     wp_send_json_success([
         'message' => __('Option deleted successfully', 'mobooking')
     ]);
 }
+add_action('wp_ajax_mobooking_delete_option_ajax', 'mobooking_delete_option_ajax_handler');
