@@ -1,6 +1,7 @@
 /**
  * Unified Service Form Handler
  * Handles both service data and options in a single form submission
+ * With added debugging and fallback mechanism
  */
 (function ($) {
   "use strict";
@@ -361,14 +362,22 @@
         fieldsHtml = `
                     <div class="form-row">
                         <div class="form-group half">
-                            <label>${translations.defaultValue}</label>
+                            <label>${
+                              translations.defaultValue || "Default Value"
+                            }</label>
                             <select name="options[${optionIndex}][default_value]">
-                                <option value="0">${translations.unchecked}</option>
-                                <option value="1">${translations.checked}</option>
+                                <option value="0">${
+                                  translations.unchecked || "Unchecked"
+                                }</option>
+                                <option value="1">${
+                                  translations.checked || "Checked"
+                                }</option>
                             </select>
                         </div>
                         <div class="form-group half">
-                            <label>${translations.optionLabel}</label>
+                            <label>${
+                              translations.optionLabel || "Option Label"
+                            }</label>
                             <input type="text" name="options[${optionIndex}][option_label]" value="">
                         </div>
                     </div>
@@ -379,18 +388,23 @@
       case "radio":
         fieldsHtml = `
                     <div class="form-group">
-                        <label>${translations.choices}</label>
+                        <label>${translations.choices || "Choices"}</label>
                         <div class="choices-container">
                             <div class="choices-list"></div>
                             <button type="button" class="add-choice-btn button-secondary">
-                                ${translations.addChoice}
+                                ${translations.addChoice || "Add Choice"}
                             </button>
                         </div>
                     </div>
                     <div class="form-group">
-                        <label>${translations.defaultValue}</label>
+                        <label>${
+                          translations.defaultValue || "Default Value"
+                        }</label>
                         <input type="text" name="options[${optionIndex}][default_value]" value="" 
-                               placeholder="${translations.enterDefaultValue}">
+                               placeholder="${
+                                 translations.enterDefaultValue ||
+                                 "Enter the value of the default choice"
+                               }">
                     </div>
                 `;
         break;
@@ -400,28 +414,37 @@
         fieldsHtml = `
                     <div class="form-row">
                         <div class="form-group half">
-                            <label>${translations.minValue}</label>
+                            <label>${
+                              translations.minValue || "Minimum Value"
+                            }</label>
                             <input type="number" name="options[${optionIndex}][min_value]" value="0" step="any">
                         </div>
                         <div class="form-group half">
-                            <label>${translations.maxValue}</label>
+                            <label>${
+                              translations.maxValue || "Maximum Value"
+                            }</label>
                             <input type="number" name="options[${optionIndex}][max_value]" value="" step="any">
                         </div>
                     </div>
                     <div class="form-row">
                         <div class="form-group half">
-                            <label>${translations.defaultValue}</label>
+                            <label>${
+                              translations.defaultValue || "Default Value"
+                            }</label>
                             <input type="number" name="options[${optionIndex}][default_value]" value="0" step="any">
                         </div>
                         <div class="form-group half">
-                            <label>${translations.step}</label>
+                            <label>${translations.step || "Step"}</label>
                             <input type="number" name="options[${optionIndex}][step]" value="1" step="any">
                         </div>
                     </div>
                     <div class="form-group">
-                        <label>${translations.unitLabel}</label>
+                        <label>${translations.unitLabel || "Unit Label"}</label>
                         <input type="text" name="options[${optionIndex}][unit]" value="" 
-                               placeholder="${translations.unitPlaceholder}">
+                               placeholder="${
+                                 translations.unitPlaceholder ||
+                                 "e.g., hours, sq ft"
+                               }">
                     </div>
                 `;
         break;
@@ -430,11 +453,15 @@
         fieldsHtml = `
                     <div class="form-row">
                         <div class="form-group half">
-                            <label>${translations.defaultValue}</label>
+                            <label>${
+                              translations.defaultValue || "Default Value"
+                            }</label>
                             <input type="text" name="options[${optionIndex}][default_value]" value="">
                         </div>
                         <div class="form-group half">
-                            <label>${translations.placeholder}</label>
+                            <label>${
+                              translations.placeholder || "Placeholder"
+                            }</label>
                             <input type="text" name="options[${optionIndex}][placeholder]" value="">
                         </div>
                     </div>
@@ -444,16 +471,20 @@
       case "textarea":
         fieldsHtml = `
                     <div class="form-group">
-                        <label>${translations.defaultValue}</label>
+                        <label>${
+                          translations.defaultValue || "Default Value"
+                        }</label>
                         <textarea name="options[${optionIndex}][default_value]" rows="3"></textarea>
                     </div>
                     <div class="form-row">
                         <div class="form-group half">
-                            <label>${translations.placeholder}</label>
+                            <label>${
+                              translations.placeholder || "Placeholder"
+                            }</label>
                             <input type="text" name="options[${optionIndex}][placeholder]" value="">
                         </div>
                         <div class="form-group half">
-                            <label>${translations.rows}</label>
+                            <label>${translations.rows || "Rows"}</label>
                             <input type="number" name="options[${optionIndex}][rows]" value="3" min="2">
                         </div>
                     </div>
@@ -499,11 +530,15 @@
                 </div>
                 <div class="choice-value">
                     <input type="text" name="options[${optionIndex}][choices][${choiceIndex}][value]" 
-                           value="" placeholder="${translations.value}">
+                           value="" placeholder="${
+                             translations.value || "Value"
+                           }">
                 </div>
                 <div class="choice-label">
                     <input type="text" name="options[${optionIndex}][choices][${choiceIndex}][label]" 
-                           value="" placeholder="${translations.label}">
+                           value="" placeholder="${
+                             translations.label || "Label"
+                           }">
                 </div>
                 <div class="choice-price">
                     <input type="number" name="options[${optionIndex}][choices][${choiceIndex}][price]" 
@@ -538,15 +573,15 @@
 
     // Update label and field attributes based on type
     if (priceType === "fixed") {
-      valueLabel.text(translations.amountDollars);
+      valueLabel.text(translations.amountDollars || "Amount ($)");
       valueField.attr("step", "0.01");
       valueField.attr("placeholder", "9.99");
     } else if (priceType === "percentage") {
-      valueLabel.text(translations.percentagePercent);
+      valueLabel.text(translations.percentagePercent || "Percentage (%)");
       valueField.attr("step", "1");
       valueField.attr("placeholder", "10");
     } else if (priceType === "multiply") {
-      valueLabel.text(translations.multiplier);
+      valueLabel.text(translations.multiplier || "Multiplier");
       valueField.attr("step", "0.1");
       valueField.attr("placeholder", "1.5");
     }
@@ -555,16 +590,69 @@
   // Get display label for option types
   function getOptionTypeLabel(type) {
     const labels = {
-      checkbox: translations.checkboxLabel,
-      number: translations.numberLabel,
-      select: translations.selectLabel,
-      text: translations.textLabel,
-      textarea: translations.textareaLabel,
-      radio: translations.radioLabel,
-      quantity: translations.quantityLabel,
+      checkbox: translations.checkboxLabel || "Checkbox",
+      number: translations.numberLabel || "Number Input",
+      select: translations.selectLabel || "Dropdown Select",
+      text: translations.textLabel || "Text Input",
+      textarea: translations.textareaLabel || "Text Area",
+      radio: translations.radioLabel || "Radio Buttons",
+      quantity: translations.quantityLabel || "Quantity Selector",
     };
 
     return labels[type] || type;
+  }
+
+  // Prepare options data for submission
+  function prepareOptionsData() {
+    console.log("Starting option preparation...");
+
+    // For select/radio options, we need to convert choices array to options string
+    elements.optionsContainer.find(".option-card").each(function () {
+      const optionCard = $(this);
+      const type = optionCard.find(".option-type-select").val();
+      const optionIndex = optionCard.data("option-index");
+
+      console.log(`Processing option ${optionIndex}, type: ${type}`);
+
+      if (type === "select" || type === "radio") {
+        const choicesList = optionCard.find(".choices-list");
+        const optionsString = formatChoicesAsString(choicesList);
+
+        console.log(
+          `Formatted choices for option ${optionIndex}:`,
+          optionsString
+        );
+
+        // Create a hidden field to store the formatted options string
+        if (optionsString) {
+          optionCard.append(
+            `<input type="hidden" name="options[${optionIndex}][options]" value="${optionsString}">`
+          );
+        }
+      }
+    });
+    console.log("Option preparation complete");
+  }
+
+  // Format choices as a string for storage
+  function formatChoicesAsString(choicesList) {
+    const choices = [];
+
+    choicesList.find(".choice-row").each(function () {
+      const value = $(this).find("input:first").val().trim();
+      const label = $(this).find("input:nth(1)").val().trim();
+      const price = parseFloat($(this).find("input:last").val()) || 0;
+
+      if (value) {
+        if (price > 0) {
+          choices.push(`${value}|${label}:${price}`);
+        } else {
+          choices.push(`${value}|${label}`);
+        }
+      }
+    });
+
+    return choices.join("\n");
   }
 
   // Handle form submission
@@ -579,7 +667,7 @@
     // Show loading state
     showLoading(elements.saveButton);
 
-    // Prepare the options data (we need to reformat choices for select/radio)
+    // Prepare the options data
     prepareOptionsData();
 
     // Get form data
@@ -587,6 +675,14 @@
 
     // Add action for AJAX handling
     formData.append("action", "mobooking_save_unified_service");
+
+    // Debug: Log the form data
+    console.log(
+      "Form data before sending:",
+      Object.fromEntries(formData.entries())
+    );
+
+    console.log("Submitting form with unified handler");
 
     // Send the form data
     $.ajax({
@@ -596,6 +692,8 @@
       processData: false,
       contentType: false,
       success: function (response) {
+        console.log("Unified save response:", response);
+
         if (response.success) {
           showNotification(
             response.data.message || mobookingData.messages.serviceSuccess,
@@ -625,54 +723,127 @@
         }
       },
       error: function (xhr, status, error) {
-        console.error("AJAX Error:", error);
-        showNotification(mobookingData.messages.serviceError, "error");
-        hideLoading(elements.saveButton);
+        console.error("AJAX Error with unified handler:", error);
+        console.log("Response text:", xhr.responseText);
+
+        // Fall back to two-step save: first service, then options
+        console.log("Trying fallback direct options save...");
+
+        // Create a copy of the form data
+        const serviceFormData = new FormData(elements.serviceForm[0]);
+        serviceFormData.delete("action");
+        serviceFormData.append("action", "mobooking_save_service_ajax");
+
+        // First save the service
+        $.ajax({
+          url: mobookingData.ajaxUrl,
+          type: "POST",
+          data: serviceFormData,
+          processData: false,
+          contentType: false,
+          success: function (serviceResponse) {
+            console.log("Service save response:", serviceResponse);
+
+            if (serviceResponse.success) {
+              const serviceId = serviceResponse.data.id;
+              console.log("Service saved successfully, ID:", serviceId);
+
+              // Now save options directly
+              const optionsFormData = new FormData();
+              optionsFormData.append("action", "mobooking_direct_save_options");
+              optionsFormData.append("id", serviceId);
+              optionsFormData.append(
+                "service_nonce",
+                mobookingData.serviceNonce
+              );
+
+              // Add options data
+              const optionsData = {};
+              elements.optionsContainer
+                .find(".option-card")
+                .each(function (index) {
+                  const card = $(this);
+                  const optionIndex = card.data("option-index");
+
+                  // Collect all fields for this option
+                  card.find("input, select, textarea").each(function () {
+                    const input = $(this);
+                    const name = input.attr("name");
+
+                    if (name && name.includes(`options[${optionIndex}]`)) {
+                      const fieldName = name
+                        .replace(`options[${optionIndex}][`, "")
+                        .replace("]", "");
+
+                      if (!optionsData[index]) {
+                        optionsData[index] = {};
+                      }
+
+                      optionsData[index][fieldName] = input.val();
+                    }
+                  });
+                });
+
+              console.log("Options data for direct save:", optionsData);
+              optionsFormData.append("options", JSON.stringify(optionsData));
+
+              // Save options
+              $.ajax({
+                url: mobookingData.ajaxUrl,
+                type: "POST",
+                data: optionsFormData,
+                processData: false,
+                contentType: false,
+                success: function (optionsResponse) {
+                  console.log("Options save response:", optionsResponse);
+
+                  if (optionsResponse.success) {
+                    showNotification(
+                      "Service and options saved successfully",
+                      "success"
+                    );
+
+                    setTimeout(function () {
+                      window.location.reload();
+                    }, 1000);
+                  } else {
+                    showNotification(
+                      "Service saved but options failed: " +
+                        (optionsResponse.data.message || "Unknown error"),
+                      "warning"
+                    );
+                    hideLoading(elements.saveButton);
+                  }
+                },
+                error: function (xhr, optError) {
+                  console.error("Options save error:", optError);
+                  console.log("Options error response:", xhr.responseText);
+
+                  showNotification(
+                    "Service saved but options failed to save",
+                    "warning"
+                  );
+                  hideLoading(elements.saveButton);
+                },
+              });
+            } else {
+              showNotification(
+                serviceResponse.data.message || "Error saving service",
+                "error"
+              );
+              hideLoading(elements.saveButton);
+            }
+          },
+          error: function (xhr, svcError) {
+            console.error("Service save error:", svcError);
+            console.log("Service error response:", xhr.responseText);
+
+            showNotification("Error saving service", "error");
+            hideLoading(elements.saveButton);
+          },
+        });
       },
     });
-  }
-
-  // Prepare options data for submission
-  function prepareOptionsData() {
-    // For select/radio options, we need to convert choices array to options string
-    elements.optionsContainer.find(".option-card").each(function () {
-      const optionCard = $(this);
-      const type = optionCard.find(".option-type-select").val();
-
-      if (type === "select" || type === "radio") {
-        const choicesList = optionCard.find(".choices-list");
-        const optionsString = formatChoicesAsString(choicesList);
-
-        // Create a hidden field to store the formatted options string
-        if (optionsString) {
-          const optionIndex = optionCard.data("option-index");
-          optionCard.append(
-            `<input type="hidden" name="options[${optionIndex}][options]" value="${optionsString}">`
-          );
-        }
-      }
-    });
-  }
-
-  // Format choices as a string for storage
-  function formatChoicesAsString(choicesList) {
-    const choices = [];
-
-    choicesList.find(".choice-row").each(function () {
-      const value = $(this).find("input:first").val().trim();
-      const label = $(this).find("input:nth(1)").val().trim();
-      const price = parseFloat($(this).find("input:last").val()) || 0;
-
-      if (value) {
-        if (price > 0) {
-          choices.push(`${value}|${label}:${price}`);
-        } else {
-          choices.push(`${value}|${label}`);
-        }
-      }
-    });
-
-    return choices.join("\n");
   }
 
   // Validate the form before submission
@@ -684,7 +855,11 @@
 
     // Validate service name
     if (!elements.serviceName.val().trim()) {
-      showError(elements.serviceName, "name-error", translations.nameRequired);
+      showError(
+        elements.serviceName,
+        "name-error",
+        translations.nameRequired || "Service name is required"
+      );
       isValid = false;
     }
 
@@ -694,7 +869,7 @@
       showError(
         elements.servicePrice,
         "price-error",
-        translations.priceRequired
+        translations.priceRequired || "Price must be greater than zero"
       );
       isValid = false;
     }
@@ -705,50 +880,52 @@
       showError(
         elements.serviceDuration,
         "duration-error",
-        translations.durationRequired
+        translations.durationRequired || "Duration must be at least 15 minutes"
       );
       isValid = false;
     }
 
     // Validate options
-    elements.optionsContainer.find(".option-card").each(function () {
-      const optionCard = $(this);
-      const nameField = optionCard.find('input[name$="[name]"]');
+    if (elements.optionsContainer && elements.optionsContainer.length) {
+      elements.optionsContainer.find(".option-card").each(function () {
+        const optionCard = $(this);
+        const nameField = optionCard.find('input[name$="[name]"]');
 
-      if (!nameField.val().trim()) {
-        nameField.addClass("has-error");
-        nameField.after(
-          '<div class="field-error active">Option name is required</div>'
-        );
-
-        // Open the option details if closed
-        const details = optionCard.find(".option-card-details");
-        if (!details.is(":visible")) {
-          details.slideDown(200);
-        }
-
-        isValid = false;
-      }
-
-      // For select/radio, validate that there's at least one choice with a value
-      const type = optionCard.find(".option-type-select").val();
-      if (type === "select" || type === "radio") {
-        let hasValidChoice = false;
-        optionCard.find(".choice-row").each(function () {
-          if ($(this).find("input:first").val().trim()) {
-            hasValidChoice = true;
-          }
-        });
-
-        if (!hasValidChoice) {
-          const choicesList = optionCard.find(".choices-list");
-          choicesList.after(
-            '<div class="field-error active">At least one choice with a value is required</div>'
+        if (!nameField.val().trim()) {
+          nameField.addClass("has-error");
+          nameField.after(
+            '<div class="field-error active">Option name is required</div>'
           );
+
+          // Open the option details if closed
+          const details = optionCard.find(".option-card-details");
+          if (!details.is(":visible")) {
+            details.slideDown(200);
+          }
+
           isValid = false;
         }
-      }
-    });
+
+        // For select/radio, validate that there's at least one choice with a value
+        const type = optionCard.find(".option-type-select").val();
+        if (type === "select" || type === "radio") {
+          let hasValidChoice = false;
+          optionCard.find(".choice-row").each(function () {
+            if ($(this).find("input:first").val().trim()) {
+              hasValidChoice = true;
+            }
+          });
+
+          if (!hasValidChoice) {
+            const choicesList = optionCard.find(".choices-list");
+            choicesList.after(
+              '<div class="field-error active">At least one choice with a value is required</div>'
+            );
+            isValid = false;
+          }
+        }
+      });
+    }
 
     // If there are errors, scroll to the first one
     if (!isValid) {
@@ -841,11 +1018,17 @@
     state.deleteElement = element;
 
     // Update confirmation message
-    let message = mobookingData.messages.deleteConfirm;
+    let message =
+      mobookingData.messages.deleteConfirm ||
+      "Are you sure you want to delete this? This action cannot be undone.";
     if (type === "service") {
-      message = translations.confirmDeleteService;
+      message =
+        translations.confirmDeleteService ||
+        "Are you sure you want to delete this service? This will also delete all options associated with it.";
     } else if (type === "option") {
-      message = translations.confirmDeleteOption;
+      message =
+        translations.confirmDeleteOption ||
+        "Are you sure you want to delete this option?";
     }
 
     $("#confirmation-message").text(message);
@@ -891,7 +1074,10 @@
       },
       success: function (response) {
         if (response.success) {
-          showNotification(translations.serviceDeleted, "success");
+          showNotification(
+            translations.serviceDeleted || "Service deleted successfully",
+            "success"
+          );
 
           // Redirect to service list
           setTimeout(function () {
@@ -899,7 +1085,9 @@
           }, 1000);
         } else {
           showNotification(
-            response.data.message || translations.errorDeleting,
+            response.data.message ||
+              translations.errorDeleting ||
+              "Error deleting service",
             "error"
           );
           hideConfirmationModal();
@@ -907,7 +1095,10 @@
         }
       },
       error: function () {
-        showNotification(translations.errorDeleting, "error");
+        showNotification(
+          translations.errorDeleting || "Error deleting service",
+          "error"
+        );
         hideConfirmationModal();
         hideLoading(elements.confirmDeleteBtn);
       },
@@ -929,7 +1120,10 @@
         },
         success: function (response) {
           if (response.success) {
-            showNotification(translations.optionDeleted, "success");
+            showNotification(
+              translations.optionDeleted || "Option deleted successfully",
+              "success"
+            );
 
             // Remove from DOM if we have the element
             if (optionElement) {
@@ -943,7 +1137,9 @@
             hideLoading(elements.confirmDeleteBtn);
           } else {
             showNotification(
-              response.data.message || translations.errorDeleting,
+              response.data.message ||
+                translations.errorDeleting ||
+                "Error deleting option",
               "error"
             );
             hideConfirmationModal();
@@ -951,7 +1147,10 @@
           }
         },
         error: function () {
-          showNotification(translations.errorDeleting, "error");
+          showNotification(
+            translations.errorDeleting || "Error deleting option",
+            "error"
+          );
           hideConfirmationModal();
           hideLoading(elements.confirmDeleteBtn);
         },
