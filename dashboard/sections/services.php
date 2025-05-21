@@ -541,14 +541,13 @@ if ($errors) {
                     </form>
                 </div>
             </div>
-        </div>
-        
-        <!-- Option Form Template (for AJAX loading) -->
+        </div>  
+                
+        <!-- Option Form Template -->
         <script type="text/template" id="option-form-template">
-            <form id="option-form" method="post" action="">
-                <input type="hidden" name="option_action" value="save">
-                <input type="hidden" name="service_id" value="<?php echo esc_attr($service_id); ?>">
+            <form id="option-form" method="post">
                 <input type="hidden" name="option_id" value="{id}">
+                <input type="hidden" name="service_id" value="<?php echo esc_attr($service_id); ?>">
                 <?php wp_nonce_field('mobooking-option-nonce', 'option_nonce'); ?>
                 
                 <h3 class="option-form-title">{title}</h3>
@@ -556,20 +555,20 @@ if ($errors) {
                 <div class="option-form-grid">
                     <div class="form-column">
                         <div class="form-group">
-                            <label for="option-name"><?php _e('Option Name', 'mobooking'); ?> <span class="required">*</span></label>
-                            <input type="text" id="option-name" name="name" value="{name}" required>
+                            <label for="name"><?php _e('Option Name', 'mobooking'); ?> <span class="required">*</span></label>
+                            <input type="text" id="name" name="name" value="{name}" required>
                         </div>
                         
                         <div class="form-group">
-                            <label for="option-description"><?php _e('Description', 'mobooking'); ?></label>
-                            <textarea id="option-description" name="description" rows="2">{description}</textarea>
+                            <label for="description"><?php _e('Description', 'mobooking'); ?></label>
+                            <textarea id="description" name="description" rows="2">{description}</textarea>
                         </div>
                     </div>
                     
                     <div class="form-column">
                         <div class="form-row">
                             <div class="form-group half">
-                                <label for="option-type"><?php _e('Option Type', 'mobooking'); ?> <span class="required">*</span></label>
+                                <label for="type"><?php _e('Option Type', 'mobooking'); ?> <span class="required">*</span></label>
                                 <select id="option-type" name="type" required>
                                     <option value=""><?php _e('Select Type', 'mobooking'); ?></option>
                                     <?php foreach ($option_types as $type => $label) : ?>
@@ -579,7 +578,7 @@ if ($errors) {
                             </div>
                             
                             <div class="form-group half">
-                                <label for="option-required"><?php _e('Required?', 'mobooking'); ?></label>
+                                <label for="is_required"><?php _e('Required?', 'mobooking'); ?></label>
                                 <select id="option-required" name="is_required">
                                     <option value="0" {required_selected_0}><?php _e('Optional', 'mobooking'); ?></option>
                                     <option value="1" {required_selected_1}><?php _e('Required', 'mobooking'); ?></option>
@@ -595,7 +594,7 @@ if ($errors) {
                 
                 <div class="form-row price-impact-section">
                     <div class="form-group half">
-                        <label for="option-price-type"><?php _e('Price Impact Type', 'mobooking'); ?></label>
+                        <label for="price_type"><?php _e('Price Impact Type', 'mobooking'); ?></label>
                         <select id="option-price-type" name="price_type">
                             <?php foreach ($price_types as $type => $label) : ?>
                                 <option value="<?php echo esc_attr($type); ?>" {price_type_selected_<?php echo esc_attr($type); ?>}><?php echo esc_html($label); ?></option>
@@ -604,7 +603,7 @@ if ($errors) {
                     </div>
                     
                     <div class="form-group half price-impact-value">
-                        <label for="option-price-impact"><?php _e('Price Value', 'mobooking'); ?></label>
+                        <label for="price_impact"><?php _e('Price Value', 'mobooking'); ?></label>
                         <input type="number" id="option-price-impact" name="price_impact" step="0.01" value="{price_impact}">
                     </div>
                 </div>
@@ -615,7 +614,7 @@ if ($errors) {
                     </button>
                     <div class="spacer"></div>
                     <button type="button" class="button button-secondary cancel-option"><?php _e('Cancel', 'mobooking'); ?></button>
-                    <button type="submit" class="button button-primary save-option"><?php _e('Save Option', 'mobooking'); ?></button>
+                    <button type="button" class="button button-primary save-option"><?php _e('Save Option', 'mobooking'); ?></button>
                 </div>
             </form>
         </script>
