@@ -225,10 +225,10 @@ function mobooking_direct_get_service() {
 }
 
 /**
- * Custom AJAX handler to get service options directly from the database
+ * Improved direct database access for service options
  */
 function mobooking_direct_get_service_options() {
-    // Check nonce
+    // Check nonce and permissions
     if (!isset($_POST['nonce']) || !wp_verify_nonce($_POST['nonce'], 'mobooking-service-nonce')) {
         wp_send_json_error(array('message' => 'Security verification failed.'));
     }
@@ -240,18 +240,25 @@ function mobooking_direct_get_service_options() {
     
     global $wpdb;
     $service_id = absint($_POST['service_id']);
-    $table_name = $wpdb->prefix . 'mobooking_services';
+    $options = array();
     
-    // First check if we're using the new unified table structure
-    $options = $wpdb->get_results($wpdb->prepare(
-        "SELECT * FROM $table_name WHERE parent_id = %d AND entity_type = 'option' ORDER BY display_order ASC, id ASC",
-        $service_id
-    ));
+    // Try multiple database structures to ensure we find all options
     
-    // If no options found, check for old table structure with service_options table
+    // 1. Try the unified table with entity_type
+    $services_table = $wpdb->prefix . 'mobooking_services';
+    $entity_type_exists = $wpdb->get_var("SHOW COLUMNS FROM {$services_table} LIKE 'entity_type'");
+    
+    if ($entity_type_exists) {
+        // New structure with entity_type
+        $options = $wpdb->get_results($wpdb->prepare(
+            "SELECT * FROM $services_table WHERE parent_id = %d AND entity_type = 'option' ORDER BY display_order ASC, id ASC",
+            $service_id
+        ));
+    }
+    
+    // 2. If no options found, try the separate options table
     if (empty($options)) {
         $options_table = $wpdb->prefix . 'mobooking_service_options';
-        // Check if table exists
         $table_exists = $wpdb->get_var("SHOW TABLES LIKE '$options_table'");
         
         if ($table_exists) {
@@ -262,10 +269,16 @@ function mobooking_direct_get_service_options() {
         }
     }
     
+    // Debug log what we found
+    error_log('Found ' . count($options) . ' options for service ID ' . $service_id);
+    
     wp_send_json_success(array(
         'options' => $options ?: array()
     ));
 }
+
+// Register the direct access endpoint
+add_action('wp_ajax_mobooking_direct_get_service_options', 'mobooking_direct_get_service_options');
 
 
 
@@ -410,26 +423,46 @@ add_action('init', 'mobooking_register_option_ajax_endpoints');
 /**
  * AJAX handler for saving a service option
  */
+/**
+ * Unified AJAX handler for saving service options
+ */
 function mobooking_save_option_ajax_handler() {
-    // Check nonce
-    if (!isset($_POST['option_nonce']) || !wp_verify_nonce($_POST['option_nonce'], 'mobooking-option-nonce')) {
+    // Debug logging
+    error_log('Option save request received: ' . json_encode($_POST));
+    
+    // Check for different potential nonce field names
+    $nonce_verified = false;
+    
+    if (isset($_POST['option_nonce']) && wp_verify_nonce($_POST['option_nonce'], 'mobooking-option-nonce')) {
+        $nonce_verified = true;
+    } elseif (isset($_POST['nonce']) && wp_verify_nonce($_POST['nonce'], 'mobooking-service-nonce')) {
+        $nonce_verified = true;
+    }
+    
+    if (!$nonce_verified) {
         wp_send_json_error(['message' => __('Security verification failed.', 'mobooking')]);
+        return;
     }
     
     // Check permissions
     if (!current_user_can('mobooking_business_owner') && !current_user_can('administrator')) {
         wp_send_json_error(['message' => __('You do not have permission to do this.', 'mobooking')]);
+        return;
     }
     
     // Check service ID
     if (!isset($_POST['service_id']) || empty($_POST['service_id'])) {
         wp_send_json_error(['message' => __('No service specified.', 'mobooking')]);
+        return;
     }
     
     $service_id = absint($_POST['service_id']);
     $user_id = get_current_user_id();
     
-    // Prepare option data
+    // Get option ID if editing
+    $option_id = isset($_POST['option_id']) && !empty($_POST['option_id']) ? absint($_POST['option_id']) : 0;
+    
+    // Prepare the option data
     $option_data = array(
         'service_id' => $service_id,
         'name' => isset($_POST['name']) ? sanitize_text_field($_POST['name']) : '',
@@ -442,6 +475,7 @@ function mobooking_save_option_ajax_handler() {
         'max_value' => isset($_POST['max_value']) && $_POST['max_value'] !== '' ? floatval($_POST['max_value']) : null,
         'price_impact' => isset($_POST['price_impact']) ? floatval($_POST['price_impact']) : 0,
         'price_type' => isset($_POST['price_type']) ? sanitize_text_field($_POST['price_type']) : 'fixed',
+        'options' => isset($_POST['options']) ? sanitize_textarea_field($_POST['options']) : '',
         'option_label' => isset($_POST['option_label']) ? sanitize_text_field($_POST['option_label']) : '',
         'step' => isset($_POST['step']) ? sanitize_text_field($_POST['step']) : '',
         'unit' => isset($_POST['unit']) ? sanitize_text_field($_POST['unit']) : '',
@@ -450,69 +484,242 @@ function mobooking_save_option_ajax_handler() {
         'rows' => isset($_POST['rows']) && $_POST['rows'] !== '' ? absint($_POST['rows']) : null
     );
     
-    // Handle choices for select/radio options
-    if (($option_data['type'] === 'select' || $option_data['type'] === 'radio') && isset($_POST['choice_value']) && is_array($_POST['choice_value'])) {
-        $choices = array();
-        $choice_values = $_POST['choice_value'];
-        $choice_labels = isset($_POST['choice_label']) ? $_POST['choice_label'] : array();
-        $choice_prices = isset($_POST['choice_price']) ? $_POST['choice_price'] : array();
+    // Add ID if editing
+    if ($option_id > 0) {
+        $option_data['id'] = $option_id;
+    }
+    
+    // Validate data
+    if (empty($option_data['name'])) {
+        wp_send_json_error(['message' => __('Option name is required.', 'mobooking')]);
+        return;
+    }
+    
+    // Now save directly to the database
+    global $wpdb;
+    $table_name = $wpdb->prefix . 'mobooking_services';
+    
+    // Check if the services table has entity_type column - important for schema detection
+    $entity_type_exists = $wpdb->get_var("SHOW COLUMNS FROM {$table_name} LIKE 'entity_type'");
+    
+    if ($entity_type_exists) {
+        // New unified structure
         
-        for ($i = 0; $i < count($choice_values); $i++) {
-            $value = trim($choice_values[$i]);
-            if (empty($value)) continue; // Skip empty values
-            
-            $label = isset($choice_labels[$i]) ? trim($choice_labels[$i]) : $value;
-            $price = isset($choice_prices[$i]) ? floatval($choice_prices[$i]) : 0;
-            
-            if ($price > 0) {
-                $choices[] = "$value|$label:$price";
-            } else {
-                $choices[] = "$value|$label";
-            }
+        // Get user_id from parent service
+        $service_user_id = $wpdb->get_var($wpdb->prepare(
+            "SELECT user_id FROM $table_name WHERE id = %d",
+            $service_id
+        ));
+        
+        if (!$service_user_id) {
+            wp_send_json_error(['message' => __('Service not found.', 'mobooking')]);
+            return;
         }
         
-        $option_data['options'] = implode("\n", $choices);
-    }
-    
-    // Add ID if editing
-    if (isset($_POST['option_id']) && !empty($_POST['option_id'])) {
-        $option_data['id'] = absint($_POST['option_id']);
-    }
-    
-    // Validate required fields
-    $errors = array();
-    if (empty($option_data['name'])) {
-        $errors[] = __('Option name is required', 'mobooking');
-    }
-    if (empty($option_data['type'])) {
-        $errors[] = __('Option type is required', 'mobooking');
-    }
-    
-    if (!empty($errors)) {
-        wp_send_json_error(['message' => implode('<br>', $errors)]);
-        return;
-    }
-    
-    // Initialize the service manager
-    $services_manager = new \MoBooking\Services\ServiceManager();
-    
-    // Save option
-    $option_id = $services_manager->save_option($option_data);
-    
-    if (!$option_id) {
-        wp_send_json_error(['message' => __('Failed to save option. Please try again.', 'mobooking')]);
-        return;
+        // Prepare the data for the unified table structure
+        $db_data = array(
+            'user_id' => $service_user_id,
+            'parent_id' => $service_id,
+            'entity_type' => 'option',
+            'name' => $option_data['name'],
+            'description' => $option_data['description'],
+            'price' => 0, // Options don't have a base price
+            'duration' => 0, // Options don't have a duration
+            'type' => $option_data['type'],
+            'is_required' => $option_data['is_required'],
+            'default_value' => $option_data['default_value'],
+            'placeholder' => $option_data['placeholder'],
+            'min_value' => $option_data['min_value'],
+            'max_value' => $option_data['max_value'],
+            'price_impact' => $option_data['price_impact'],
+            'price_type' => $option_data['price_type'],
+            'options' => $option_data['options'],
+            'option_label' => $option_data['option_label'],
+            'step' => $option_data['step'],
+            'unit' => $option_data['unit'],
+            'min_length' => $option_data['min_length'],
+            'max_length' => $option_data['max_length'],
+            'rows' => $option_data['rows']
+        );
+        
+        // Define formats for proper sanitization
+        $formats = array(
+            '%d', // user_id
+            '%d', // parent_id
+            '%s', // entity_type
+            '%s', // name
+            '%s', // description
+            '%f', // price
+            '%d', // duration
+            '%s', // type
+            '%d', // is_required
+            '%s', // default_value
+            '%s', // placeholder
+            is_null($db_data['min_value']) ? '%s' : '%f', // min_value
+            is_null($db_data['max_value']) ? '%s' : '%f', // max_value
+            '%f', // price_impact
+            '%s', // price_type
+            '%s', // options
+            '%s', // option_label
+            '%s', // step
+            '%s', // unit
+            is_null($db_data['min_length']) ? '%s' : '%d', // min_length
+            is_null($db_data['max_length']) ? '%s' : '%d', // max_length
+            is_null($db_data['rows']) ? '%s' : '%d'  // rows
+        );
+        
+        if ($option_id > 0) {
+            // Update existing option
+            $result = $wpdb->update(
+                $table_name,
+                $db_data,
+                array('id' => $option_id),
+                $formats,
+                array('%d')
+            );
+            
+            if ($result === false) {
+                error_log('Failed to update option: ' . $wpdb->last_error);
+                wp_send_json_error(['message' => __('Failed to update option.', 'mobooking')]);
+                return;
+            }
+            
+            $new_option_id = $option_id;
+        } else {
+            // Get highest display order for this service
+            $highest_order = $wpdb->get_var($wpdb->prepare(
+                "SELECT MAX(display_order) FROM $table_name WHERE parent_id = %d AND entity_type = 'option'",
+                $service_id
+            ));
+            
+            $db_data['display_order'] = ($highest_order !== null) ? intval($highest_order) + 1 : 0;
+            
+            // Insert new option
+            $result = $wpdb->insert($table_name, $db_data, $formats);
+            
+            if ($result === false) {
+                error_log('Failed to insert option: ' . $wpdb->last_error);
+                wp_send_json_error(['message' => __('Failed to create option.', 'mobooking')]);
+                return;
+            }
+            
+            $new_option_id = $wpdb->insert_id;
+        }
+    } else {
+        // Old structure with separate table
+        $options_table = $wpdb->prefix . 'mobooking_service_options';
+        
+        // Check if the options table exists
+        $table_exists = $wpdb->get_var("SHOW TABLES LIKE '$options_table'");
+        
+        if (!$table_exists) {
+            error_log('Options table does not exist and services table does not have entity_type');
+            wp_send_json_error(['message' => __('Database structure not supported.', 'mobooking')]);
+            return;
+        }
+        
+        // Prepare data for old structure
+        $db_data = array(
+            'service_id' => $service_id,
+            'name' => $option_data['name'],
+            'description' => $option_data['description'],
+            'type' => $option_data['type'],
+            'is_required' => $option_data['is_required'],
+            'default_value' => $option_data['default_value'],
+            'placeholder' => $option_data['placeholder'],
+            'min_value' => $option_data['min_value'],
+            'max_value' => $option_data['max_value'],
+            'price_impact' => $option_data['price_impact'],
+            'price_type' => $option_data['price_type'],
+            'options' => $option_data['options'],
+            'option_label' => $option_data['option_label'],
+            'step' => $option_data['step'],
+            'unit' => $option_data['unit'],
+            'min_length' => $option_data['min_length'],
+            'max_length' => $option_data['max_length'],
+            'rows' => $option_data['rows']
+        );
+        
+        $formats = array(
+            '%d', // service_id
+            '%s', // name
+            '%s', // description
+            '%s', // type
+            '%d', // is_required
+            '%s', // default_value
+            '%s', // placeholder
+            is_null($db_data['min_value']) ? '%s' : '%f', // min_value
+            is_null($db_data['max_value']) ? '%s' : '%f', // max_value
+            '%f', // price_impact
+            '%s', // price_type
+            '%s', // options
+            '%s', // option_label
+            '%s', // step
+            '%s', // unit
+            is_null($db_data['min_length']) ? '%s' : '%d', // min_length
+            is_null($db_data['max_length']) ? '%s' : '%d', // max_length
+            is_null($db_data['rows']) ? '%s' : '%d'  // rows
+        );
+        
+        if ($option_id > 0) {
+            // Update existing option
+            $result = $wpdb->update(
+                $options_table,
+                $db_data,
+                array('id' => $option_id),
+                $formats,
+                array('%d')
+            );
+            
+            if ($result === false) {
+                error_log('Failed to update option in options table: ' . $wpdb->last_error);
+                wp_send_json_error(['message' => __('Failed to update option.', 'mobooking')]);
+                return;
+            }
+            
+            $new_option_id = $option_id;
+        } else {
+            // Get highest display order
+            $highest_order = $wpdb->get_var($wpdb->prepare(
+                "SELECT MAX(display_order) FROM $options_table WHERE service_id = %d",
+                $service_id
+            ));
+            
+            $db_data['display_order'] = ($highest_order !== null) ? intval($highest_order) + 1 : 0;
+            
+            // Insert new option
+            $result = $wpdb->insert($options_table, $db_data, $formats);
+            
+            if ($result === false) {
+                error_log('Failed to insert option into options table: ' . $wpdb->last_error);
+                wp_send_json_error(['message' => __('Failed to create option.', 'mobooking')]);
+                return;
+            }
+            
+            $new_option_id = $wpdb->insert_id;
+        }
     }
     
     // Return success
     wp_send_json_success([
-        'id' => $option_id,
-        'message' => isset($option_data['id']) ? 
+        'id' => $new_option_id,
+        'message' => $option_id > 0 ? 
             __('Option updated successfully', 'mobooking') : 
             __('Option created successfully', 'mobooking')
     ]);
 }
+// Register the AJAX handler for option saving
+add_action('wp_ajax_mobooking_save_option_ajax', 'mobooking_save_option_ajax_handler');
 
+// Make sure the option nonce is included in the localized script data
+function mobooking_update_localized_data() {
+    wp_localize_script('jquery', 'mobooking_data', array(
+        'ajax_url' => admin_url('admin-ajax.php'),
+        'nonce' => wp_create_nonce('mobooking-service-nonce'),
+        'option_nonce' => wp_create_nonce('mobooking-option-nonce')
+    ));
+}
+add_action('wp_enqueue_scripts', 'mobooking_update_localized_data', 20);
 /**
  * AJAX handler for deleting a service option
  */
