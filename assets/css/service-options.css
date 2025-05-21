@@ -641,3 +641,176 @@ textarea:focus {
 .form-group.half {
     flex: 1;
 }
+
+
+
+
+/* Option cards styling for integrated options UI */
+.service-options-container {
+    margin-top: 1rem;
+}
+
+.option-card {
+    background-color: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius);
+    margin-bottom: 1rem;
+    overflow: hidden;
+    transition: var(--transition);
+}
+
+.option-card:hover {
+    border-color: var(--primary-color);
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+}
+
+.option-card-header {
+    display: flex;
+    align-items: center;
+    padding: 0.75rem;
+    background-color: rgba(0, 0, 0, 0.02);
+    border-bottom: 1px solid var(--border-color);
+}
+
+.option-drag-handle {
+    cursor: grab;
+    padding: 0.5rem;
+    margin-right: 0.5rem;
+    color: var(--text-light);
+}
+
+.option-drag-handle:active {
+    cursor: grabbing;
+}
+
+.option-title {
+    flex: 1;
+}
+
+.option-name {
+    font-weight: 600;
+    display: block;
+    color: var(--text-color);
+}
+
+.option-type {
+    font-size: 0.75rem;
+    color: var(--text-light);
+}
+
+.option-actions {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.option-card-details {
+    padding: 1rem;
+    border-top: 1px solid var(--border-color);
+    background-color: #fafbfc;
+}
+
+.option-form {
+    padding: 0.5rem;
+}
+
+.choices-list {
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius);
+    margin-bottom: 0.5rem;
+    background-color: white;
+}
+
+.choice-row {
+    display: flex;
+    align-items: center;
+    padding: 0.5rem;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.choice-row:last-child {
+    border-bottom: none;
+}
+
+.choice-drag-handle {
+    cursor: grab;
+    padding: 0 0.5rem;
+    color: var(--text-light);
+}
+
+.choice-value,
+.choice-label {
+    flex: 1;
+    padding: 0 0.5rem;
+}
+
+.choice-price {
+    width: 100px;
+    padding: 0 0.5rem;
+}
+
+.choice-actions {
+    width: 40px;
+    text-align: center;
+}
+
+.remove-choice-btn {
+    background: none;
+    border: none;
+    color: var(--text-light);
+    cursor: pointer;
+    padding: 0.25rem;
+    transition: var(--transition);
+}
+
+.remove-choice-btn:hover {
+    color: var(--danger-color);
+}
+
+.add-choice-btn {
+    padding: 0.5rem;
+    width: 100%;
+    text-align: center;
+    background-color: #f5f7fa;
+    border: 1px dashed var(--border-color);
+    color: var(--text-light);
+    cursor: pointer;
+    transition: var(--transition);
+}
+
+.add-choice-btn:hover {
+    background-color: var(--primary-light);
+    color: var(--primary-color);
+    border-color: var(--primary-color);
+}
+
+/* Sortable placeholder */
+.option-card-placeholder {
+    height: 60px;
+    background-color: rgba(0, 0, 0, 0.03);
+    border: 1px dashed var(--primary-color);
+    border-radius: var(--radius);
+    margin-bottom: 1rem;
+}
+
+.choice-row-placeholder {
+    height: 42px;
+    background-color: rgba(0, 0, 0, 0.03);
+    border: 1px dashed var(--primary-color);
+}
+
+/* Form validation */
+.has-error input,
+.has-error select,
+.has-error textarea {
+    border-color: var(--danger-color);
+}
+
+.field-error {
+    color: var(--danger-color);
+    font-size: 0.8rem;
+    margin-top: 0.25rem;
+}
+
+.field-error.active {
+    display: block;
+}

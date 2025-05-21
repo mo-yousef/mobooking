@@ -17,18 +17,32 @@ class Manager {
         add_action('wp_ajax_mobooking_get_services', array($this, 'ajax_get_services'));
     }
 
-    /**
-     * Get services for a user
-     */
-    public function get_user_services($user_id) {
-        global $wpdb;
-        $services_table = $wpdb->prefix . 'mobooking_services';
-        
-        return $wpdb->get_results($wpdb->prepare(
-            "SELECT * FROM $services_table WHERE user_id = %d ORDER BY name ASC",
-            $user_id
-        ));
+/**
+ * Get services for a user
+ *
+ * @param int $user_id The ID of the user
+ * @return array Array of service objects
+ */
+public function get_user_services($user_id) {
+    global $wpdb;
+    $table_name = $wpdb->prefix . 'mobooking_services';
+    
+    $services = $wpdb->get_results($wpdb->prepare(
+        "SELECT s.*, 
+            (SELECT COUNT(*) FROM $table_name o WHERE o.parent_id = s.id AND o.entity_type = 'option') as options_count 
+        FROM $table_name s 
+        WHERE s.user_id = %d AND s.entity_type = 'service' 
+        ORDER BY s.name ASC",
+        $user_id
+    ));
+    
+    // Add has_options flag to each service
+    foreach ($services as $service) {
+        $service->has_options = (int)$service->options_count > 0;
     }
+    
+    return $services;
+}
 
     /**
      * Check if a service has any options

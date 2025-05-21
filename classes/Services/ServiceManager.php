@@ -2,8 +2,8 @@
 namespace MoBooking\Services;
 
 /**
- * Unified Service Manager
- * Handles services and their options in a single table
+ * Service Manager class
+ * Handles services and their options
  */
 class ServiceManager {
     /**
@@ -23,10 +23,44 @@ class ServiceManager {
         add_action('wp_ajax_mobooking_get_service_options', array($this, 'ajax_get_service_options'));
         add_action('wp_ajax_mobooking_delete_service_option', array($this, 'ajax_delete_service_option'));
         add_action('wp_ajax_mobooking_update_options_order', array($this, 'ajax_update_options_order'));
+        
+        // Register unified service save handler
+        add_action('wp_ajax_mobooking_save_unified_service', array($this, 'ajax_save_unified_service'));
+    }
+    
+    /**
+     * Get services for a user
+     *
+     * @param int $user_id The ID of the user
+     * @return array Array of service objects
+     */
+    public function get_user_services($user_id) {
+        global $wpdb;
+        $table_name = $wpdb->prefix . 'mobooking_services';
+        
+        $services = $wpdb->get_results($wpdb->prepare(
+            "SELECT s.*, 
+                (SELECT COUNT(*) FROM $table_name o WHERE o.parent_id = s.id AND o.entity_type = 'option') as options_count 
+            FROM $table_name s 
+            WHERE s.user_id = %d AND s.entity_type = 'service' 
+            ORDER BY s.name ASC",
+            $user_id
+        ));
+        
+        // Add has_options flag to each service
+        foreach ($services as $service) {
+            $service->has_options = (int)$service->options_count > 0;
+        }
+        
+        return $services;
     }
     
     /**
      * Get service with all options
+     *
+     * @param int $service_id Service ID
+     * @param int|null $user_id Optional user ID for ownership verification
+     * @return object|null Service with options or null if not found
      */
     public function get_service_with_options($service_id, $user_id = null) {
         global $wpdb;
@@ -70,33 +104,13 @@ class ServiceManager {
         
         return $service;
     }
-    
-    /**
-     * Get services for a user
-     */
-    public function get_user_services($user_id) {
-        global $wpdb;
-        $table_name = $wpdb->prefix . 'mobooking_services';
-        
-        $services = $wpdb->get_results($wpdb->prepare(
-            "SELECT s.*, 
-                (SELECT COUNT(*) FROM $table_name o WHERE o.parent_id = s.id AND o.entity_type = 'option') as options_count 
-            FROM $table_name s 
-            WHERE s.user_id = %d AND s.entity_type = 'service' 
-            ORDER BY s.name ASC",
-            $user_id
-        ));
-        
-        // Add has_options flag to each service
-        foreach ($services as $service) {
-            $service->has_options = (int)$service->options_count > 0;
-        }
-        
-        return $services;
-    }
 
     /**
      * Get a specific service
+     *
+     * @param int $service_id Service ID
+     * @param int|null $user_id Optional user ID for ownership verification
+     * @return object|null Service or null if not found
      */
     public function get_service($service_id, $user_id = null) {
         global $wpdb;
@@ -118,6 +132,9 @@ class ServiceManager {
 
     /**
      * Check if a service has any options
+     *
+     * @param int $service_id Service ID
+     * @return bool True if service has options
      */
     public function has_service_options($service_id) {
         global $wpdb;
@@ -133,6 +150,9 @@ class ServiceManager {
 
     /**
      * Get service options
+     *
+     * @param int $service_id Service ID
+     * @return array Array of option objects
      */
     public function get_service_options($service_id) {
         global $wpdb;
@@ -146,6 +166,9 @@ class ServiceManager {
 
     /**
      * Get a specific service option
+     *
+     * @param int $option_id Option ID
+     * @return object|null Option or null if not found
      */
     public function get_service_option($option_id) {
         global $wpdb;
@@ -156,19 +179,21 @@ class ServiceManager {
             $option_id
         ));
     }
-
+    
     /**
-     * Save complete service with options
+     * Save service with all options in one transaction
+     *
+     * @param array $data Service and options data
+     * @return int|bool Service ID on success, false on failure
      */
-    public function save_service($data) {
+    public function save_unified_service($data) {
         global $wpdb;
-        $table_name = $wpdb->prefix . 'mobooking_services';
         
-        // Start transaction
+        // Start a transaction to ensure data integrity
         $wpdb->query('START TRANSACTION');
         
         try {
-            // Sanitize base service data
+            // 1. Save the service first
             $service_data = array(
                 'user_id' => absint($data['user_id']),
                 'entity_type' => 'service',
@@ -182,40 +207,154 @@ class ServiceManager {
                 'status' => isset($data['status']) ? sanitize_text_field($data['status']) : 'active'
             );
             
-            // Update or create service
+            $table_name = $wpdb->prefix . 'mobooking_services';
+            
+            // Update existing service or create new one
             if (!empty($data['id'])) {
-                $wpdb->update(
+                // Verify ownership
+                $existing_service = $this->get_service(absint($data['id']));
+                if (!$existing_service || $existing_service->user_id != $data['user_id']) {
+                    throw new \Exception('Permission denied: This service does not belong to you.');
+                }
+                
+                // Update service
+                $result = $wpdb->update(
                     $table_name,
                     $service_data,
                     array('id' => absint($data['id'])),
                     array('%d', '%s', '%s', '%s', '%f', '%d', '%s', '%s', '%s', '%s'),
                     array('%d')
                 );
+                
+                if ($result === false) {
+                    throw new \Exception('Failed to update service: ' . $wpdb->last_error);
+                }
+                
                 $service_id = absint($data['id']);
             } else {
-                $wpdb->insert($table_name, $service_data);
+                // Insert new service
+                $result = $wpdb->insert(
+                    $table_name,
+                    $service_data,
+                    array('%d', '%s', '%s', '%s', '%f', '%d', '%s', '%s', '%s', '%s')
+                );
+                
+                if ($result === false) {
+                    throw new \Exception('Failed to create service: ' . $wpdb->last_error);
+                }
+                
                 $service_id = $wpdb->insert_id;
             }
             
-            // Process options if included
+            // 2. Process service options if they exist
             if (isset($data['options']) && is_array($data['options'])) {
-                foreach ($data['options'] as $option) {
-                    $option['service_id'] = $service_id;
-                    $this->save_option($option);
+                foreach ($data['options'] as $option_data) {
+                    // Add service ID to option data
+                    $option_data['service_id'] = $service_id;
+                    
+                    // Process choices if this is a select/radio option
+                    if (in_array($option_data['type'], array('select', 'radio')) && 
+                        isset($option_data['choices']) && 
+                        is_array($option_data['choices'])) {
+                        
+                        // Format choices as a string
+                        $choices_string = $this->format_choices_as_string($option_data['choices']);
+                        $option_data['options'] = $choices_string;
+                        
+                        // Remove the original choices array to prevent conflicts
+                        unset($option_data['choices']);
+                    }
+                    
+                    // Save the option
+                    $this->save_option($option_data);
                 }
             }
             
+            // 3. Delete options that were removed from the service
+            if (!empty($data['id'])) {
+                $this->cleanup_deleted_options($service_id, $data['options'] ?? array());
+            }
+            
+            // If we got here, everything worked, so commit the transaction
             $wpdb->query('COMMIT');
+            
             return $service_id;
         } catch (\Exception $e) {
+            // Something went wrong, roll back the transaction
             $wpdb->query('ROLLBACK');
-            error_log('Error saving service: ' . $e->getMessage());
+            error_log('Failed to save service: ' . $e->getMessage());
             return false;
         }
     }
     
     /**
-     * Save a service option
+     * Format choices array as a string for storage
+     */
+    private function format_choices_as_string($choices) {
+        if (empty($choices)) {
+            return '';
+        }
+        
+        $lines = array();
+        
+        foreach ($choices as $choice) {
+            if (empty($choice['value'])) {
+                continue;
+            }
+            
+            $value = sanitize_text_field($choice['value']);
+            $label = isset($choice['label']) ? sanitize_text_field($choice['label']) : $value;
+            $price = isset($choice['price']) ? floatval($choice['price']) : 0;
+            
+            if ($price > 0) {
+                $lines[] = "$value|$label:$price";
+            } else {
+                $lines[] = "$value|$label";
+            }
+        }
+        
+        return implode("\n", $lines);
+    }
+    
+    /**
+     * Clean up options that were removed from the service
+     */
+    private function cleanup_deleted_options($service_id, $options) {
+        global $wpdb;
+        $table_name = $wpdb->prefix . 'mobooking_services';
+        
+        // Get IDs of all options that still exist
+        $option_ids = array();
+        foreach ($options as $option) {
+            if (!empty($option['id'])) {
+                $option_ids[] = absint($option['id']);
+            }
+        }
+        
+        // Delete options that are no longer in the list
+        if (!empty($option_ids)) {
+            $ids_string = implode(',', $option_ids);
+            $wpdb->query(
+                $wpdb->prepare(
+                    "DELETE FROM $table_name WHERE parent_id = %d AND entity_type = 'option' AND id NOT IN ($ids_string)",
+                    $service_id
+                )
+            );
+        } else {
+            // If no options are left, delete all options for this service
+            $wpdb->delete(
+                $table_name,
+                array(
+                    'parent_id' => $service_id,
+                    'entity_type' => 'option'
+                ),
+                array('%d', '%s')
+            );
+        }
+    }
+    
+    /**
+     * Save individual option
      */
     public function save_option($data) {
         global $wpdb;
@@ -282,6 +421,43 @@ class ServiceManager {
     }
     
     /**
+     * Parse option choices from string to array
+     */
+    private function parse_option_choices($options_string) {
+        if (!$options_string) {
+            return array();
+        }
+        
+        $choices = array();
+        $lines = explode("\n", $options_string);
+        
+        foreach ($lines as $line) {
+            $line = trim($line);
+            if (empty($line)) continue;
+            
+            $parts = explode('|', $line);
+            $value = trim($parts[0]);
+            
+            if (isset($parts[1])) {
+                $label_price_parts = explode(':', trim($parts[1]));
+                $label = trim($label_price_parts[0]);
+                $price = isset($label_price_parts[1]) ? floatval(trim($label_price_parts[1])) : 0;
+            } else {
+                $label = $value;
+                $price = 0;
+            }
+            
+            $choices[] = array(
+                'value' => $value,
+                'label' => $label,
+                'price' => $price
+            );
+        }
+        
+        return $choices;
+    }
+    
+    /**
      * Delete a service and all its options
      */
     public function delete_service($service_id, $user_id) {
@@ -316,7 +492,7 @@ class ServiceManager {
             return false;
         }
     }
-
+    
     /**
      * Delete a service option
      */
@@ -361,58 +537,25 @@ class ServiceManager {
     }
     
     /**
-     * Parse option choices from string to array
+     * AJAX handler for saving unified service with options
      */
-    private function parse_option_choices($options_string) {
-        if (!$options_string) {
-            return array();
-        }
-        
-        $choices = array();
-        $lines = explode("\n", $options_string);
-        
-        foreach ($lines as $line) {
-            $line = trim($line);
-            if (empty($line)) continue;
-            
-            $parts = explode('|', $line);
-            $value = trim($parts[0]);
-            
-            if (isset($parts[1])) {
-                $label_price_parts = explode(':', trim($parts[1]));
-                $label = trim($label_price_parts[0]);
-                $price = isset($label_price_parts[1]) ? floatval(trim($label_price_parts[1])) : 0;
-            } else {
-                $label = $value;
-                $price = 0;
-            }
-            
-            $choices[] = array(
-                'value' => $value,
-                'label' => $label,
-                'price' => $price
-            );
-        }
-        
-        return $choices;
-    }
-    
-    /**
-     * AJAX handler to save a service
-     */
-    public function ajax_save_service() {
-        // Check nonce and permissions
-        if (!isset($_POST['nonce']) || !wp_verify_nonce($_POST['nonce'], 'mobooking-service-nonce')) {
+    public function ajax_save_unified_service() {
+        // Check nonce
+        if (!isset($_POST['service_nonce']) || !wp_verify_nonce($_POST['service_nonce'], 'mobooking-service-nonce')) {
             wp_send_json_error(array('message' => __('Security verification failed.', 'mobooking')));
         }
         
+        // Check permissions
         if (!current_user_can('mobooking_business_owner') && !current_user_can('administrator')) {
             wp_send_json_error(array('message' => __('You do not have permission to do this.', 'mobooking')));
         }
         
+        // Get the user ID
+        $user_id = isset($_POST['user_id']) ? absint($_POST['user_id']) : get_current_user_id();
+        
         // Prepare service data
         $service_data = array(
-            'user_id' => isset($_POST['user_id']) ? absint($_POST['user_id']) : get_current_user_id(),
+            'user_id' => $user_id,
             'name' => isset($_POST['name']) ? $_POST['name'] : '',
             'description' => isset($_POST['description']) ? $_POST['description'] : '',
             'price' => isset($_POST['price']) ? $_POST['price'] : 0,
@@ -428,6 +571,11 @@ class ServiceManager {
             $service_data['id'] = absint($_POST['id']);
         }
         
+        // Process options
+        if (isset($_POST['options']) && is_array($_POST['options'])) {
+            $service_data['options'] = $_POST['options'];
+        }
+        
         // Validate required fields
         if (empty($service_data['name'])) {
             wp_send_json_error(array('message' => __('Service name is required.', 'mobooking')));
@@ -441,8 +589,8 @@ class ServiceManager {
             wp_send_json_error(array('message' => __('Service duration must be at least 15 minutes.', 'mobooking')));
         }
         
-        // Save service
-        $service_id = $this->save_service($service_data);
+        // Save service with options
+        $service_id = $this->save_unified_service($service_data);
         
         if (!$service_id) {
             wp_send_json_error(array('message' => __('Failed to save service.', 'mobooking')));
@@ -453,7 +601,15 @@ class ServiceManager {
             'message' => __('Service saved successfully.', 'mobooking')
         ));
     }
-
+    
+    /**
+     * AJAX handler to save a service
+     */
+    public function ajax_save_service() {
+        // Redirect to unified save method
+        $this->ajax_save_unified_service();
+    }
+    
     /**
      * AJAX handler to delete a service
      */
@@ -487,7 +643,7 @@ class ServiceManager {
             'message' => __('Service deleted successfully.', 'mobooking')
         ));
     }
-
+    
     /**
      * AJAX handler to get a service
      */
@@ -516,7 +672,7 @@ class ServiceManager {
             'service' => $service
         ));
     }
-
+    
     /**
      * AJAX handler to get services
      */
@@ -539,6 +695,14 @@ class ServiceManager {
         wp_send_json_success(array(
             'services' => $services
         ));
+    }
+    
+    /**
+     * AJAX handler to get services by ZIP code
+     */
+    public function ajax_get_services_by_zip() {
+        // Implementation depends on your specific requirements
+        wp_send_json_error(array('message' => 'Not implemented'));
     }
     
     /**
@@ -568,7 +732,7 @@ class ServiceManager {
             'option' => $option
         ));
     }
-
+    
     /**
      * AJAX handler to get service options
      */
@@ -592,7 +756,7 @@ class ServiceManager {
             'options' => $options
         ));
     }
-
+    
     /**
      * AJAX handler to save a service option
      */
@@ -661,7 +825,7 @@ class ServiceManager {
             'message' => __('Option saved successfully.', 'mobooking')
         ));
     }
-
+    
     /**
      * AJAX handler to delete a service option
      */
@@ -694,7 +858,7 @@ class ServiceManager {
             'message' => __('Option deleted successfully.', 'mobooking')
         ));
     }
-
+    
     /**
      * AJAX handler to update options order
      */

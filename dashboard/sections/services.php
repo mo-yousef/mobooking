@@ -43,41 +43,6 @@ $price_types = array(
     'none' => __('No Price Impact', 'mobooking')
 );
 
-// Enqueue scripts and styles
-wp_enqueue_style('mobooking-dashboard-style', MOBOOKING_URL . '/assets/css/dashboard.css', array(), MOBOOKING_VERSION);
-wp_enqueue_style('mobooking-service-options-style', MOBOOKING_URL . '/assets/css/service-options.css', array(), MOBOOKING_VERSION);
-wp_enqueue_media(); // Enable WordPress Media Uploader
-
-// Register our unified service manager script
-wp_register_script('mobooking-unified-service-manager', 
-    MOBOOKING_URL . '/assets/js/unified-service-manager.js', 
-    array('jquery', 'jquery-ui-sortable'), 
-    MOBOOKING_VERSION, 
-    true
-);
-
-// Localize script with needed data
-wp_localize_script('mobooking-unified-service-manager', 'mobookingData', array(
-    'ajaxUrl' => admin_url('admin-ajax.php'),
-    'serviceNonce' => wp_create_nonce('mobooking-service-nonce'),
-    'userId' => get_current_user_id(),
-    'currentServiceId' => $service_id,
-    'messages' => array(
-        'savingService' => __('Saving service...', 'mobooking'),
-        'serviceSuccess' => __('Service saved successfully', 'mobooking'),
-        'serviceError' => __('Error saving service', 'mobooking'),
-        'optionSuccess' => __('Option saved successfully', 'mobooking'),
-        'optionError' => __('Error saving option', 'mobooking'),
-        'deleteConfirm' => __('Are you sure you want to delete this? This action cannot be undone.', 'mobooking')
-    )
-));
-
-// Enqueue the script
-wp_enqueue_script('mobooking-unified-service-manager');
-
-// Get active tab if specified in URL
-$active_tab = isset($_GET['active_tab']) ? sanitize_text_field($_GET['active_tab']) : 'basic-info';
-
 // Get service data if editing
 $service = null;
 $options = array();
@@ -96,17 +61,38 @@ if ($current_view === 'edit' && $service_id > 0) {
     $options = isset($service->options) ? $service->options : array();
 }
 
-// Display any stored transient messages if they exist
-$messages = get_transient('mobooking_service_message');
-$errors = get_transient('mobooking_service_errors');
+// Get active tab if specified in URL
+$active_tab = isset($_GET['active_tab']) ? sanitize_text_field($_GET['active_tab']) : 'basic-info';
 
-if ($messages) {
-    delete_transient('mobooking_service_message');
-}
+// Enqueue scripts and styles
+wp_enqueue_style('mobooking-dashboard-style');
+wp_enqueue_style('mobooking-service-options-style');
+wp_enqueue_script('jquery-ui-sortable');
+wp_enqueue_media();
 
-if ($errors) {
-    delete_transient('mobooking_service_errors');
-}
+// Register our unified service form handler script
+wp_register_script('mobooking-service-form-handler', 
+    MOBOOKING_URL . '/assets/js/service-form-handler.js', 
+    array('jquery', 'jquery-ui-sortable'), 
+    MOBOOKING_VERSION, 
+    true
+);
+
+// Localize script with needed data
+wp_localize_script('mobooking-service-form-handler', 'mobookingData', array(
+    'ajaxUrl' => admin_url('admin-ajax.php'),
+    'serviceNonce' => wp_create_nonce('mobooking-service-nonce'),
+    'userId' => get_current_user_id(),
+    'currentServiceId' => $service_id,
+    'messages' => array(
+        'savingService' => __('Saving service...', 'mobooking'),
+        'serviceSuccess' => __('Service saved successfully', 'mobooking'),
+        'serviceError' => __('Error saving service', 'mobooking'),
+        'deleteConfirm' => __('Are you sure you want to delete this? This action cannot be undone.', 'mobooking')
+    )
+));
+
+wp_enqueue_script('mobooking-service-form-handler');
 ?>
 
 <div class="dashboard-section services-section">
@@ -132,22 +118,6 @@ if ($errors) {
             </div>
         </div>
         
-        <?php if ($messages): ?>
-            <div class="notification notification-<?php echo esc_attr($messages['type']); ?>">
-                <?php echo esc_html($messages['text']); ?>
-            </div>
-        <?php endif; ?>
-        
-        <?php if ($errors): ?>
-            <div class="notification notification-error">
-                <ul>
-                    <?php foreach ($errors as $error): ?>
-                        <li><?php echo esc_html($error); ?></li>
-                    <?php endforeach; ?>
-                </ul>
-            </div>
-        <?php endif; ?>
-        
         <?php if (empty($services)) : ?>
             <div class="no-items">
                 <span class="dashicons dashicons-admin-tools"></span>
@@ -157,7 +127,10 @@ if ($errors) {
             </div>
         <?php else : ?>
             <div class="services-grid">
-                <?php foreach ($services as $service) : ?>
+                <?php foreach ($services as $service) : 
+                    // Check if service has options
+                    $has_options = property_exists($service, 'has_options') ? $service->has_options : false;
+                ?>
                     <div class="service-card" data-id="<?php echo esc_attr($service->id); ?>" data-category="<?php echo esc_attr($service->category); ?>">
                         <div class="service-header">
                             <?php if (!empty($service->image_url)) : ?>
@@ -198,7 +171,7 @@ if ($errors) {
                                     <?php echo sprintf(_n('%d minute', '%d minutes', $service->duration, 'mobooking'), $service->duration); ?>
                                 </span>
                                 
-                                <?php if (property_exists($service, 'has_options') && $service->has_options) : ?>
+                                <?php if ($has_options) : ?>
                                     <span class="service-options-badge">
                                         <span class="dashicons dashicons-admin-generic"></span>
                                         <?php _e('Customizable', 'mobooking'); ?>
@@ -247,22 +220,6 @@ if ($errors) {
             <!-- Dynamic status/error notifications container -->
             <div id="notification-container"></div>
             
-            <?php if ($messages): ?>
-                <div class="notification notification-<?php echo esc_attr($messages['type']); ?>">
-                    <?php echo esc_html($messages['text']); ?>
-                </div>
-            <?php endif; ?>
-            
-            <?php if ($errors): ?>
-                <div class="notification notification-error">
-                    <ul>
-                        <?php foreach ($errors as $error): ?>
-                            <li><?php echo esc_html($error); ?></li>
-                        <?php endforeach; ?>
-                    </ul>
-                </div>
-            <?php endif; ?>
-            
             <div class="service-form-wrapper">
                 <div class="service-tabs">
                     <div class="tab-buttons">
@@ -286,7 +243,7 @@ if ($errors) {
                     </div>
                     
                     <!-- Unified service form that handles both service and options -->
-                    <form id="unified-service-form">
+                    <form id="unified-service-form" class="unified-form">
                         <input type="hidden" name="id" id="service-id" value="<?php echo esc_attr($service_id); ?>">
                         <input type="hidden" name="user_id" value="<?php echo get_current_user_id(); ?>">
                         <?php wp_nonce_field('mobooking-service-nonce', 'service_nonce'); ?>
@@ -446,7 +403,7 @@ if ($errors) {
                             </div>
                             
                             <?php if ($current_view === 'edit'): ?>
-                                <!-- Service Options Tab -->
+                                <!-- Service Options Tab (Integrated with main form) -->
                                 <div class="tab-pane <?php echo $active_tab === 'options' ? 'active' : ''; ?>" id="options">
                                     <div class="options-header-card">
                                         <div class="options-info">
@@ -454,181 +411,307 @@ if ($errors) {
                                             <p><?php _e('Options allow customers to customize their booking with add-ons, variations, or special requests.', 'mobooking'); ?></p>
                                         </div>
                                         
-                                        <button type="button" class="button button-primary add-option-button">
+                                        <button type="button" class="button button-primary add-new-option-btn">
                                             <span class="dashicons dashicons-plus"></span>
                                             <?php _e('Add New Option', 'mobooking'); ?>
                                         </button>
                                     </div>
                                     
-                                    <div class="options-container">
-                                        <div class="options-sidebar">
-                                            <div class="options-search-box">
-                                                <input type="text" id="options-search" placeholder="<?php esc_attr_e('Search options...', 'mobooking'); ?>">
-                                            </div>
-                                            
-                                            <div class="options-list">
-                                                <?php if (empty($options)): ?>
-                                                    <div class="options-list-empty">
-                                                        <p><?php _e('No options configured yet.', 'mobooking'); ?></p>
-                                                        <p><?php _e('Add your first option to customize this service.', 'mobooking'); ?></p>
+                                    <!-- Integrated options section -->
+                                    <div id="service-options-container" class="service-options-container">
+                                        <!-- Options will be dynamically added here -->
+                                        <?php foreach ($options as $index => $option): ?>
+                                            <div class="option-card" data-option-index="<?php echo $index; ?>">
+                                                <div class="option-card-header">
+                                                    <div class="option-drag-handle">
+                                                        <span class="dashicons dashicons-menu"></span>
                                                     </div>
-                                                <?php else: ?>
-                                                    <?php foreach ($options as $index => $option): ?>
-                                                        <div class="option-item" data-id="<?php echo esc_attr($option->id); ?>" data-order="<?php echo esc_attr($option->display_order ?? $index); ?>">
-                                                            <div class="option-drag-handle">
-                                                                <span class="dashicons dashicons-menu"></span>
-                                                            </div>
-                                                            <div class="option-content">
-                                                                <span class="option-name"><?php echo esc_html($option->name); ?></span>
-                                                                <div class="option-meta">
-                                                                    <span class="option-type"><?php echo esc_html($option_types[$option->type] ?? $option->type); ?></span>
-                                                                    <?php if ($option->is_required): ?>
-                                                                        <span class="option-required"><?php _e('Required', 'mobooking'); ?></span>
-                                                                    <?php endif; ?>
-                                                                </div>
-                                                            </div>
-                                                            <div class="option-preview">
-                                                                <?php 
-                                                                // Generate a small visual indicator based on option type
-                                                                $preview_html = '';
-                                                                switch ($option->type) {
-                                                                    case 'checkbox':
-                                                                        $preview_html = '<div class="preview-checkbox"><input type="checkbox" disabled ' . ($option->default_value == 1 ? 'checked' : '') . '></div>';
-                                                                        break;
-                                                                    case 'select':
-                                                                        $preview_html = '<div class="preview-select"><select disabled><option>...</option></select></div>';
-                                                                        break;
-                                                                    case 'radio':
-                                                                        $preview_html = '<div class="preview-radio"><span class="radio-dot"></span></div>';
-                                                                        break;
-                                                                    case 'number':
-                                                                    case 'quantity':
-                                                                        $preview_html = '<div class="preview-number">123</div>';
-                                                                        break;
-                                                                    case 'text':
-                                                                        $preview_html = '<div class="preview-text">Abc</div>';
-                                                                        break;
-                                                                    case 'textarea':
-                                                                        $preview_html = '<div class="preview-textarea">Text</div>';
-                                                                        break;
-                                                                }
-                                                                
-                                                                // Add price indicator if applicable
-                                                                if ($option->price_impact != 0) {
-                                                                    $price_indicator = '';
-                                                                    if ($option->price_type === 'percentage') {
-                                                                        $price_indicator = ($option->price_impact > 0 ? '+' : '') . $option->price_impact . '%';
-                                                                    } elseif ($option->price_type === 'multiply') {
-                                                                        $price_indicator = '×' . $option->price_impact;
-                                                                    } else {
-                                                                        $price_indicator = ($option->price_impact > 0 ? '+' : '') . wc_price($option->price_impact);
-                                                                    }
-                                                                    
-                                                                    $preview_html .= '<div class="price-indicator">' . $price_indicator . '</div>';
-                                                                }
-                                                                
-                                                                echo $preview_html;
-                                                                ?>
-                                                            </div>
-                                                        </div>
-                                                    <?php endforeach; ?>
-                                                <?php endif; ?>
-                                            </div>
-                                        </div>
-                                        
-                                        <div class="options-content">
-                                            <div class="no-option-selected">
-                                                <span class="dashicons dashicons-admin-generic"></span>
-                                                <h3><?php _e('Service Options', 'mobooking'); ?></h3>
-                                                <p><?php _e('Select an option from the list or add a new one to edit its details.', 'mobooking'); ?></p>
-                                                <button type="button" class="button button-primary add-option-button">
-                                                    <?php _e('Add New Option', 'mobooking'); ?>
-                                                </button>
-                                            </div>
-                                            
-                                            <div class="option-form-container" style="display: none;">
-                                                <!-- Option form will be loaded dynamically -->
-                                                <!-- Template for dynamic loading of option form -->
-                                                <script type="text/html" id="option-form-template">
-                                                    <form id="option-form">
-                                                        <input type="hidden" id="option-id" name="id" value="{id}">
-                                                        <input type="hidden" name="service_id" value="<?php echo esc_attr($service_id); ?>">
-                                                        <?php wp_nonce_field('mobooking-option-nonce', 'option_nonce'); ?>
-                                                        
-                                                        <h3 class="option-form-title">{title}</h3>
-                                                        
-                                                        <div class="option-form-grid">
-                                                            <div class="form-column">
-                                                                <div class="form-group">
-                                                                    <label for="option-name"><?php _e('Option Name', 'mobooking'); ?> <span class="required">*</span></label>
-                                                                    <input type="text" id="option-name" name="name" value="{name}" required>
-                                                                    <div class="field-error" id="option-name-error"></div>
-                                                                </div>
-                                                                
-                                                                <div class="form-group">
-                                                                    <label for="option-description"><?php _e('Description', 'mobooking'); ?></label>
-                                                                    <textarea id="option-description" name="description" rows="2">{description}</textarea>
-                                                                </div>
-                                                            </div>
-                                                            
-                                                            <div class="form-column">
-                                                                <div class="form-row">
-                                                                    <div class="form-group half">
-                                                                        <label for="option-type"><?php _e('Option Type', 'mobooking'); ?> <span class="required">*</span></label>
-                                                                        <select id="option-type" name="type" required>
-                                                                            <option value=""><?php _e('Select Type', 'mobooking'); ?></option>
-                                                                            <?php foreach ($option_types as $type => $label) : ?>
-                                                                                <option value="<?php echo esc_attr($type); ?>" {type_selected_<?php echo $type; ?>}><?php echo esc_html($label); ?></option>
-                                                                            <?php endforeach; ?>
-                                                                        </select>
-                                                                        <div class="field-error" id="option-type-error"></div>
-                                                                    </div>
-                                                                    
-                                                                    <div class="form-group half">
-                                                                        <label for="option-required"><?php _e('Required?', 'mobooking'); ?></label>
-                                                                        <select id="option-required" name="is_required">
-                                                                            <option value="0" {required_selected_0}><?php _e('Optional', 'mobooking'); ?></option>
-                                                                            <option value="1" {required_selected_1}><?php _e('Required', 'mobooking'); ?></option>
-                                                                        </select>
-                                                                    </div>
-                                                                </div>
-                                                            </div>
-                                                        </div>
-                                                        
-                                                        <div id="dynamic-fields" class="dynamic-fields">
-                                                            <!-- Dynamic fields will be loaded via JS based on option type -->
-                                                        </div>
-                                                        
-                                                        <div class="form-row price-impact-section">
+                                                    <div class="option-title">
+                                                        <span class="option-name"><?php echo esc_html($option->name); ?></span>
+                                                        <span class="option-type"><?php echo esc_html($option_types[$option->type] ?? $option->type); ?></span>
+                                                    </div>
+                                                    <div class="option-actions">
+                                                        <button type="button" class="button button-small edit-option-btn">
+                                                            <span class="dashicons dashicons-edit"></span>
+                                                        </button>
+                                                        <button type="button" class="button button-small remove-option-btn">
+                                                            <span class="dashicons dashicons-trash"></span>
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                                <div class="option-card-details" style="display:none;">
+                                                    <!-- Hidden fields to store option data -->
+                                                    <input type="hidden" name="options[<?php echo $index; ?>][id]" value="<?php echo esc_attr($option->id); ?>">
+                                                    <input type="hidden" name="options[<?php echo $index; ?>][service_id]" value="<?php echo esc_attr($service_id); ?>">
+                                                    
+                                                    <div class="option-form">
+                                                        <div class="form-row">
                                                             <div class="form-group half">
-                                                                <label for="option-price-type"><?php _e('Price Impact Type', 'mobooking'); ?></label>
-                                                                <select id="option-price-type" name="price_type">
-                                                                    <?php foreach ($price_types as $type => $label) : ?>
-                                                                        <option value="<?php echo esc_attr($type); ?>" {price_type_selected_<?php echo $type; ?>}><?php echo esc_html($label); ?></option>
+                                                                <label><?php _e('Option Name', 'mobooking'); ?> <span class="required">*</span></label>
+                                                                <input type="text" name="options[<?php echo $index; ?>][name]" value="<?php echo esc_attr($option->name); ?>" required>
+                                                            </div>
+                                                            <div class="form-group half">
+                                                                <label><?php _e('Option Type', 'mobooking'); ?></label>
+                                                                <select name="options[<?php echo $index; ?>][type]" class="option-type-select">
+                                                                    <?php foreach ($option_types as $type => $label): ?>
+                                                                    <option value="<?php echo esc_attr($type); ?>" <?php selected($option->type, $type); ?>><?php echo esc_html($label); ?></option>
                                                                     <?php endforeach; ?>
                                                                 </select>
                                                             </div>
-                                                            
-                                                            <div class="form-group half price-impact-value">
-                                                                <label for="option-price-impact"><?php _e('Price Value', 'mobooking'); ?></label>
-                                                                <input type="number" id="option-price-impact" name="price_impact" step="0.01" value="{price_impact}">
+                                                        </div>
+                                                        
+                                                        <div class="form-row">
+                                                            <div class="form-group half">
+                                                                <label><?php _e('Required?', 'mobooking'); ?></label>
+                                                                <select name="options[<?php echo $index; ?>][is_required]">
+                                                                    <option value="0" <?php selected($option->is_required, 0); ?>><?php _e('Optional', 'mobooking'); ?></option>
+                                                                    <option value="1" <?php selected($option->is_required, 1); ?>><?php _e('Required', 'mobooking'); ?></option>
+                                                                </select>
+                                                            </div>
+                                                            <div class="form-group half">
+                                                                <label><?php _e('Description', 'mobooking'); ?></label>
+                                                                <input type="text" name="options[<?php echo $index; ?>][description]" value="<?php echo esc_attr($option->description); ?>">
                                                             </div>
                                                         </div>
                                                         
-                                                        <div class="form-actions option-form-actions">
-                                                            <button type="button" class="button button-danger delete-option-btn" {delete_button_visibility}>
-                                                                <span class="dashicons dashicons-trash"></span> <?php _e('Delete', 'mobooking'); ?>
-                                                            </button>
-                                                            <div class="spacer"></div>
-                                                            <button type="button" class="button button-secondary cancel-option-btn">
-                                                                <?php _e('Cancel', 'mobooking'); ?>
-                                                            </button>
-                                                            <button type="button" class="button button-primary save-option-btn">
-                                                                <?php _e('Save Option', 'mobooking'); ?>
-                                                            </button>
+                                                        <!-- Type-specific fields -->
+                                                        <div class="option-type-fields">
+                                                            <?php if ($option->type === 'checkbox'): ?>
+                                                                <div class="form-row">
+                                                                    <div class="form-group half">
+                                                                        <label><?php _e('Default Value', 'mobooking'); ?></label>
+                                                                        <select name="options[<?php echo $index; ?>][default_value]">
+                                                                            <option value="0" <?php selected($option->default_value, 0); ?>><?php _e('Unchecked', 'mobooking'); ?></option>
+                                                                            <option value="1" <?php selected($option->default_value, 1); ?>><?php _e('Checked', 'mobooking'); ?></option>
+                                                                        </select>
+                                                                    </div>
+                                                                    <div class="form-group half">
+                                                                        <label><?php _e('Option Label', 'mobooking'); ?></label>
+                                                                        <input type="text" name="options[<?php echo $index; ?>][option_label]" value="<?php echo esc_attr($option->option_label); ?>">
+                                                                    </div>
+                                                                </div>
+                                                            <?php elseif ($option->type === 'select' || $option->type === 'radio'): ?>
+                                                                <!-- Choices container -->
+                                                                <div class="form-group">
+                                                                    <label><?php _e('Choices', 'mobooking'); ?></label>
+                                                                    <div class="choices-container">
+                                                                        <div class="choices-list">
+                                                                            <?php 
+                                                                            $choices = isset($option->choices) ? $option->choices : array();
+                                                                            if (empty($choices) && !empty($option->options)) {
+                                                                                // Parse options from string if not already parsed
+                                                                                $choices = parseOptionChoices($option->options);
+                                                                            }
+                                                                            
+                                                                            foreach ($choices as $choice_index => $choice): 
+                                                                            ?>
+                                                                                <div class="choice-row">
+                                                                                    <div class="choice-value">
+                                                                                        <input type="text" name="options[<?php echo $index; ?>][choices][<?php echo $choice_index; ?>][value]" 
+                                                                                               value="<?php echo esc_attr($choice['value']); ?>" placeholder="Value">
+                                                                                    </div>
+                                                                                    <div class="choice-label">
+                                                                                        <input type="text" name="options[<?php echo $index; ?>][choices][<?php echo $choice_index; ?>][label]" 
+                                                                                               value="<?php echo esc_attr($choice['label']); ?>" placeholder="Label">
+                                                                                    </div>
+                                                                                    <div class="choice-price">
+                                                                                        <input type="number" name="options[<?php echo $index; ?>][choices][<?php echo $choice_index; ?>][price]" 
+                                                                                               value="<?php echo esc_attr($choice['price']); ?>" step="0.01" placeholder="0.00">
+                                                                                    </div>
+                                                                                    <div class="choice-actions">
+                                                                                        <button type="button" class="remove-choice-btn">
+                                                                                            <span class="dashicons dashicons-trash"></span>
+                                                                                        </button>
+                                                                                    </div>
+                                                                                </div>
+                                                                            <?php endforeach; ?>
+                                                                        </div>
+                                                                        <button type="button" class="add-choice-btn button-secondary">
+                                                                            <?php _e('Add Choice', 'mobooking'); ?>
+                                                                        </button>
+                                                                    </div>
+                                                                </div>
+                                                                <div class="form-group">
+                                                                    <label><?php _e('Default Value', 'mobooking'); ?></label>
+                                                                    <input type="text" name="options[<?php echo $index; ?>][default_value]" 
+                                                                           value="<?php echo esc_attr($option->default_value); ?>" 
+                                                                           placeholder="<?php _e('Enter the value of the default choice', 'mobooking'); ?>">
+                                                                </div>
+                                                            <?php elseif ($option->type === 'number' || $option->type === 'quantity'): ?>
+                                                                <div class="form-row">
+                                                                    <div class="form-group half">
+                                                                        <label><?php _e('Minimum Value', 'mobooking'); ?></label>
+                                                                        <input type="number" name="options[<?php echo $index; ?>][min_value]" 
+                                                                               value="<?php echo $option->min_value !== null ? esc_attr($option->min_value) : ''; ?>" step="any">
+                                                                    </div>
+                                                                    <div class="form-group half">
+                                                                        <label><?php _e('Maximum Value', 'mobooking'); ?></label>
+                                                                        <input type="number" name="options[<?php echo $index; ?>][max_value]" 
+                                                                               value="<?php echo $option->max_value !== null ? esc_attr($option->max_value) : ''; ?>" step="any">
+                                                                    </div>
+                                                                </div>
+                                                                <div class="form-row">
+                                                                    <div class="form-group half">
+                                                                        <label><?php _e('Default Value', 'mobooking'); ?></label>
+                                                                        <input type="number" name="options[<?php echo $index; ?>][default_value]" 
+                                                                               value="<?php echo esc_attr($option->default_value); ?>" step="any">
+                                                                    </div>
+                                                                    <div class="form-group half">
+                                                                        <label><?php _e('Step', 'mobooking'); ?></label>
+                                                                        <input type="number" name="options[<?php echo $index; ?>][step]" 
+                                                                               value="<?php echo esc_attr($option->step ?: '1'); ?>" step="any">
+                                                                    </div>
+                                                                </div>
+                                                                <div class="form-group">
+                                                                    <label><?php _e('Unit Label', 'mobooking'); ?></label>
+                                                                    <input type="text" name="options[<?php echo $index; ?>][unit]" 
+                                                                           value="<?php echo esc_attr($option->unit); ?>" 
+                                                                           placeholder="<?php _e('e.g., hours, sq ft', 'mobooking'); ?>">
+                                                                </div>
+                                                            <?php elseif ($option->type === 'text'): ?>
+                                                                <div class="form-row">
+                                                                    <div class="form-group half">
+                                                                        <label><?php _e('Default Value', 'mobooking'); ?></label>
+                                                                        <input type="text" name="options[<?php echo $index; ?>][default_value]" 
+                                                                               value="<?php echo esc_attr($option->default_value); ?>">
+                                                                    </div>
+                                                                    <div class="form-group half">
+                                                                        <label><?php _e('Placeholder', 'mobooking'); ?></label>
+                                                                        <input type="text" name="options[<?php echo $index; ?>][placeholder]" 
+                                                                               value="<?php echo esc_attr($option->placeholder); ?>">
+                                                                    </div>
+                                                                </div>
+                                                            <?php elseif ($option->type === 'textarea'): ?>
+                                                                <div class="form-group">
+                                                                    <label><?php _e('Default Value', 'mobooking'); ?></label>
+                                                                    <textarea name="options[<?php echo $index; ?>][default_value]" rows="3"><?php echo esc_textarea($option->default_value); ?></textarea>
+                                                                </div>
+                                                                <div class="form-row">
+                                                                    <div class="form-group half">
+                                                                        <label><?php _e('Placeholder', 'mobooking'); ?></label>
+                                                                        <input type="text" name="options[<?php echo $index; ?>][placeholder]" 
+                                                                               value="<?php echo esc_attr($option->placeholder); ?>">
+                                                                    </div>
+                                                                    <div class="form-group half">
+                                                                        <label><?php _e('Rows', 'mobooking'); ?></label>
+                                                                        <input type="number" name="options[<?php echo $index; ?>][rows]" 
+                                                                               value="<?php echo esc_attr($option->rows ?: '3'); ?>" min="2">
+                                                                    </div>
+                                                                </div>
+                                                            <?php endif; ?>
                                                         </div>
-                                                    </form>
-                                                </script>
+                                                        
+                                                        <!-- Price impact section (common to all option types) -->
+                                                        <div class="form-row price-impact-section">
+                                                            <div class="form-group half">
+                                                                <label><?php _e('Price Impact Type', 'mobooking'); ?></label>
+                                                                <select name="options[<?php echo $index; ?>][price_type]" class="price-type-select">
+                                                                    <?php foreach ($price_types as $type => $label): ?>
+                                                                    <option value="<?php echo esc_attr($type); ?>" <?php selected($option->price_type, $type); ?>><?php echo esc_html($label); ?></option>
+                                                                    <?php endforeach; ?>
+                                                                </select>
+                                                            </div>
+                                                            <div class="form-group half price-impact-value">
+                                                                <label><?php _e('Price Impact Value', 'mobooking'); ?></label>
+                                                                <input type="number" name="options[<?php echo $index; ?>][price_impact]" 
+                                                                       value="<?php echo esc_attr($option->price_impact); ?>" step="0.01">
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        <?php endforeach; ?>
+                                        
+                                        <!-- Template for adding new options -->
+                                        <div id="new-option-template" style="display:none;">
+                                            <div class="option-card" data-option-index="{index}">
+                                                <div class="option-card-header">
+                                                    <div class="option-drag-handle">
+                                                        <span class="dashicons dashicons-menu"></span>
+                                                    </div>
+                                                    <div class="option-title">
+                                                        <span class="option-name"><?php _e('New Option', 'mobooking'); ?></span>
+                                                        <span class="option-type"><?php _e('Checkbox', 'mobooking'); ?></span>
+                                                    </div>
+                                                    <div class="option-actions">
+                                                        <button type="button" class="button button-small edit-option-btn">
+                                                            <span class="dashicons dashicons-edit"></span>
+                                                        </button>
+                                                        <button type="button" class="button button-small remove-option-btn">
+                                                            <span class="dashicons dashicons-trash"></span>
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                                <div class="option-card-details" style="display:block;">
+                                                    <!-- Hidden fields to store option data -->
+                                                    <input type="hidden" name="options[{index}][id]" value="">
+                                                    <input type="hidden" name="options[{index}][service_id]" value="<?php echo esc_attr($service_id); ?>">
+                                                    
+                                                    <div class="option-form">
+                                                        <div class="form-row">
+                                                            <div class="form-group half">
+                                                                <label><?php _e('Option Name', 'mobooking'); ?> <span class="required">*</span></label>
+                                                                <input type="text" name="options[{index}][name]" value="<?php _e('New Option', 'mobooking'); ?>" required>
+                                                            </div>
+                                                            <div class="form-group half">
+                                                                <label><?php _e('Option Type', 'mobooking'); ?></label>
+                                                                <select name="options[{index}][type]" class="option-type-select">
+                                                                    <?php foreach ($option_types as $type => $label): ?>
+                                                                    <option value="<?php echo esc_attr($type); ?>"><?php echo esc_html($label); ?></option>
+                                                                    <?php endforeach; ?>
+                                                                </select>
+                                                            </div>
+                                                        </div>
+                                                        
+                                                        <div class="form-row">
+                                                            <div class="form-group half">
+                                                                <label><?php _e('Required?', 'mobooking'); ?></label>
+                                                                <select name="options[{index}][is_required]">
+                                                                    <option value="0"><?php _e('Optional', 'mobooking'); ?></option>
+                                                                    <option value="1"><?php _e('Required', 'mobooking'); ?></option>
+                                                                </select>
+                                                            </div>
+                                                            <div class="form-group half">
+                                                                <label><?php _e('Description', 'mobooking'); ?></label>
+                                                                <input type="text" name="options[{index}][description]" value="">
+                                                            </div>
+                                                        </div>
+                                                        
+                                                        <!-- Type-specific fields will be loaded dynamically -->
+                                                        <div class="option-type-fields">
+                                                            <!-- Default checkbox fields -->
+                                                            <div class="form-row">
+                                                                <div class="form-group half">
+                                                                    <label><?php _e('Default Value', 'mobooking'); ?></label>
+                                                                    <select name="options[{index}][default_value]">
+                                                                        <option value="0"><?php _e('Unchecked', 'mobooking'); ?></option>
+                                                                        <option value="1"><?php _e('Checked', 'mobooking'); ?></option>
+                                                                    </select>
+                                                                </div>
+                                                                <div class="form-group half">
+                                                                    <label><?php _e('Option Label', 'mobooking'); ?></label>
+                                                                    <input type="text" name="options[{index}][option_label]" value="">
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                        
+                                                        <!-- Price impact section (common to all option types) -->
+                                                        <div class="form-row price-impact-section">
+                                                            <div class="form-group half">
+                                                                <label><?php _e('Price Impact Type', 'mobooking'); ?></label>
+                                                                <select name="options[{index}][price_type]" class="price-type-select">
+                                                                    <?php foreach ($price_types as $type => $label): ?>
+                                                                    <option value="<?php echo esc_attr($type); ?>"><?php echo esc_html($label); ?></option>
+                                                                    <?php endforeach; ?>
+                                                                </select>
+                                                            </div>
+                                                            <div class="form-group half price-impact-value">
+                                                                <label><?php _e('Price Impact Value', 'mobooking'); ?></label>
+                                                                <input type="number" name="options[{index}][price_impact]" value="0" step="0.01">
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
                                             </div>
                                         </div>
                                     </div>
@@ -666,89 +749,42 @@ if ($errors) {
     </div>
 </div>
 
-<!-- Add extra CSS for better error handling and loading indicators -->
-<style>
-.field-error {
-    color: var(--danger-color);
-    font-size: 0.8rem;
-    margin-top: 0.3rem;
-    display: none;
-}
-
-.field-error.active {
-    display: block;
-}
-
-.form-group.has-error input,
-.form-group.has-error select,
-.form-group.has-error textarea {
-    border-color: var(--danger-color);
-}
-
-.loading-spinner {
-    display: inline-block;
-    width: 1em;
-    height: 1em;
-    border: 0.2em solid rgba(255,255,255,0.3);
-    border-radius: 50%;
-    border-top-color: white;
-    animation: spin 1s linear infinite;
-    vertical-align: middle;
-    margin-right: 0.5rem;
-}
-
-@keyframes spin {
-    to { transform: rotate(360deg); }
-}
-
-.input-prefix, .input-suffix {
-    position: relative;
-    display: flex;
-    align-items: center;
-}
-
-.input-prefix .prefix {
-    position: absolute;
-    left: 10px;
-    top: 50%;
-    transform: translateY(-50%);
-    color: var(--text-light);
-}
-
-.input-prefix input {
-    padding-left: 25px;
-}
-
-.input-suffix .suffix {
-    position: absolute;
-    right: 10px;
-    top: 50%;
-    transform: translateY(-50%);
-    color: var(--text-light);
-}
-
-.count-badge {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    background-color: var(--primary-dark);
-    color: white;
-    width: 20px;
-    height: 20px;
-    border-radius: 10px;
-    font-size: 0.7rem;
-    margin-left: 5px;
-}
-
-#notification-message {
-    padding: 12px 16px;
-    margin-bottom: 16px;
-    border-radius: var(--radius);
-    transition: opacity 0.3s ease;
-}
-</style>
-
 <?php
+// Helper function to parse option choices
+function parseOptionChoices($options_string) {
+    if (!$options_string) {
+        return array();
+    }
+    
+    $choices = array();
+    $lines = explode("\n", $options_string);
+    
+    foreach ($lines as $line) {
+        $line = trim($line);
+        if (empty($line)) continue;
+        
+        $parts = explode('|', $line);
+        $value = trim($parts[0]);
+        
+        if (isset($parts[1])) {
+            $label_price_parts = explode(':', trim($parts[1]));
+            $label = trim($label_price_parts[0]);
+            $price = isset($label_price_parts[1]) ? floatval(trim($label_price_parts[1])) : 0;
+        } else {
+            $label = $value;
+            $price = 0;
+        }
+        
+        $choices[] = array(
+            'value' => $value,
+            'label' => $label,
+            'price' => $price
+        );
+    }
+    
+    return $choices;
+}
+
 // End output buffering and flush
 ob_end_flush();
 ?>

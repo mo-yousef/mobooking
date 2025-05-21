@@ -791,3 +791,16 @@ function mobooking_delete_option_ajax_handler() {
     ]);
 }
 add_action('wp_ajax_mobooking_delete_option_ajax', 'mobooking_delete_option_ajax_handler');
+
+
+
+
+
+// Register the unified service save AJAX handler
+function register_unified_service_handler() {
+    add_action('wp_ajax_mobooking_save_unified_service', function() {
+        $service_manager = new \MoBooking\Services\ServiceManager();
+        $service_manager->ajax_save_unified_service();
+    });
+}
+add_action('init', 'register_unified_service_handler');
