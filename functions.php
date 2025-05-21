@@ -398,7 +398,6 @@ function mobooking_direct_save_service_options() {
                 mobooking_log('Error inserting option', $wpdb->last_error);
             }
         }
-        
         // Commit if successful
         $wpdb->query('COMMIT');
         
