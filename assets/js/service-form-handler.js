@@ -606,32 +606,45 @@
   function prepareOptionsData() {
     console.log("Starting option preparation...");
 
-    // For select/radio options, we need to convert choices array to options string
     elements.optionsContainer.find(".option-card").each(function () {
       const optionCard = $(this);
       const type = optionCard.find(".option-type-select").val();
       const optionIndex = optionCard.data("option-index");
 
-      console.log(`Processing option ${optionIndex}, type: ${type}`);
-
+      // For select/radio options, format choices
       if (type === "select" || type === "radio") {
         const choicesList = optionCard.find(".choices-list");
-        const optionsString = formatChoicesAsString(choicesList);
+        const choices = [];
 
-        console.log(
-          `Formatted choices for option ${optionIndex}:`,
-          optionsString
+        // Gather all choices
+        choicesList.find(".choice-row").each(function () {
+          const value = $(this).find("input:first").val().trim();
+          const label = $(this).find("input:nth(1)").val().trim();
+          const price = parseFloat($(this).find("input:last").val()) || 0;
+
+          if (value) {
+            if (price > 0) {
+              choices.push(`${value}|${label}:${price}`);
+            } else {
+              choices.push(`${value}|${label}`);
+            }
+          }
+        });
+
+        // Create hidden field for options string
+        const optionsString = choices.join("\n");
+
+        // Remove any existing options field
+        optionCard
+          .find(`input[name="options[${optionIndex}][options]"]`)
+          .remove();
+
+        // Add the hidden field
+        optionCard.append(
+          `<input type="hidden" name="options[${optionIndex}][options]" value="${optionsString}">`
         );
-
-        // Create a hidden field to store the formatted options string
-        if (optionsString) {
-          optionCard.append(
-            `<input type="hidden" name="options[${optionIndex}][options]" value="${optionsString}">`
-          );
-        }
       }
     });
-    console.log("Option preparation complete");
   }
 
   // Format choices as a string for storage
@@ -722,122 +735,114 @@
           hideLoading(elements.saveButton);
         }
       },
+      // Inside your handleFormSubmit function, replace the error handler:
       error: function (xhr, status, error) {
         console.error("AJAX Error with unified handler:", error);
         console.log("Response text:", xhr.responseText);
 
-        // Fall back to two-step save: first service, then options
-        console.log("Trying fallback direct options save...");
+        // Improved fallback
+        console.log("Trying direct options save...");
+        showNotification("Using fallback saving method...", "info");
 
-        // Create a copy of the form data
-        const serviceFormData = new FormData(elements.serviceForm[0]);
-        serviceFormData.delete("action");
-        serviceFormData.append("action", "mobooking_save_service_ajax");
-
-        // First save the service
+        // Save service first
         $.ajax({
           url: mobookingData.ajaxUrl,
           type: "POST",
-          data: serviceFormData,
-          processData: false,
-          contentType: false,
+          data: {
+            action: "mobooking_save_service_ajax",
+            service_nonce: mobookingData.serviceNonce,
+            name: elements.serviceName.val(),
+            price: elements.servicePrice.val(),
+            duration: elements.serviceDuration.val(),
+            description: $("#service-description").val(),
+            icon: $("#service-icon").val(),
+            category: $("#service-category").val(),
+            image_url: $("#service-image").val(),
+            status: $("#service-status").val(),
+            service_id: $("#service-id").val(),
+          },
           success: function (serviceResponse) {
-            console.log("Service save response:", serviceResponse);
-
             if (serviceResponse.success) {
               const serviceId = serviceResponse.data.id;
-              console.log("Service saved successfully, ID:", serviceId);
 
-              // Now save options directly
-              const optionsFormData = new FormData();
-              optionsFormData.append("action", "mobooking_direct_save_options");
-              optionsFormData.append("id", serviceId);
-              optionsFormData.append(
-                "service_nonce",
-                mobookingData.serviceNonce
-              );
-
-              // Add options data
-              const optionsData = {};
+              // Prepare options data
+              const optionsArray = [];
               elements.optionsContainer
                 .find(".option-card")
                 .each(function (index) {
                   const card = $(this);
-                  const optionIndex = card.data("option-index");
+                  const optionData = {
+                    name: card.find('input[name$="[name]"]').val(),
+                    description:
+                      card.find('textarea[name$="[description]"]').val() || "",
+                    type: card.find('select[name$="[type]"]').val(),
+                    is_required: card
+                      .find('select[name$="[is_required]"]')
+                      .val(),
+                    price_type: card.find('select[name$="[price_type]"]').val(),
+                    price_impact: card
+                      .find('input[name$="[price_impact]"]')
+                      .val(),
+                    options: card.find('input[name$="[options]"]').val(),
+                    display_order: index,
+                  };
 
-                  // Collect all fields for this option
-                  card.find("input, select, textarea").each(function () {
-                    const input = $(this);
-                    const name = input.attr("name");
+                  // Add type-specific fields
+                  if (optionData.type === "checkbox") {
+                    optionData.default_value = card
+                      .find('select[name$="[default_value]"]')
+                      .val();
+                    optionData.option_label = card
+                      .find('input[name$="[option_label]"]')
+                      .val();
+                  }
 
-                    if (name && name.includes(`options[${optionIndex}]`)) {
-                      const fieldName = name
-                        .replace(`options[${optionIndex}][`, "")
-                        .replace("]", "");
-
-                      if (!optionsData[index]) {
-                        optionsData[index] = {};
-                      }
-
-                      optionsData[index][fieldName] = input.val();
-                    }
-                  });
+                  optionsArray.push(optionData);
                 });
 
-              console.log("Options data for direct save:", optionsData);
-              optionsFormData.append("options", JSON.stringify(optionsData));
-
-              // Save options
+              // Now save options
               $.ajax({
                 url: mobookingData.ajaxUrl,
                 type: "POST",
-                data: optionsFormData,
-                processData: false,
-                contentType: false,
+                data: {
+                  action: "mobooking_debug_save_options",
+                  service_nonce: mobookingData.serviceNonce,
+                  id: serviceId,
+                  options: optionsArray,
+                },
                 success: function (optionsResponse) {
-                  console.log("Options save response:", optionsResponse);
-
                   if (optionsResponse.success) {
                     showNotification(
-                      "Service and options saved successfully",
+                      "Service and options saved successfully!",
                       "success"
                     );
 
+                    // Reload page after short delay
                     setTimeout(function () {
                       window.location.reload();
-                    }, 1000);
+                    }, 1500);
                   } else {
                     showNotification(
-                      "Service saved but options failed: " +
-                        (optionsResponse.data.message || "Unknown error"),
+                      "Options failed to save: " + optionsResponse.data.message,
                       "warning"
                     );
                     hideLoading(elements.saveButton);
                   }
                 },
-                error: function (xhr, optError) {
-                  console.error("Options save error:", optError);
-                  console.log("Options error response:", xhr.responseText);
-
+                error: function () {
                   showNotification(
-                    "Service saved but options failed to save",
+                    "Service saved but options failed. Please try again.",
                     "warning"
                   );
                   hideLoading(elements.saveButton);
                 },
               });
             } else {
-              showNotification(
-                serviceResponse.data.message || "Error saving service",
-                "error"
-              );
+              showNotification("Error saving service", "error");
               hideLoading(elements.saveButton);
             }
           },
-          error: function (xhr, svcError) {
-            console.error("Service save error:", svcError);
-            console.log("Service error response:", xhr.responseText);
-
+          error: function () {
             showNotification("Error saving service", "error");
             hideLoading(elements.saveButton);
           },

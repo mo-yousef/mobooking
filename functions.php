@@ -269,40 +269,32 @@ function mobooking_direct_save_service_options() {
         return;
     }
     
-    mobooking_log('Direct options save handler called', isset($_POST['options']) ? 'Options present' : 'No options');
-    
     // Get basic service data
     $service_id = isset($_POST['id']) ? absint($_POST['id']) : 0;
     $user_id = get_current_user_id();
     
     if (!$service_id) {
-        mobooking_log('No service ID provided for options');
         wp_send_json_error(['message' => 'Service ID is required']);
         return;
     }
     
-    // Check if options are in JSON format and decode if needed
-    $options_data = null;
-    if (isset($_POST['options'])) {
-        if (is_string($_POST['options'])) {
-            // Try to decode as JSON
-            $decoded = json_decode(stripslashes($_POST['options']), true);
-            if (json_last_error() === JSON_ERROR_NONE) {
-                $options_data = $decoded;
-                mobooking_log('Decoded options from JSON', count($options_data) . ' options found');
-            } else {
-                mobooking_log('Failed to decode options JSON', json_last_error_msg());
-            }
-        } elseif (is_array($_POST['options'])) {
-            $options_data = $_POST['options'];
-            mobooking_log('Using options array directly', count($options_data) . ' options found');
+    // Get options data - try multiple formats to be flexible
+    $options_data = [];
+    
+    if (isset($_POST['options']) && is_array($_POST['options'])) {
+        // Direct array access
+        $options_data = $_POST['options'];
+    } else if (isset($_POST['options']) && is_string($_POST['options'])) {
+        // JSON string
+        $decoded = json_decode(stripslashes($_POST['options']), true);
+        if (json_last_error() === JSON_ERROR_NONE) {
+            $options_data = $decoded;
         }
     }
     
     // Skip if no options
-    if (!$options_data) {
-        mobooking_log('No options data available to save');
-        wp_send_json_success(['message' => 'Service saved but no options to process']);
+    if (empty($options_data)) {
+        wp_send_json_error(['message' => 'No option data provided']);
         return;
     }
     
@@ -319,17 +311,7 @@ function mobooking_direct_save_service_options() {
     ));
     
     if (!$service) {
-        mobooking_log('Service not found or does not belong to user');
-        wp_send_json_error(['message' => 'Service not found']);
-        return;
-    }
-    
-    // Check if entity_type column exists (needed for correct schema detection)
-    $entity_type_exists = $wpdb->get_var("SHOW COLUMNS FROM {$table_name} LIKE 'entity_type'");
-    
-    if (!$entity_type_exists) {
-        mobooking_log('Entity type column not found in services table');
-        wp_send_json_error(['message' => 'Database schema does not support options']);
+        wp_send_json_error(['message' => 'Service not found or does not belong to you']);
         return;
     }
     
@@ -338,18 +320,16 @@ function mobooking_direct_save_service_options() {
     
     try {
         // First, remove old options
-        $deleted = $wpdb->delete(
+        $wpdb->delete(
             $table_name, 
             ['parent_id' => $service_id, 'entity_type' => 'option'],
             ['%d', '%s']
         );
-        mobooking_log("Deleted existing options", "$deleted options removed");
         
         // Now save new options
         foreach ($options_data as $index => $option) {
             // Skip if no name
             if (empty($option['name'])) {
-                mobooking_log("Skipping option at index $index", "No name provided");
                 continue;
             }
             
@@ -360,7 +340,7 @@ function mobooking_direct_save_service_options() {
                 'name' => sanitize_text_field($option['name']),
                 'description' => isset($option['description']) ? sanitize_textarea_field($option['description']) : '',
                 'price' => 0, // Options don't have a base price
-                'duration' => 0, // Options don't have a duration
+                'duration' => 0, // Options don't have a duration 
                 'type' => isset($option['type']) ? sanitize_text_field($option['type']) : 'checkbox',
                 'is_required' => isset($option['is_required']) ? absint($option['is_required']) : 0,
                 'default_value' => isset($option['default_value']) ? sanitize_text_field($option['default_value']) : '',
@@ -379,8 +359,6 @@ function mobooking_direct_save_service_options() {
                 'display_order' => $index,
             ];
             
-            mobooking_log('Inserting option', $option_data['name'] . ' (' . $option_data['type'] . ')');
-            
             // Clean up null values for proper DB insertion
             foreach ($option_data as $key => $value) {
                 if ($value === null) {
@@ -392,16 +370,14 @@ function mobooking_direct_save_service_options() {
             
             if ($result) {
                 $success++;
-                mobooking_log("Successfully inserted option", "ID: " . $wpdb->insert_id);
             } else {
                 $errors++;
-                mobooking_log('Error inserting option', $wpdb->last_error);
             }
         }
+        
         // Commit if successful
         $wpdb->query('COMMIT');
         
-        mobooking_log("Options save completed", "$success saved, $errors failed");
         wp_send_json_success([
             'message' => "Service updated with $success options",
             'options_saved' => $success
@@ -409,7 +385,94 @@ function mobooking_direct_save_service_options() {
         
     } catch (Exception $e) {
         $wpdb->query('ROLLBACK');
-        mobooking_log('Exception saving options', $e->getMessage());
         wp_send_json_error(['message' => 'Error saving options: ' . $e->getMessage()]);
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// DELETE THIS PART AFTER TESTING
+// Add a direct debug endpoint
+add_action('wp_ajax_mobooking_debug_save_options', function() {
+    // Check nonce
+    if (!isset($_POST['service_nonce']) || !wp_verify_nonce($_POST['service_nonce'], 'mobooking-service-nonce')) {
+        wp_send_json_error(['message' => 'Security check failed']);
+        return;
+    }
+    
+    // Log the received data
+    error_log('Debug options received: ' . json_encode($_POST));
+    
+    if (!isset($_POST['id']) || empty($_POST['id'])) {
+        wp_send_json_error(['message' => 'Service ID required']);
+        return;
+    }
+    
+    // Get the options data
+    $service_id = absint($_POST['id']);
+    $user_id = get_current_user_id();
+    $options_data = isset($_POST['options']) ? $_POST['options'] : [];
+    
+    // Save directly to database
+    global $wpdb;
+    $table_name = $wpdb->prefix . 'mobooking_services';
+    
+    // First, clear existing options
+    $wpdb->delete($table_name, [
+        'parent_id' => $service_id,
+        'entity_type' => 'option'
+    ]);
+    
+    $success_count = 0;
+    
+    // Insert new options
+    foreach ($options_data as $option) {
+        if (empty($option['name'])) continue;
+        
+        $result = $wpdb->insert($table_name, [
+            'user_id' => $user_id,
+            'parent_id' => $service_id,
+            'entity_type' => 'option',
+            'name' => sanitize_text_field($option['name']),
+            'description' => isset($option['description']) ? sanitize_textarea_field($option['description']) : '',
+            'type' => isset($option['type']) ? sanitize_text_field($option['type']) : 'checkbox',
+            'is_required' => isset($option['is_required']) ? (int)$option['is_required'] : 0,
+            'price_impact' => isset($option['price_impact']) ? floatval($option['price_impact']) : 0,
+            'price_type' => isset($option['price_type']) ? sanitize_text_field($option['price_type']) : 'fixed',
+            'options' => isset($option['options']) ? sanitize_textarea_field($option['options']) : '',
+            'option_label' => isset($option['option_label']) ? sanitize_text_field($option['option_label']) : '',
+            'display_order' => isset($option['display_order']) ? intval($option['display_order']) : 0
+        ]);
+        
+        if ($result) $success_count++;
+    }
+    
+    wp_send_json_success([
+        'message' => "Successfully saved $success_count options",
+        'count' => $success_count
+    ]);
+});
+// Add this code temporarily to your theme's functions.php, then load any page once:
+add_action('init', function() {
+    $migration = new MoBooking\Database\ServicesTableMigration();
+    $result = $migration->run();
+    error_log('Migration result: ' . ($result ? 'Success' : 'Failed'));
+});
