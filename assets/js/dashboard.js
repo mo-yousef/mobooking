@@ -5,18 +5,44 @@
  */
 
 (function ($) {
-  "use strict";
+  ("use strict");
 
   // Global state management
   const MoBookingDashboard = {
     // Configuration
     config: {
-      ajaxUrl: mobookingServices?.ajaxUrl || "/wp-admin/admin-ajax.php",
-      serviceNonce: mobookingServices?.serviceNonce || "",
-      currentServiceId: mobookingServices?.currentServiceId || null,
-      currentView: mobookingServices?.currentView || "list",
-      activeTab: mobookingServices?.activeTab || "basic-info",
-      endpoints: mobookingServices?.endpoints || {},
+      ajaxUrl:
+        (typeof mobookingServices !== "undefined"
+          ? mobookingServices.ajaxUrl
+          : null) ||
+        (typeof mobookingDashboard !== "undefined"
+          ? mobookingDashboard.ajaxUrl
+          : null) ||
+        "/wp-admin/admin-ajax.php",
+      serviceNonce:
+        (typeof mobookingServices !== "undefined"
+          ? mobookingServices.serviceNonce
+          : null) ||
+        (typeof mobookingDashboard !== "undefined"
+          ? mobookingDashboard.nonces?.service
+          : null) ||
+        "",
+      currentServiceId:
+        (typeof mobookingServices !== "undefined"
+          ? mobookingServices.currentServiceId
+          : null) || null,
+      currentView:
+        (typeof mobookingServices !== "undefined"
+          ? mobookingServices.currentView
+          : null) || "list",
+      activeTab:
+        (typeof mobookingServices !== "undefined"
+          ? mobookingServices.activeTab
+          : null) || "basic-info",
+      endpoints:
+        (typeof mobookingServices !== "undefined"
+          ? mobookingServices.endpoints
+          : null) || {},
     },
 
     // State

@@ -16,7 +16,6 @@ class Manager {
         'areas',
         'settings'
     );
-    
     /**
      * Create all database tables
      */
@@ -25,13 +24,20 @@ class Manager {
             $method = 'create_' . $table . '_table';
             if (method_exists($this, $method)) {
                 $this->$method();
+                
+                // Log table creation
+                if (defined('WP_DEBUG') && WP_DEBUG) {
+                    error_log("MoBooking: Created table using method: {$method}");
+                }
             }
         }
         
         // Run migration if needed to move data from unified table to separate tables
         $this->maybe_migrate_to_separate_tables();
+        
+        // Force create service_options table if it's missing
+        // $this->ensure_service_options_table();
     }
-    
     /**
      * Check if we need to migrate from unified table to separate tables
      */
@@ -274,7 +280,7 @@ class Manager {
         $this->create_service_options_table();
     }
     
-    /**
+/**
      * Utility method to get table info
      */
     public function get_table_info($table_name) {
@@ -300,4 +306,7 @@ class Manager {
             'row_count' => intval($row_count)
         ];
     }
+
+
+
 }

@@ -194,7 +194,7 @@ function mobooking_enqueue_dashboard_scripts()
         true
     );
 
-    // Localize dashboard scripts
+// Localize dashboard scripts
     $dashboard_data = array(
         'ajaxUrl' => admin_url('admin-ajax.php'),
         'userId' => get_current_user_id(),
@@ -216,6 +216,21 @@ function mobooking_enqueue_dashboard_scripts()
             'invalidEmail' => __('Please enter a valid email address', 'mobooking'),
             'invalidPrice' => __('Price must be greater than zero', 'mobooking'),
             'minDuration' => __('Duration must be at least 15 minutes', 'mobooking'),
+        ),
+        // Add services-specific configuration
+        'serviceNonce' => wp_create_nonce('mobooking-service-nonce'),
+        'currentServiceId' => isset($_GET['service_id']) ? absint($_GET['service_id']) : 0,
+        'currentView' => isset($_GET['view']) ? sanitize_text_field($_GET['view']) : 'list',
+        'activeTab' => isset($_GET['active_tab']) ? sanitize_text_field($_GET['active_tab']) : 'basic-info',
+        'endpoints' => array(
+            'saveService' => 'mobooking_save_service',
+            'deleteService' => 'mobooking_delete_service',
+            'getService' => 'mobooking_get_service',
+            'saveOption' => 'mobooking_save_service_option',
+            'deleteOption' => 'mobooking_delete_service_option',
+            'getOptions' => 'mobooking_get_service_options',
+            'getOption' => 'mobooking_get_service_option',
+            'updateOptionsOrder' => 'mobooking_update_options_order'
         )
     );
 
@@ -634,4 +649,136 @@ if (defined('MOBOOKING_PRODUCTION') && MOBOOKING_PRODUCTION) {
         }
     }
     add_action('admin_init', 'mobooking_disable_updates', 1);
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+/**
+ * Debug functions for MoBooking Services
+ * Add these to your functions.php file temporarily for debugging
+ */
+
+// Test AJAX handler to verify things are working
+add_action('wp_ajax_mobooking_test', 'mobooking_test_ajax');
+function mobooking_test_ajax() {
+    wp_send_json_success(array(
+        'message' => 'AJAX is working!',
+        'time' => current_time('mysql'),
+        'user_id' => get_current_user_id()
+    ));
+}
+
+// Debug function to check if services classes exist
+add_action('wp_ajax_mobooking_debug_services', 'mobooking_debug_services');
+function mobooking_debug_services() {
+    $debug_info = array();
+    
+    // Check if classes exist
+    $debug_info['ServiceManager_exists'] = class_exists('\MoBooking\Services\ServiceManager');
+    $debug_info['ServiceOptionsManager_exists'] = class_exists('\MoBooking\Services\ServiceOptionsManager');
+    
+    // Check if actions are registered
+    global $wp_filter;
+    $debug_info['ajax_actions'] = array();
+    
+    $actions_to_check = array(
+        'wp_ajax_mobooking_get_service_options',
+        'wp_ajax_mobooking_save_service_option',
+        'wp_ajax_mobooking_test'
+    );
+    
+    foreach ($actions_to_check as $action) {
+        $debug_info['ajax_actions'][$action] = isset($wp_filter[$action]);
+    }
+    
+    // Check database tables
+    global $wpdb;
+    $services_table = $wpdb->prefix . 'mobooking_services';
+    $options_table = $wpdb->prefix . 'mobooking_service_options';
+    
+    $debug_info['tables'] = array(
+        'services' => $wpdb->get_var("SHOW TABLES LIKE '$services_table'") == $services_table,
+        'options' => $wpdb->get_var("SHOW TABLES LIKE '$options_table'") == $options_table
+    );
+    
+    // Check current user capabilities
+    $debug_info['user_can_manage'] = current_user_can('mobooking_business_owner') || current_user_can('administrator');
+    $debug_info['current_user_id'] = get_current_user_id();
+    $debug_info['current_user_roles'] = wp_get_current_user()->roles;
+    
+    wp_send_json_success($debug_info);
+}
+
+// Function to manually create the missing service options table
+add_action('wp_ajax_mobooking_fix_tables', 'mobooking_fix_tables');
+function mobooking_fix_tables() {
+    if (!current_user_can('administrator')) {
+        wp_send_json_error('Access denied');
+    }
+    
+    global $wpdb;
+    $table_name = $wpdb->prefix . 'mobooking_service_options';
+    $charset_collate = $wpdb->get_charset_collate();
+    
+    // Force create the service options table
+    $sql = "CREATE TABLE IF NOT EXISTS $table_name (
+        id bigint(20) NOT NULL AUTO_INCREMENT,
+        service_id bigint(20) NOT NULL,
+        name varchar(255) NOT NULL,
+        description text NULL,
+        type varchar(50) NOT NULL DEFAULT 'checkbox',
+        is_required tinyint(1) DEFAULT 0,
+        default_value text NULL,
+        placeholder text NULL,
+        min_value float NULL,
+        max_value float NULL,
+        price_impact decimal(10,2) DEFAULT 0,
+        price_type varchar(20) DEFAULT 'fixed',
+        options text NULL,
+        option_label text NULL,
+        step varchar(50) NULL,
+        unit varchar(50) NULL,
+        min_length int(11) NULL,
+        max_length int(11) NULL,
+        rows int(11) NULL,
+        display_order int(11) DEFAULT 0,
+        created_at datetime DEFAULT CURRENT_TIMESTAMP,
+        updated_at datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        PRIMARY KEY (id),
+        KEY service_id (service_id),
+        KEY display_order (display_order)
+    ) $charset_collate;";
+    
+    require_once(ABSPATH . 'wp-admin/includes/upgrade.php');
+    $result = dbDelta($sql);
+    
+    // Verify creation
+    $exists = $wpdb->get_var("SHOW TABLES LIKE '$table_name'") == $table_name;
+    
+    wp_send_json_success(array(
+        'table_exists' => $exists,
+        'dbdelta_result' => $result,
+        'message' => $exists ? 'Service options table created successfully!' : 'Failed to create table'
+    ));
 }
