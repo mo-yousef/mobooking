@@ -32,11 +32,27 @@ class ServiceManager {
     /**
      * Get services for a user
      */
-    public function get_user_services($user_id) {
-        global $wpdb;
-        $services_table = $wpdb->prefix . 'mobooking_services';
+
+public function get_user_services($user_id) {
+    global $wpdb;
+    $services_table = $wpdb->prefix . 'mobooking_services';
+    
+    // Check if we're using unified table (has entity_type column)
+    $has_entity_type = $wpdb->get_var("SHOW COLUMNS FROM $services_table LIKE 'entity_type'");
+    
+    if ($has_entity_type) {
+        // Unified table query - filter by entity_type
+        $services = $wpdb->get_results($wpdb->prepare(
+            "SELECT s.*, 
+                (SELECT COUNT(*) FROM $services_table o WHERE o.parent_id = s.id AND o.entity_type = 'option') as options_count 
+            FROM $services_table s 
+            WHERE s.user_id = %d AND (s.entity_type = 'service' OR s.entity_type IS NULL)
+            ORDER BY s.name ASC",
+            $user_id
+        ));
+    } else {
+        // Separate tables query
         $options_table = $wpdb->prefix . 'mobooking_service_options';
-        
         $services = $wpdb->get_results($wpdb->prepare(
             "SELECT s.*, 
                 (SELECT COUNT(*) FROM $options_table o WHERE o.service_id = s.id) as options_count 
@@ -45,14 +61,15 @@ class ServiceManager {
             ORDER BY s.name ASC",
             $user_id
         ));
-        
-        // Add has_options flag to each service
-        foreach ($services as $service) {
-            $service->has_options = (int)$service->options_count > 0;
-        }
-        
-        return $services;
     }
+    
+    // Add has_options flag to each service
+    foreach ($services as $service) {
+        $service->has_options = (int)$service->options_count > 0;
+    }
+    
+    return $services;
+}
     
     /**
      * Get service with all options

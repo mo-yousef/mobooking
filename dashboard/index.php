@@ -19,7 +19,7 @@ $settings_manager = new \MoBooking\Database\SettingsManager();
 $settings = $settings_manager->get_settings($user_id);
 
 // Dashboard header
-include MOBOOKING_PATH . '/dashboard/header.php';
+// include MOBOOKING_PATH . '/dashboard/header.php';
 ?>
 
 <div class="mobooking-dashboard-container">
@@ -30,6 +30,8 @@ include MOBOOKING_PATH . '/dashboard/header.php';
     
     <div class="mobooking-dashboard-content">
         <?php
+    include MOBOOKING_PATH . '/dashboard/header.php';
+
         // Load the appropriate section template
         $section_template = MOBOOKING_PATH . '/dashboard/sections/' . $current_section . '.php';
         

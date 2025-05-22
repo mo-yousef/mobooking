@@ -45,6 +45,14 @@ if (!$has_subscription && !empty($subscription_expiry) && strtotime($subscriptio
 ?>
 
 <div class="mobooking-dashboard-sidebar">
+    <div class="mobooking-dashboard-branding">
+        <?php if (!empty($settings->logo_url)) : ?>
+            <img src="<?php echo esc_url($settings->logo_url); ?>" alt="<?php echo esc_attr($settings->company_name); ?>" class="dashboard-logo">
+        <?php else : ?>
+            <h1 class="dashboard-title"><?php echo esc_html($settings->company_name); ?></h1>
+        <?php endif; ?>
+    </div>
+
     <div class="sidebar-nav">
         <ul>
             <?php foreach ($menu_items as $slug => $item) : ?>

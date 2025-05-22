@@ -35,7 +35,7 @@
   /* Slightly more rounded */
   --transition: all 0.25s ease-in-out;
 
-  --sidebar-width: 230px;
+  --sidebar-width: 240px;
   --sidebar-collapsed: 60px;
   --header-height: 60px;
 }
@@ -56,9 +56,11 @@ body {
   flex-direction: column;
   min-height: 100vh;
 }
+
 .admin-bar .mobooking-dashboard-header {
   top: 32px;
 }
+
 .mobooking-dashboard-header {
   height: var(--header-height);
   background-color: var(--card-bg);
@@ -67,7 +69,7 @@ body {
   align-items: center;
   justify-content: space-between;
   padding: 0 1.5rem;
-  position: fixed;
+  /* position: fixed; */
   top: 0;
   left: 0;
   right: 0;
@@ -116,8 +118,8 @@ body {
 }
 
 .mobooking-dashboard-container {
-  display: flex;
-  margin-top: var(--header-height);
+  /* display: flex; */
+  margin-top: 0px;
   min-height: calc(100vh - var(--header-height));
 }
 
@@ -125,23 +127,24 @@ body {
 .admin-bar .mobooking-dashboard-sidebar {
   margin-top: 32px;
 }
+
 .mobooking-dashboard-sidebar {
   width: var(--sidebar-width);
   background-color: var(--card-bg);
-  box-shadow: var(--shadow);
+  padding: 25px;
+  /* box-shadow: var(--shadow); */
   display: flex;
+  gap: 25px;
   flex-direction: column;
   position: fixed;
-  height: calc(100vh - var(--header-height));
-  top: var(--header-height);
+  height: 100vh;
   left: 0;
   z-index: 90;
-  transition: var(--transition);
+  /* transition: var(--transition); */
 }
 
 .sidebar-nav {
   flex: 1;
-  padding: 1rem 0;
   overflow-y: auto;
 }
 
@@ -158,13 +161,15 @@ body {
 .sidebar-nav a {
   font-size: 14px;
   display: flex;
+  gap: 10px;
   font-weight: 500;
   align-items: center;
-  padding: 0.75rem 1.5rem;
+  padding: 10px;
   color: var(--text-color);
   text-decoration: none;
   transition: var(--transition);
   position: relative;
+  border-radius: 5px;
 }
 
 .sidebar-nav a:hover {
@@ -177,18 +182,7 @@ body {
   box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.1);
 }
 
-.sidebar-nav .active a::before {
-  content: "";
-  position: absolute;
-  left: 0;
-  top: 0;
-  bottom: 0;
-  width: 4px;
-  background-color: var(--primary-color);
-}
-
 .sidebar-nav .dashicons {
-  margin-right: 0.75rem;
   font-size: 1.25rem;
   width: 1.25rem;
   height: 1.25rem;
