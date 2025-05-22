@@ -476,3 +476,273 @@ add_action('init', function() {
     $result = $migration->run();
     error_log('Migration result: ' . ($result ? 'Success' : 'Failed'));
 });
+
+
+
+
+
+
+// Add this to your functions.php file for comprehensive debugging
+
+// 1. First, let's create a simple test to verify your database structure
+add_action('wp_ajax_mobooking_test_db_structure', function() {
+    global $wpdb;
+    $table_name = $wpdb->prefix . 'mobooking_services';
+    
+    // Check if table exists
+    $table_exists = $wpdb->get_var("SHOW TABLES LIKE '$table_name'") == $table_name;
+    
+    if (!$table_exists) {
+        wp_send_json_error(['message' => 'Services table does not exist']);
+        return;
+    }
+    
+    // Get table structure
+    $columns = $wpdb->get_results("SHOW COLUMNS FROM $table_name");
+    $column_names = array_map(function($col) { return $col->Field; }, $columns);
+    
+    // Check for required columns
+    $required_columns = ['id', 'user_id', 'entity_type', 'parent_id', 'name', 'type', 'is_required'];
+    $missing_columns = array_diff($required_columns, $column_names);
+    
+    if (!empty($missing_columns)) {
+        wp_send_json_error([
+            'message' => 'Missing required columns: ' . implode(', ', $missing_columns),
+            'existing_columns' => $column_names
+        ]);
+        return;
+    }
+    
+    wp_send_json_success([
+        'message' => 'Database structure is correct',
+        'columns' => $column_names
+    ]);
+});
+
+// 2. Create a comprehensive options saving handler with detailed logging
+add_action('wp_ajax_mobooking_debug_options_save', function() {
+    // Enable error logging
+    error_log('=== MOBOOKING DEBUG OPTIONS SAVE START ===');
+    
+    // Check nonce
+    if (!isset($_POST['service_nonce']) || !wp_verify_nonce($_POST['service_nonce'], 'mobooking-service-nonce')) {
+        error_log('MOBOOKING DEBUG: Nonce verification failed');
+        wp_send_json_error(['message' => 'Security verification failed']);
+        return;
+    }
+    
+    error_log('MOBOOKING DEBUG: Nonce verified successfully');
+    
+    // Get and validate service ID
+    $service_id = isset($_POST['service_id']) ? absint($_POST['service_id']) : 0;
+    if (!$service_id) {
+        error_log('MOBOOKING DEBUG: No service ID provided');
+        wp_send_json_error(['message' => 'Service ID is required']);
+        return;
+    }
+    
+    error_log('MOBOOKING DEBUG: Service ID = ' . $service_id);
+    
+    // Get user ID
+    $user_id = get_current_user_id();
+    error_log('MOBOOKING DEBUG: User ID = ' . $user_id);
+    
+    // Log all POST data for debugging
+    error_log('MOBOOKING DEBUG: Full POST data = ' . print_r($_POST, true));
+    
+    // Get options data - try multiple methods
+    $options_data = null;
+    
+    if (isset($_POST['options']) && is_array($_POST['options'])) {
+        $options_data = $_POST['options'];
+        error_log('MOBOOKING DEBUG: Found options as direct array, count = ' . count($options_data));
+    } elseif (isset($_POST['options']) && is_string($_POST['options'])) {
+        $decoded = json_decode(stripslashes($_POST['options']), true);
+        if (json_last_error() === JSON_ERROR_NONE) {
+            $options_data = $decoded;
+            error_log('MOBOOKING DEBUG: Found options as JSON string, count = ' . count($options_data));
+        } else {
+            error_log('MOBOOKING DEBUG: JSON decode error: ' . json_last_error_msg());
+        }
+    }
+    
+    // Also check for individual option fields
+    if (!$options_data) {
+        $options_data = [];
+        $option_index = 0;
+        
+        while (isset($_POST["option_{$option_index}_name"])) {
+            $option = [
+                'name' => $_POST["option_{$option_index}_name"],
+                'type' => $_POST["option_{$option_index}_type"] ?? 'checkbox',
+                'description' => $_POST["option_{$option_index}_description"] ?? '',
+                'is_required' => $_POST["option_{$option_index}_is_required"] ?? 0,
+                'price_type' => $_POST["option_{$option_index}_price_type"] ?? 'fixed',
+                'price_impact' => $_POST["option_{$option_index}_price_impact"] ?? 0,
+            ];
+            
+            $options_data[] = $option;
+            $option_index++;
+        }
+        
+        if (count($options_data) > 0) {
+            error_log('MOBOOKING DEBUG: Found options using individual fields, count = ' . count($options_data));
+        }
+    }
+    
+    if (empty($options_data)) {
+        error_log('MOBOOKING DEBUG: No options data found in any format');
+        wp_send_json_error(['message' => 'No options data found']);
+        return;
+    }
+    
+    error_log('MOBOOKING DEBUG: Options data = ' . print_r($options_data, true));
+    
+    // Verify service exists and belongs to user
+    global $wpdb;
+    $table_name = $wpdb->prefix . 'mobooking_services';
+    
+    $service = $wpdb->get_row($wpdb->prepare(
+        "SELECT * FROM $table_name WHERE id = %d AND user_id = %d AND entity_type = 'service'",
+        $service_id, $user_id
+    ));
+    
+    if (!$service) {
+        error_log('MOBOOKING DEBUG: Service not found or does not belong to user');
+        wp_send_json_error(['message' => 'Service not found or access denied']);
+        return;
+    }
+    
+    error_log('MOBOOKING DEBUG: Service found: ' . $service->name);
+    
+    // Begin transaction
+    $wpdb->query('START TRANSACTION');
+    error_log('MOBOOKING DEBUG: Transaction started');
+    
+    try {
+        // Delete existing options
+        $deleted = $wpdb->delete(
+            $table_name,
+            [
+                'parent_id' => $service_id,
+                'entity_type' => 'option'
+            ],
+            ['%d', '%s']
+        );
+        
+        error_log('MOBOOKING DEBUG: Deleted ' . $deleted . ' existing options');
+        
+        $success_count = 0;
+        $error_count = 0;
+        
+        // Insert new options
+        foreach ($options_data as $index => $option) {
+            if (empty($option['name'])) {
+                error_log('MOBOOKING DEBUG: Skipping option ' . $index . ' - no name');
+                continue;
+            }
+            
+            $option_data = [
+                'user_id' => $user_id,
+                'parent_id' => $service_id,
+                'entity_type' => 'option',
+                'name' => sanitize_text_field($option['name']),
+                'description' => isset($option['description']) ? sanitize_textarea_field($option['description']) : '',
+                'price' => 0,
+                'duration' => 0,
+                'type' => isset($option['type']) ? sanitize_text_field($option['type']) : 'checkbox',
+                'is_required' => isset($option['is_required']) ? absint($option['is_required']) : 0,
+                'default_value' => isset($option['default_value']) ? sanitize_text_field($option['default_value']) : '',
+                'placeholder' => isset($option['placeholder']) ? sanitize_text_field($option['placeholder']) : '',
+                'min_value' => isset($option['min_value']) && $option['min_value'] !== '' ? floatval($option['min_value']) : null,
+                'max_value' => isset($option['max_value']) && $option['max_value'] !== '' ? floatval($option['max_value']) : null,
+                'price_impact' => isset($option['price_impact']) ? floatval($option['price_impact']) : 0,
+                'price_type' => isset($option['price_type']) ? sanitize_text_field($option['price_type']) : 'fixed',
+                'options' => isset($option['options']) ? sanitize_textarea_field($option['options']) : '',
+                'option_label' => isset($option['option_label']) ? sanitize_text_field($option['option_label']) : '',
+                'step' => isset($option['step']) ? sanitize_text_field($option['step']) : '',
+                'unit' => isset($option['unit']) ? sanitize_text_field($option['unit']) : '',
+                'min_length' => isset($option['min_length']) && $option['min_length'] !== '' ? absint($option['min_length']) : null,
+                'max_length' => isset($option['max_length']) && $option['max_length'] !== '' ? absint($option['max_length']) : null,
+                'rows' => isset($option['rows']) && $option['rows'] !== '' ? absint($option['rows']) : null,
+                'display_order' => $index,
+                'created_at' => current_time('mysql'),
+                'updated_at' => current_time('mysql')
+            ];
+            
+            error_log('MOBOOKING DEBUG: Inserting option ' . $index . ': ' . print_r($option_data, true));
+            
+            $result = $wpdb->insert($table_name, $option_data);
+            
+            if ($result === false) {
+                error_log('MOBOOKING DEBUG: Failed to insert option ' . $index . ': ' . $wpdb->last_error);
+                $error_count++;
+            } else {
+                error_log('MOBOOKING DEBUG: Successfully inserted option ' . $index . ' with ID: ' . $wpdb->insert_id);
+                $success_count++;
+            }
+        }
+        
+        if ($error_count > 0) {
+            $wpdb->query('ROLLBACK');
+            error_log('MOBOOKING DEBUG: Rolling back due to errors');
+            wp_send_json_error(['message' => "Failed to save some options. $error_count errors occurred."]);
+        } else {
+            $wpdb->query('COMMIT');
+            error_log('MOBOOKING DEBUG: Transaction committed successfully');
+            wp_send_json_success([
+                'message' => "Successfully saved $success_count options",
+                'options_saved' => $success_count
+            ]);
+        }
+        
+    } catch (Exception $e) {
+        $wpdb->query('ROLLBACK');
+        error_log('MOBOOKING DEBUG: Exception occurred: ' . $e->getMessage());
+        wp_send_json_error(['message' => 'Database error: ' . $e->getMessage()]);
+    }
+    
+    error_log('=== MOBOOKING DEBUG OPTIONS SAVE END ===');
+});
+
+// 3. Add a simple test option save
+add_action('wp_ajax_mobooking_test_option_save', function() {
+    if (!isset($_POST['service_id'])) {
+        wp_send_json_error(['message' => 'Service ID required']);
+        return;
+    }
+    
+    $service_id = absint($_POST['service_id']);
+    $user_id = get_current_user_id();
+    
+    global $wpdb;
+    $table_name = $wpdb->prefix . 'mobooking_services';
+    
+    // Try to insert a simple test option
+    $result = $wpdb->insert($table_name, [
+        'user_id' => $user_id,
+        'parent_id' => $service_id,
+        'entity_type' => 'option',
+        'name' => 'Test Option',
+        'description' => 'Test option created at ' . current_time('mysql'),
+        'type' => 'checkbox',
+        'is_required' => 0,
+        'price' => 0,
+        'duration' => 0,
+        'display_order' => 0,
+        'created_at' => current_time('mysql'),
+        'updated_at' => current_time('mysql')
+    ]);
+    
+    if ($result === false) {
+        wp_send_json_error([
+            'message' => 'Failed to insert test option',
+            'error' => $wpdb->last_error
+        ]);
+    } else {
+        wp_send_json_success([
+            'message' => 'Test option created successfully',
+            'option_id' => $wpdb->insert_id
+        ]);
+    }
+});

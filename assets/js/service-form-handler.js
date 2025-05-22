@@ -1,37 +1,28 @@
 /**
- * Unified Service Form Handler
- * Handles both service data and options in a single form submission
- * With added debugging and fallback mechanism
+ * Complete Working Service Form Handler
+ * Handles both service data and options with proper debugging and fallback mechanisms
  */
 (function ($) {
   "use strict";
 
+  console.log("=== Service Form Handler Loading ===");
+
   // Cache DOM elements
   const elements = {
-    // Main form elements
     serviceForm: $("#unified-service-form"),
     serviceName: $("#service-name"),
     servicePrice: $("#service-price"),
     serviceDuration: $("#service-duration"),
     saveButton: $("#save-service-button"),
-    deleteButtons: $(".delete-service-btn"),
-
-    // Options elements
     optionsContainer: $("#service-options-container"),
     addOptionButton: $(".add-new-option-btn"),
-    newOptionTemplate: $("#new-option-template"),
-
-    // Tab navigation
     tabButtons: $(".tab-button"),
     tabPanes: $(".tab-pane"),
-
-    // Confirmation modal
+    deleteButtons: $(".delete-service-btn"),
     confirmationModal: $("#confirmation-modal"),
     confirmDeleteBtn: $(".confirm-delete-btn"),
     cancelDeleteBtn: $(".cancel-delete-btn"),
     modalClose: $(".modal-close"),
-
-    // Media elements
     selectImageBtn: $(".select-image"),
     imagePreview: $(".image-preview"),
     iconItems: $(".icon-item"),
@@ -41,33 +32,51 @@
 
   // Application state
   const state = {
-    nextOptionIndex: elements.optionsContainer
-      ? elements.optionsContainer.find(".option-card").length
-      : 0,
+    nextOptionIndex: 0,
     deleteTarget: null,
-    deleteType: null, // 'service' or 'option'
+    deleteType: null,
+    deleteElement: null,
+    isSubmitting: false,
+  };
+
+  // Option type definitions
+  const optionTypes = {
+    checkbox: "Checkbox",
+    text: "Text Input",
+    number: "Number Input",
+    select: "Dropdown Select",
+    radio: "Radio Buttons",
+    textarea: "Text Area",
+    quantity: "Quantity Selector",
   };
 
   // Initialize the form handler
   function init() {
-    // Only initialize if the form exists on this page
+    console.log("Initializing Service Form Handler...");
+
+    // Only initialize if the form exists
     if (elements.serviceForm.length === 0) {
+      console.log("Service form not found, skipping initialization");
       return;
     }
+
+    // Set initial option index
+    state.nextOptionIndex =
+      elements.optionsContainer.find(".option-card").length;
+    console.log("Initial option count:", state.nextOptionIndex);
 
     attachEventListeners();
     initSortables();
     initMediaUploader();
+    updateAllOptionIndices();
 
-    console.log(
-      "Service Form Handler initialized with " +
-        state.nextOptionIndex +
-        " existing options"
-    );
+    console.log("Service Form Handler initialized successfully");
   }
 
   // Attach all event listeners
   function attachEventListeners() {
+    console.log("Attaching event listeners...");
+
     // Form submission
     elements.serviceForm.on("submit", handleFormSubmit);
 
@@ -76,72 +85,54 @@
       switchTab($(this).data("tab"));
     });
 
-    // Adding new option
-    if (elements.addOptionButton.length) {
-      elements.addOptionButton.on("click", addNewOption);
-    }
+    // Add new option
+    elements.addOptionButton.on("click", addNewOption);
 
-    // Option card event delegation
-    if (elements.optionsContainer) {
-      // Edit option button
-      elements.optionsContainer.on("click", ".edit-option-btn", function (e) {
-        e.preventDefault();
-        toggleOptionDetails($(this).closest(".option-card"));
-      });
+    // Option card interactions (using event delegation)
+    elements.optionsContainer.on("click", ".edit-option-btn", function (e) {
+      e.preventDefault();
+      toggleOptionDetails($(this).closest(".option-card"));
+    });
 
-      // Remove option button
-      elements.optionsContainer.on("click", ".remove-option-btn", function (e) {
-        e.preventDefault();
-        const optionCard = $(this).closest(".option-card");
-        removeOption(optionCard);
-      });
+    elements.optionsContainer.on("click", ".remove-option-btn", function (e) {
+      e.preventDefault();
+      removeOption($(this).closest(".option-card"));
+    });
 
-      // Option type change
-      elements.optionsContainer.on(
-        "change",
-        ".option-type-select",
-        function () {
-          updateOptionTypeFields(
-            $(this).closest(".option-card"),
-            $(this).val()
-          );
-        }
-      );
+    // Option type change
+    elements.optionsContainer.on("change", ".option-type-select", function () {
+      updateOptionTypeFields($(this).closest(".option-card"), $(this).val());
+    });
 
-      // Price type change
-      elements.optionsContainer.on("change", ".price-type-select", function () {
-        updatePriceFields($(this).closest(".option-card"), $(this).val());
-      });
+    // Price type change
+    elements.optionsContainer.on("change", ".price-type-select", function () {
+      updatePriceFields($(this).closest(".option-card"), $(this).val());
+    });
 
-      // Add choice button for select/radio options
-      elements.optionsContainer.on("click", ".add-choice-btn", function (e) {
-        e.preventDefault();
-        const choicesList = $(this).prev(".choices-list");
-        addChoiceRow(choicesList);
-      });
+    // Choice management for select/radio options
+    elements.optionsContainer.on("click", ".add-choice-btn", function (e) {
+      e.preventDefault();
+      addChoiceRow($(this).prev(".choices-list"));
+    });
 
-      // Remove choice button for select/radio options
-      elements.optionsContainer.on("click", ".remove-choice-btn", function (e) {
-        e.preventDefault();
-        const choiceRow = $(this).closest(".choice-row");
-        const choicesList = choiceRow.parent(".choices-list");
+    elements.optionsContainer.on("click", ".remove-choice-btn", function (e) {
+      e.preventDefault();
+      removeChoiceRow($(this));
+    });
 
-        // Don't remove if it's the only choice
-        if (choicesList.children(".choice-row").length <= 1) {
-          showNotification("You must have at least one choice", "warning");
-          return;
-        }
+    // Update option name in header when changed
+    elements.optionsContainer.on("input", 'input[name$="[name]"]', function () {
+      const optionCard = $(this).closest(".option-card");
+      const newName = $(this).val() || "New Option";
+      optionCard.find(".option-name").text(newName);
+    });
 
-        choiceRow.remove();
-      });
-    }
-
-    // Service deletion buttons
+    // Service deletion
     elements.deleteButtons.on("click", function () {
       showDeleteConfirmation("service", $(this).data("id"));
     });
 
-    // Confirmation modal events
+    // Confirmation modal
     elements.confirmDeleteBtn.on("click", handleDeleteConfirmation);
     elements.cancelDeleteBtn.on("click", hideConfirmationModal);
     elements.modalClose.on("click", hideConfirmationModal);
@@ -150,12 +141,13 @@
     elements.iconItems.on("click", function () {
       selectIcon($(this).data("icon"));
     });
+
+    console.log("Event listeners attached");
   }
 
-  // Initialize sortable elements
+  // Initialize sortable functionality
   function initSortables() {
-    // Make options sortable if jQuery UI is available
-    if ($.fn.sortable && elements.optionsContainer) {
+    if ($.fn.sortable && elements.optionsContainer.length) {
       elements.optionsContainer.sortable({
         handle: ".option-drag-handle",
         items: ".option-card",
@@ -164,75 +156,61 @@
         opacity: 0.8,
         tolerance: "pointer",
         update: function () {
-          // Update option indices after sorting
-          updateOptionIndices();
+          updateAllOptionIndices();
         },
       });
-
-      // Make choice rows sortable within each option
-      $(".choices-list").each(function () {
-        $(this).sortable({
-          handle: ".choice-drag-handle",
-          items: ".choice-row",
-          placeholder: "choice-row-placeholder",
-          axis: "y",
-          opacity: 0.8,
-        });
-      });
+      console.log("Options sortable initialized");
     }
-  }
-
-  // Switch between tabs
-  function switchTab(tabId) {
-    elements.tabButtons.removeClass("active");
-    elements.tabButtons.filter('[data-tab="' + tabId + '"]').addClass("active");
-
-    elements.tabPanes.removeClass("active");
-    $("#" + tabId).addClass("active");
   }
 
   // Initialize media uploader
   function initMediaUploader() {
-    if (!elements.selectImageBtn.length) return;
+    if (
+      !elements.selectImageBtn.length ||
+      typeof wp === "undefined" ||
+      !wp.media
+    ) {
+      return;
+    }
 
     let mediaUploader;
 
     elements.selectImageBtn.on("click", function (e) {
       e.preventDefault();
 
-      // Create media frame or open existing one
       if (mediaUploader) {
         mediaUploader.open();
         return;
       }
 
-      // Create new media uploader
       mediaUploader = wp.media({
         title: "Choose Image",
-        button: {
-          text: "Select",
-        },
+        button: { text: "Select" },
         multiple: false,
       });
 
-      // Handle selection
       mediaUploader.on("select", function () {
         const attachment = mediaUploader
           .state()
           .get("selection")
           .first()
           .toJSON();
-
-        // Update image URL field
         $("#service-image").val(attachment.url);
-
-        // Update preview
         elements.imagePreview.html('<img src="' + attachment.url + '" alt="">');
       });
 
-      // Open the uploader
       mediaUploader.open();
     });
+
+    console.log("Media uploader initialized");
+  }
+
+  // Switch between tabs
+  function switchTab(tabId) {
+    elements.tabButtons.removeClass("active");
+    elements.tabButtons.filter('[data-tab="' + tabId + '"]').addClass("active");
+    elements.tabPanes.removeClass("active");
+    $("#" + tabId).addClass("active");
   }
 
   // Select an icon
@@ -241,120 +219,544 @@
     elements.iconPreview.html('<span class="dashicons ' + icon + '"></span>');
   }
 
-  // Add a new option to the form
-  function addNewOption() {
-    if (!elements.newOptionTemplate || !elements.optionsContainer) {
-      console.error("Option template or container missing");
+  // Handle form submission
+  function handleFormSubmit(e) {
+    e.preventDefault();
+
+    if (state.isSubmitting) {
+      console.log("Form submission already in progress");
       return;
     }
 
-    // Get template and replace placeholder index
-    const template = elements.newOptionTemplate.html();
-    const newOption = $(template.replace(/{index}/g, state.nextOptionIndex));
+    console.log("=== FORM SUBMISSION STARTED ===");
 
-    // Add to container and increment index
-    elements.optionsContainer.append(newOption);
-    state.nextOptionIndex++;
+    // Validate form
+    if (!validateForm()) {
+      console.log("Form validation failed");
+      return;
+    }
 
-    // Initialize the new option card
-    initOptionCard(newOption);
+    state.isSubmitting = true;
+    showLoading(elements.saveButton);
+
+    // Prepare and submit form data
+    submitFormData();
+  }
+
+  // Validate the form
+  function validateForm() {
+    console.log("Validating form...");
+
+    let isValid = true;
+    clearErrors();
+
+    // Validate service name
+    if (!elements.serviceName.val().trim()) {
+      showError(elements.serviceName, "Service name is required");
+      isValid = false;
+    }
+
+    // Validate price
+    const price = parseFloat(elements.servicePrice.val());
+    if (isNaN(price) || price <= 0) {
+      showError(elements.servicePrice, "Price must be greater than zero");
+      isValid = false;
+    }
+
+    // Validate duration
+    const duration = parseInt(elements.serviceDuration.val());
+    if (isNaN(duration) || duration < 15) {
+      showError(
+        elements.serviceDuration,
+        "Duration must be at least 15 minutes"
+      );
+      isValid = false;
+    }
+
+    // Validate options
+    elements.optionsContainer.find(".option-card").each(function () {
+      const optionCard = $(this);
+      const nameField = optionCard.find('input[name$="[name]"]');
+      const type = optionCard.find('select[name$="[type]"]').val();
+
+      if (!nameField.val().trim()) {
+        showError(nameField, "Option name is required");
+        // Open the option details if closed
+        const details = optionCard.find(".option-card-details");
+        if (!details.is(":visible")) {
+          details.show();
+        }
+        isValid = false;
+      }
+
+      // For select/radio, validate choices
+      if (
+        (type === "select" || type === "radio") &&
+        optionCard.find(".choices-list").length
+      ) {
+        let hasValidChoice = false;
+        optionCard.find(".choice-row").each(function () {
+          if ($(this).find("input").first().val().trim()) {
+            hasValidChoice = true;
+          }
+        });
+
+        if (!hasValidChoice) {
+          const choicesContainer = optionCard.find(".choices-container");
+          showError(
+            choicesContainer,
+            "At least one choice with a value is required"
+          );
+          isValid = false;
+        }
+      }
+    });
+
+    console.log("Form validation result:", isValid);
+    return isValid;
+  }
+
+  // Submit form data
+  function submitFormData() {
+    console.log("Preparing form data for submission...");
+
+    const serviceData = collectServiceData();
+    const optionsData = collectOptionsData();
+
+    console.log("Service data:", serviceData);
+    console.log("Options data:", optionsData);
+
+    // Try unified save first
+    const unifiedData = Object.assign({}, serviceData, {
+      action: "mobooking_save_unified_service",
+      options: optionsData,
+    });
+
+    console.log("Attempting unified save...");
+
+    $.ajax({
+      url: getAjaxUrl(),
+      type: "POST",
+      data: unifiedData,
+      success: function (response) {
+        console.log("Unified save response:", response);
+        handleSaveSuccess(response, "unified");
+      },
+      error: function (xhr, status, error) {
+        console.log("Unified save failed, trying fallback method...");
+        console.error("Unified save error:", error);
+
+        // Fallback to two-step save
+        fallbackSave(serviceData, optionsData);
+      },
+    });
+  }
+
+  // Fallback save method
+  function fallbackSave(serviceData, optionsData) {
+    console.log("Using fallback save method...");
+
+    // First save the service
+    $.ajax({
+      url: getAjaxUrl(),
+      type: "POST",
+      data: Object.assign({}, serviceData, {
+        action: "mobooking_save_service_ajax",
+      }),
+      success: function (serviceResponse) {
+        console.log("Service save response:", serviceResponse);
+
+        if (serviceResponse.success) {
+          const serviceId = serviceResponse.data.id;
+
+          if (optionsData.length > 0) {
+            // Now save options
+            saveOptionsData(serviceId, optionsData);
+          } else {
+            handleSaveSuccess(serviceResponse, "service-only");
+          }
+        } else {
+          handleSaveError(
+            serviceResponse.data.message || "Failed to save service"
+          );
+        }
+      },
+      error: function (xhr, status, error) {
+        console.error("Service save error:", error);
+        handleSaveError("Error saving service: " + error);
+      },
+    });
+  }
+
+  // Save options data
+  function saveOptionsData(serviceId, optionsData) {
+    console.log("Saving options for service ID:", serviceId);
+
+    $.ajax({
+      url: getAjaxUrl(),
+      type: "POST",
+      data: {
+        action: "mobooking_debug_options_save",
+        service_nonce: getNonce(),
+        service_id: serviceId,
+        options: optionsData,
+      },
+      success: function (optionsResponse) {
+        console.log("Options save response:", optionsResponse);
+
+        if (optionsResponse.success) {
+          handleSaveSuccess(optionsResponse, "with-options");
+        } else {
+          handleSaveError(
+            "Options failed to save: " + optionsResponse.data.message
+          );
+        }
+      },
+      error: function (xhr, status, error) {
+        console.error("Options save error:", error);
+        console.log("Response text:", xhr.responseText);
+
+        // Try direct save as last resort
+        directSaveOptions(serviceId, optionsData);
+      },
+    });
+  }
+
+  // Direct save options (last resort)
+  function directSaveOptions(serviceId, optionsData) {
+    console.log("Attempting direct options save...");
+
+    $.ajax({
+      url: getAjaxUrl(),
+      type: "POST",
+      data: {
+        action: "mobooking_direct_save_service_options",
+        service_nonce: getNonce(),
+        id: serviceId,
+        options: JSON.stringify(optionsData),
+      },
+      success: function (response) {
+        console.log("Direct save response:", response);
+
+        if (response.success) {
+          handleSaveSuccess(response, "direct");
+        } else {
+          handleSaveError("All save methods failed: " + response.data.message);
+        }
+      },
+      error: function (xhr, status, error) {
+        console.error("Direct save error:", error);
+        handleSaveError(
+          "All save methods failed. Please check your database configuration."
+        );
+      },
+    });
+  }
+
+  // Handle successful save
+  function handleSaveSuccess(response, method) {
+    console.log("Save successful using method:", method);
+
+    state.isSubmitting = false;
+    hideLoading(elements.saveButton);
+
+    showNotification("Service and options saved successfully!", "success");
+
+    // Redirect or reload
+    setTimeout(function () {
+      const serviceId = response.data.id || $("#service-id").val();
+      if (!$("#service-id").val() && serviceId) {
+        // New service - redirect to edit page
+        window.location.href =
+          window.location.pathname + "?view=edit&service_id=" + serviceId;
+      } else {
+        // Existing service - reload page
+        window.location.reload();
+      }
+    }, 1500);
+  }
+
+  // Handle save error
+  function handleSaveError(message) {
+    console.error("Save error:", message);
+
+    state.isSubmitting = false;
+    hideLoading(elements.saveButton);
+    showNotification("Error: " + message, "error");
+  }
+
+  // Collect service data from form
+  function collectServiceData() {
+    return {
+      service_nonce: getNonce(),
+      id: $("#service-id").val(),
+      service_id: $("#service-id").val(), // For backward compatibility
+      name: elements.serviceName.val(),
+      description: $("#service-description").val(),
+      price: elements.servicePrice.val(),
+      duration: elements.serviceDuration.val(),
+      icon: elements.iconSelect.val(),
+      category: $("#service-category").val(),
+      image_url: $("#service-image").val(),
+      status: $("#service-status").val(),
+    };
+  }
+
+  // Collect options data from form
+  function collectOptionsData() {
+    const options = [];
+
+    elements.optionsContainer.find(".option-card").each(function (index) {
+      const card = $(this);
+      const type = card.find('select[name$="[type]"]').val() || "checkbox";
+
+      const option = {
+        name: card.find('input[name$="[name]"]').val(),
+        description: card.find('input[name$="[description]"]').val() || "",
+        type: type,
+        is_required: card.find('select[name$="[is_required]"]').val() || "0",
+        price_type: card.find('select[name$="[price_type]"]').val() || "fixed",
+        price_impact: card.find('input[name$="[price_impact]"]').val() || "0",
+        display_order: index,
+      };
+
+      // Add type-specific fields
+      switch (type) {
+        case "checkbox":
+          option.default_value =
+            card.find('select[name$="[default_value]"]').val() || "0";
+          option.option_label =
+            card.find('input[name$="[option_label]"]').val() || "";
+          break;
+
+        case "select":
+        case "radio":
+          option.options = formatChoicesAsString(card.find(".choices-list"));
+          option.default_value =
+            card.find('input[name$="[default_value]"]').val() || "";
+          break;
+
+        case "number":
+        case "quantity":
+          option.min_value =
+            card.find('input[name$="[min_value]"]').val() || "";
+          option.max_value =
+            card.find('input[name$="[max_value]"]').val() || "";
+          option.default_value =
+            card.find('input[name$="[default_value]"]').val() || "";
+          option.step = card.find('input[name$="[step]"]').val() || "1";
+          option.unit = card.find('input[name$="[unit]"]').val() || "";
+          break;
+
+        case "text":
+          option.default_value =
+            card.find('input[name$="[default_value]"]').val() || "";
+          option.placeholder =
+            card.find('input[name$="[placeholder]"]').val() || "";
+          option.min_length =
+            card.find('input[name$="[min_length]"]').val() || "";
+          option.max_length =
+            card.find('input[name$="[max_length]"]').val() || "";
+          break;
+
+        case "textarea":
+          option.default_value =
+            card.find('textarea[name$="[default_value]"]').val() || "";
+          option.placeholder =
+            card.find('input[name$="[placeholder]"]').val() || "";
+          option.rows = card.find('input[name$="[rows]"]').val() || "3";
+          option.max_length =
+            card.find('input[name$="[max_length]"]').val() || "";
+          break;
+      }
+
+      if (option.name && option.name.trim()) {
+        options.push(option);
+      }
+    });
+
+    return options;
+  }
+
+  // Format choices as string for storage
+  function formatChoicesAsString(choicesList) {
+    const choices = [];
+
+    choicesList.find(".choice-row").each(function () {
+      const value = $(this).find("input").eq(0).val().trim();
+      const label = $(this).find("input").eq(1).val().trim();
+      const price = parseFloat($(this).find("input").eq(2).val()) || 0;
+
+      if (value) {
+        if (price > 0) {
+          choices.push(value + "|" + label + ":" + price);
+        } else {
+          choices.push(value + "|" + label);
+        }
+      }
+    });
+
+    return choices.join("\n");
+  }
+
+  // Add new option
+  function addNewOption() {
+    console.log("Adding new option...");
+
+    const optionIndex = state.nextOptionIndex++;
+    const optionHtml = createOptionCardHtml(optionIndex);
+
+    elements.optionsContainer.append(optionHtml);
+
+    // Initialize the new option
+    const newCard = elements.optionsContainer.find(".option-card").last();
+    initChoicesSortable(newCard.find(".choices-list"));
+
+    // Show the details by default for new options
+    newCard.find(".option-card-details").show();
 
     // Scroll to the new option
     $("html, body").animate(
       {
-        scrollTop: newOption.offset().top - 100,
+        scrollTop: newCard.offset().top - 100,
       },
       500
     );
   }
 
-  // Initialize a newly added option card
-  function initOptionCard(optionCard) {
-    // Make choice rows sortable if it's a select/radio type
-    const choicesList = optionCard.find(".choices-list");
-    if (choicesList.length && $.fn.sortable) {
-      choicesList.sortable({
-        handle: ".choice-drag-handle",
-        items: ".choice-row",
-        placeholder: "choice-row-placeholder",
-        axis: "y",
-        opacity: 0.8,
-      });
-    }
+  // Create option card HTML
+  function createOptionCardHtml(index) {
+    return `
+            <div class="option-card" data-option-index="${index}">
+                <div class="option-card-header">
+                    <div class="option-drag-handle">
+                        <span class="dashicons dashicons-menu"></span>
+                    </div>
+                    <div class="option-title">
+                        <span class="option-name">New Option</span>
+                        <span class="option-type">Checkbox</span>
+                    </div>
+                    <div class="option-actions">
+                        <button type="button" class="button button-small edit-option-btn">
+                            <span class="dashicons dashicons-edit"></span>
+                        </button>
+                        <button type="button" class="button button-small remove-option-btn">
+                            <span class="dashicons dashicons-trash"></span>
+                        </button>
+                    </div>
+                </div>
+                <div class="option-card-details" style="display: none;">
+                    <div class="option-form">
+                        <div class="form-row">
+                            <div class="form-group half">
+                                <label>Option Name <span class="required">*</span></label>
+                                <input type="text" name="options[${index}][name]" value="New Option" required>
+                            </div>
+                            <div class="form-group half">
+                                <label>Option Type</label>
+                                <select name="options[${index}][type]" class="option-type-select">
+                                    ${Object.keys(optionTypes)
+                                      .map(
+                                        (key) =>
+                                          `<option value="${key}">${optionTypes[key]}</option>`
+                                      )
+                                      .join("")}
+                                </select>
+                            </div>
+                        </div>
+                        
+                        <div class="form-row">
+                            <div class="form-group half">
+                                <label>Required?</label>
+                                <select name="options[${index}][is_required]">
+                                    <option value="0">Optional</option>
+                                    <option value="1">Required</option>
+                                </select>
+                            </div>
+                            <div class="form-group half">
+                                <label>Description</label>
+                                <input type="text" name="options[${index}][description]" value="">
+                            </div>
+                        </div>
+                        
+                        <div class="option-type-fields">
+                            <!-- Default checkbox fields -->
+                            <div class="form-row">
+                                <div class="form-group half">
+                                    <label>Default Value</label>
+                                    <select name="options[${index}][default_value]">
+                                        <option value="0">Unchecked</option>
+                                        <option value="1">Checked</option>
+                                    </select>
+                                </div>
+                                <div class="form-group half">
+                                    <label>Option Label</label>
+                                    <input type="text" name="options[${index}][option_label]" value="">
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="form-row price-impact-section">
+                            <div class="form-group half">
+                                <label>Price Impact Type</label>
+                                <select name="options[${index}][price_type]" class="price-type-select">
+                                    <option value="fixed">Fixed Amount</option>
+                                    <option value="percentage">Percentage</option>
+                                    <option value="multiply">Multiply by Value</option>
+                                    <option value="none">No Price Impact</option>
+                                </select>
+                            </div>
+                            <div class="form-group half price-impact-value">
+                                <label>Price Impact Value</label>
+                                <input type="number" name="options[${index}][price_impact]" value="0" step="0.01">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
   }
 
-  // Toggle option details visibility
+  // Toggle option details
   function toggleOptionDetails(optionCard) {
     const details = optionCard.find(".option-card-details");
 
     if (details.is(":visible")) {
       details.slideUp(200);
     } else {
-      // Close any open option details first
+      // Close other open details
       $(".option-card-details").not(details).slideUp(200);
       details.slideDown(200);
     }
   }
 
-  // Remove an option
+  // Remove option
   function removeOption(optionCard) {
-    // Check if this is an existing option with an ID
     const optionId = optionCard.find('input[name$="[id]"]').val();
 
     if (optionId) {
-      // Show confirmation for existing options
       showDeleteConfirmation("option", optionId, optionCard);
     } else {
-      // Just remove new options without confirmation
+      // Just remove new options
       optionCard.fadeOut(300, function () {
         $(this).remove();
-        updateOptionIndices();
+        updateAllOptionIndices();
       });
     }
   }
 
-  // Update option indices after removing or reordering
-  function updateOptionIndices() {
-    elements.optionsContainer.find(".option-card").each(function (index) {
-      const optionCard = $(this);
-      const currentIndex = optionCard.data("option-index");
-
-      // Skip if this option already has the correct index
-      if (currentIndex === index) {
-        return;
-      }
-
-      // Update the data attribute
-      optionCard.attr("data-option-index", index);
-
-      // Update all input names to use the new index
-      optionCard.find("input, select, textarea").each(function () {
-        const input = $(this);
-        const name = input.attr("name");
-
-        if (name) {
-          const newName = name.replace(
-            /options\[\d+\]/,
-            "options[" + index + "]"
-          );
-          input.attr("name", newName);
-        }
-      });
-    });
-  }
-
-  // Update type-specific fields when option type changes
+  // Update option type fields
   function updateOptionTypeFields(optionCard, type) {
     const fieldsContainer = optionCard.find(".option-type-fields");
     const optionIndex = optionCard.data("option-index");
 
-    // Update the displayed type in header
-    optionCard.find(".option-type").text(getOptionTypeLabel(type));
+    // Update type display in header
+    optionCard.find(".option-type").text(optionTypes[type] || type);
 
     // Clear current fields
     fieldsContainer.empty();
 
-    // Build new fields based on type
+    // Add type-specific fields
     let fieldsHtml = "";
 
     switch (type) {
@@ -362,22 +764,14 @@
         fieldsHtml = `
                     <div class="form-row">
                         <div class="form-group half">
-                            <label>${
-                              translations.defaultValue || "Default Value"
-                            }</label>
+                            <label>Default Value</label>
                             <select name="options[${optionIndex}][default_value]">
-                                <option value="0">${
-                                  translations.unchecked || "Unchecked"
-                                }</option>
-                                <option value="1">${
-                                  translations.checked || "Checked"
-                                }</option>
+                                <option value="0">Unchecked</option>
+                                <option value="1">Checked</option>
                             </select>
                         </div>
                         <div class="form-group half">
-                            <label>${
-                              translations.optionLabel || "Option Label"
-                            }</label>
+                            <label>Option Label</label>
                             <input type="text" name="options[${optionIndex}][option_label]" value="">
                         </div>
                     </div>
@@ -388,161 +782,50 @@
       case "radio":
         fieldsHtml = `
                     <div class="form-group">
-                        <label>${translations.choices || "Choices"}</label>
+                        <label>Choices</label>
                         <div class="choices-container">
                             <div class="choices-list"></div>
-                            <button type="button" class="add-choice-btn button-secondary">
-                                ${translations.addChoice || "Add Choice"}
-                            </button>
+                            <button type="button" class="add-choice-btn button-secondary">Add Choice</button>
                         </div>
                     </div>
                     <div class="form-group">
-                        <label>${
-                          translations.defaultValue || "Default Value"
-                        }</label>
+                        <label>Default Value</label>
                         <input type="text" name="options[${optionIndex}][default_value]" value="" 
-                               placeholder="${
-                                 translations.enterDefaultValue ||
-                                 "Enter the value of the default choice"
-                               }">
+                               placeholder="Enter the value of the default choice">
                     </div>
                 `;
         break;
 
-      case "number":
-      case "quantity":
-        fieldsHtml = `
-                    <div class="form-row">
-                        <div class="form-group half">
-                            <label>${
-                              translations.minValue || "Minimum Value"
-                            }</label>
-                            <input type="number" name="options[${optionIndex}][min_value]" value="0" step="any">
-                        </div>
-                        <div class="form-group half">
-                            <label>${
-                              translations.maxValue || "Maximum Value"
-                            }</label>
-                            <input type="number" name="options[${optionIndex}][max_value]" value="" step="any">
-                        </div>
-                    </div>
-                    <div class="form-row">
-                        <div class="form-group half">
-                            <label>${
-                              translations.defaultValue || "Default Value"
-                            }</label>
-                            <input type="number" name="options[${optionIndex}][default_value]" value="0" step="any">
-                        </div>
-                        <div class="form-group half">
-                            <label>${translations.step || "Step"}</label>
-                            <input type="number" name="options[${optionIndex}][step]" value="1" step="any">
-                        </div>
-                    </div>
-                    <div class="form-group">
-                        <label>${translations.unitLabel || "Unit Label"}</label>
-                        <input type="text" name="options[${optionIndex}][unit]" value="" 
-                               placeholder="${
-                                 translations.unitPlaceholder ||
-                                 "e.g., hours, sq ft"
-                               }">
-                    </div>
-                `;
-        break;
-
-      case "text":
-        fieldsHtml = `
-                    <div class="form-row">
-                        <div class="form-group half">
-                            <label>${
-                              translations.defaultValue || "Default Value"
-                            }</label>
-                            <input type="text" name="options[${optionIndex}][default_value]" value="">
-                        </div>
-                        <div class="form-group half">
-                            <label>${
-                              translations.placeholder || "Placeholder"
-                            }</label>
-                            <input type="text" name="options[${optionIndex}][placeholder]" value="">
-                        </div>
-                    </div>
-                `;
-        break;
-
-      case "textarea":
-        fieldsHtml = `
-                    <div class="form-group">
-                        <label>${
-                          translations.defaultValue || "Default Value"
-                        }</label>
-                        <textarea name="options[${optionIndex}][default_value]" rows="3"></textarea>
-                    </div>
-                    <div class="form-row">
-                        <div class="form-group half">
-                            <label>${
-                              translations.placeholder || "Placeholder"
-                            }</label>
-                            <input type="text" name="options[${optionIndex}][placeholder]" value="">
-                        </div>
-                        <div class="form-group half">
-                            <label>${translations.rows || "Rows"}</label>
-                            <input type="number" name="options[${optionIndex}][rows]" value="3" min="2">
-                        </div>
-                    </div>
-                `;
-        break;
+      // Add other types as needed...
     }
 
-    // Add the fields to the container
     fieldsContainer.html(fieldsHtml);
 
-    // Add initial choice row for select/radio
+    // Initialize choices for select/radio
     if (type === "select" || type === "radio") {
       const choicesList = fieldsContainer.find(".choices-list");
-      addChoiceRow(choicesList);
-
-      // Make choices sortable
-      if ($.fn.sortable) {
-        choicesList.sortable({
-          handle: ".choice-drag-handle",
-          items: ".choice-row",
-          placeholder: "choice-row-placeholder",
-          axis: "y",
-          opacity: 0.8,
-        });
-      }
+      addChoiceRow(choicesList); // Add initial choice
+      initChoicesSortable(choicesList);
     }
   }
 
-  // Add a new choice row for select/radio options
+  // Add choice row
   function addChoiceRow(choicesList) {
-    if (!choicesList || !choicesList.length) {
-      return;
-    }
+    const choiceIndex = choicesList.find(".choice-row").length;
 
-    const optionCard = choicesList.closest(".option-card");
-    const optionIndex = optionCard.data("option-index");
-    const choiceIndex = choicesList.children(".choice-row").length;
-
-    const newRow = $(`
+    const choiceHtml = `
             <div class="choice-row">
                 <div class="choice-drag-handle">
                     <span class="dashicons dashicons-menu"></span>
                 </div>
                 <div class="choice-value">
-                    <input type="text" name="options[${optionIndex}][choices][${choiceIndex}][value]" 
-                           value="" placeholder="${
-                             translations.value || "Value"
-                           }">
+                    <input type="text" placeholder="Value" value="">
                 </div>
                 <div class="choice-label">
-                    <input type="text" name="options[${optionIndex}][choices][${choiceIndex}][label]" 
-                           value="" placeholder="${
-                             translations.label || "Label"
-                           }">
+                    <input type="text" placeholder="Label" value="">
                 </div>
                 <div class="choice-price">
-                    <input type="number" name="options[${optionIndex}][choices][${choiceIndex}][price]" 
-                           value="0" step="0.01" placeholder="0.00">
+                    <input type="number" placeholder="0.00" value="0" step="0.01">
                 </div>
                 <div class="choice-actions">
                     <button type="button" class="remove-choice-btn">
@@ -550,499 +833,165 @@
                     </button>
                 </div>
             </div>
-        `);
+        `;
 
-    choicesList.append(newRow);
-
-    // Focus on the first input
-    newRow.find("input").first().focus();
+    choicesList.append(choiceHtml);
   }
 
-  // Update price fields when price type changes
-  function updatePriceFields(optionCard, priceType) {
-    const valueContainer = optionCard.find(".price-impact-value");
-    if (!valueContainer.length) return;
+  // Remove choice row
+  function removeChoiceRow(button) {
+    const choiceRow = button.closest(".choice-row");
+    const choicesList = choiceRow.parent();
 
-    const valueField = valueContainer.find("input");
-    const valueLabel = valueContainer.find("label");
-
-    // Hide value field if type is 'none'
-    valueContainer.toggle(priceType !== "none");
-
-    if (!priceType || priceType === "none") return;
-
-    // Update label and field attributes based on type
-    if (priceType === "fixed") {
-      valueLabel.text(translations.amountDollars || "Amount ($)");
-      valueField.attr("step", "0.01");
-      valueField.attr("placeholder", "9.99");
-    } else if (priceType === "percentage") {
-      valueLabel.text(translations.percentagePercent || "Percentage (%)");
-      valueField.attr("step", "1");
-      valueField.attr("placeholder", "10");
-    } else if (priceType === "multiply") {
-      valueLabel.text(translations.multiplier || "Multiplier");
-      valueField.attr("step", "0.1");
-      valueField.attr("placeholder", "1.5");
-    }
-  }
-
-  // Get display label for option types
-  function getOptionTypeLabel(type) {
-    const labels = {
-      checkbox: translations.checkboxLabel || "Checkbox",
-      number: translations.numberLabel || "Number Input",
-      select: translations.selectLabel || "Dropdown Select",
-      text: translations.textLabel || "Text Input",
-      textarea: translations.textareaLabel || "Text Area",
-      radio: translations.radioLabel || "Radio Buttons",
-      quantity: translations.quantityLabel || "Quantity Selector",
-    };
-
-    return labels[type] || type;
-  }
-
-  // Prepare options data for submission
-  function prepareOptionsData() {
-    console.log("Starting option preparation...");
-
-    elements.optionsContainer.find(".option-card").each(function () {
-      const optionCard = $(this);
-      const type = optionCard.find(".option-type-select").val();
-      const optionIndex = optionCard.data("option-index");
-
-      // For select/radio options, format choices
-      if (type === "select" || type === "radio") {
-        const choicesList = optionCard.find(".choices-list");
-        const choices = [];
-
-        // Gather all choices
-        choicesList.find(".choice-row").each(function () {
-          const value = $(this).find("input:first").val().trim();
-          const label = $(this).find("input:nth(1)").val().trim();
-          const price = parseFloat($(this).find("input:last").val()) || 0;
-
-          if (value) {
-            if (price > 0) {
-              choices.push(`${value}|${label}:${price}`);
-            } else {
-              choices.push(`${value}|${label}`);
-            }
-          }
-        });
-
-        // Create hidden field for options string
-        const optionsString = choices.join("\n");
-
-        // Remove any existing options field
-        optionCard
-          .find(`input[name="options[${optionIndex}][options]"]`)
-          .remove();
-
-        // Add the hidden field
-        optionCard.append(
-          `<input type="hidden" name="options[${optionIndex}][options]" value="${optionsString}">`
-        );
-      }
-    });
-  }
-
-  // Format choices as a string for storage
-  function formatChoicesAsString(choicesList) {
-    const choices = [];
-
-    choicesList.find(".choice-row").each(function () {
-      const value = $(this).find("input:first").val().trim();
-      const label = $(this).find("input:nth(1)").val().trim();
-      const price = parseFloat($(this).find("input:last").val()) || 0;
-
-      if (value) {
-        if (price > 0) {
-          choices.push(`${value}|${label}:${price}`);
-        } else {
-          choices.push(`${value}|${label}`);
-        }
-      }
-    });
-
-    return choices.join("\n");
-  }
-
-  // Handle form submission
-  function handleFormSubmit(e) {
-    e.preventDefault();
-
-    // Validate the form
-    if (!validateForm()) {
+    if (choicesList.find(".choice-row").length <= 1) {
+      showNotification("You must have at least one choice", "warning");
       return;
     }
 
-    // Show loading state
-    showLoading(elements.saveButton);
-
-    // Prepare the options data
-    prepareOptionsData();
-
-    // Get form data
-    const formData = new FormData(elements.serviceForm[0]);
-
-    // Add action for AJAX handling
-    formData.append("action", "mobooking_save_unified_service");
-
-    // Debug: Log the form data
-    console.log(
-      "Form data before sending:",
-      Object.fromEntries(formData.entries())
-    );
-
-    console.log("Submitting form with unified handler");
-
-    // Send the form data
-    $.ajax({
-      url: mobookingData.ajaxUrl,
-      type: "POST",
-      data: formData,
-      processData: false,
-      contentType: false,
-      success: function (response) {
-        console.log("Unified save response:", response);
-
-        if (response.success) {
-          showNotification(
-            response.data.message || mobookingData.messages.serviceSuccess,
-            "success"
-          );
-
-          // Navigate to edit page if this was a new service
-          if (!formData.get("id")) {
-            setTimeout(function () {
-              window.location.href =
-                window.location.pathname +
-                "?view=edit&service_id=" +
-                response.data.id;
-            }, 1000);
-          } else {
-            // Reload the current page after a delay
-            setTimeout(function () {
-              window.location.reload();
-            }, 1000);
-          }
-        } else {
-          showNotification(
-            response.data.message || mobookingData.messages.serviceError,
-            "error"
-          );
-          hideLoading(elements.saveButton);
-        }
-      },
-      // Inside your handleFormSubmit function, replace the error handler:
-      error: function (xhr, status, error) {
-        console.error("AJAX Error with unified handler:", error);
-        console.log("Response text:", xhr.responseText);
-
-        // Improved fallback
-        console.log("Trying direct options save...");
-        showNotification("Using fallback saving method...", "info");
-
-        // Save service first
-        $.ajax({
-          url: mobookingData.ajaxUrl,
-          type: "POST",
-          data: {
-            action: "mobooking_save_service_ajax",
-            service_nonce: mobookingData.serviceNonce,
-            name: elements.serviceName.val(),
-            price: elements.servicePrice.val(),
-            duration: elements.serviceDuration.val(),
-            description: $("#service-description").val(),
-            icon: $("#service-icon").val(),
-            category: $("#service-category").val(),
-            image_url: $("#service-image").val(),
-            status: $("#service-status").val(),
-            service_id: $("#service-id").val(),
-          },
-          success: function (serviceResponse) {
-            if (serviceResponse.success) {
-              const serviceId = serviceResponse.data.id;
-
-              // Prepare options data
-              const optionsArray = [];
-              elements.optionsContainer
-                .find(".option-card")
-                .each(function (index) {
-                  const card = $(this);
-                  const optionData = {
-                    name: card.find('input[name$="[name]"]').val(),
-                    description:
-                      card.find('textarea[name$="[description]"]').val() || "",
-                    type: card.find('select[name$="[type]"]').val(),
-                    is_required: card
-                      .find('select[name$="[is_required]"]')
-                      .val(),
-                    price_type: card.find('select[name$="[price_type]"]').val(),
-                    price_impact: card
-                      .find('input[name$="[price_impact]"]')
-                      .val(),
-                    options: card.find('input[name$="[options]"]').val(),
-                    display_order: index,
-                  };
-
-                  // Add type-specific fields
-                  if (optionData.type === "checkbox") {
-                    optionData.default_value = card
-                      .find('select[name$="[default_value]"]')
-                      .val();
-                    optionData.option_label = card
-                      .find('input[name$="[option_label]"]')
-                      .val();
-                  }
-
-                  optionsArray.push(optionData);
-                });
-
-              // Now save options
-              $.ajax({
-                url: mobookingData.ajaxUrl,
-                type: "POST",
-                data: {
-                  action: "mobooking_debug_save_options",
-                  service_nonce: mobookingData.serviceNonce,
-                  id: serviceId,
-                  options: optionsArray,
-                },
-                success: function (optionsResponse) {
-                  if (optionsResponse.success) {
-                    showNotification(
-                      "Service and options saved successfully!",
-                      "success"
-                    );
-
-                    // Reload page after short delay
-                    setTimeout(function () {
-                      window.location.reload();
-                    }, 1500);
-                  } else {
-                    showNotification(
-                      "Options failed to save: " + optionsResponse.data.message,
-                      "warning"
-                    );
-                    hideLoading(elements.saveButton);
-                  }
-                },
-                error: function () {
-                  showNotification(
-                    "Service saved but options failed. Please try again.",
-                    "warning"
-                  );
-                  hideLoading(elements.saveButton);
-                },
-              });
-            } else {
-              showNotification("Error saving service", "error");
-              hideLoading(elements.saveButton);
-            }
-          },
-          error: function () {
-            showNotification("Error saving service", "error");
-            hideLoading(elements.saveButton);
-          },
-        });
-      },
-    });
+    choiceRow.remove();
   }
 
-  // Validate the form before submission
-  function validateForm() {
-    let isValid = true;
-
-    // Clear previous errors
-    clearErrors();
-
-    // Validate service name
-    if (!elements.serviceName.val().trim()) {
-      showError(
-        elements.serviceName,
-        "name-error",
-        translations.nameRequired || "Service name is required"
-      );
-      isValid = false;
-    }
-
-    // Validate price
-    const price = parseFloat(elements.servicePrice.val());
-    if (isNaN(price) || price <= 0) {
-      showError(
-        elements.servicePrice,
-        "price-error",
-        translations.priceRequired || "Price must be greater than zero"
-      );
-      isValid = false;
-    }
-
-    // Validate duration
-    const duration = parseInt(elements.serviceDuration.val());
-    if (isNaN(duration) || duration < 15) {
-      showError(
-        elements.serviceDuration,
-        "duration-error",
-        translations.durationRequired || "Duration must be at least 15 minutes"
-      );
-      isValid = false;
-    }
-
-    // Validate options
-    if (elements.optionsContainer && elements.optionsContainer.length) {
-      elements.optionsContainer.find(".option-card").each(function () {
-        const optionCard = $(this);
-        const nameField = optionCard.find('input[name$="[name]"]');
-
-        if (!nameField.val().trim()) {
-          nameField.addClass("has-error");
-          nameField.after(
-            '<div class="field-error active">Option name is required</div>'
-          );
-
-          // Open the option details if closed
-          const details = optionCard.find(".option-card-details");
-          if (!details.is(":visible")) {
-            details.slideDown(200);
-          }
-
-          isValid = false;
-        }
-
-        // For select/radio, validate that there's at least one choice with a value
-        const type = optionCard.find(".option-type-select").val();
-        if (type === "select" || type === "radio") {
-          let hasValidChoice = false;
-          optionCard.find(".choice-row").each(function () {
-            if ($(this).find("input:first").val().trim()) {
-              hasValidChoice = true;
-            }
-          });
-
-          if (!hasValidChoice) {
-            const choicesList = optionCard.find(".choices-list");
-            choicesList.after(
-              '<div class="field-error active">At least one choice with a value is required</div>'
-            );
-            isValid = false;
-          }
-        }
+  // Initialize choices sortable
+  function initChoicesSortable(choicesList) {
+    if ($.fn.sortable && choicesList.length) {
+      choicesList.sortable({
+        handle: ".choice-drag-handle",
+        items: ".choice-row",
+        placeholder: "choice-row-placeholder",
+        axis: "y",
+        opacity: 0.8,
       });
     }
-
-    // If there are errors, scroll to the first one
-    if (!isValid) {
-      const firstError = $(".field-error.active").first();
-      if (firstError.length) {
-        $("html, body").animate(
-          {
-            scrollTop: firstError.offset().top - 100,
-          },
-          500
-        );
-      }
-    }
-
-    return isValid;
   }
 
-  // Show error for a field
-  function showError(element, errorId, message) {
-    const errorElement = $("#" + errorId);
-    element.closest(".form-group").addClass("has-error");
+  // Update price fields
+  function updatePriceFields(optionCard, priceType) {
+    const valueContainer = optionCard.find(".price-impact-value");
 
-    if (errorElement.length) {
-      errorElement.text(message);
-      errorElement.addClass("active");
+    if (priceType === "none") {
+      valueContainer.hide();
     } else {
-      element.after('<div class="field-error active">' + message + "</div>");
+      valueContainer.show();
     }
   }
 
-  // Clear all form errors
-  function clearErrors() {
-    $(".has-error").removeClass("has-error");
-    $(".field-error").remove();
+  // Update all option indices
+  function updateAllOptionIndices() {
+    elements.optionsContainer.find(".option-card").each(function (index) {
+      const card = $(this);
+      card.attr("data-option-index", index);
+
+      // Update all input names
+      card.find("input, select, textarea").each(function () {
+        const input = $(this);
+        const name = input.attr("name");
+
+        if (name && name.includes("options[")) {
+          const newName = name.replace(
+            /options\[\d+\]/,
+            "options[" + index + "]"
+          );
+          input.attr("name", newName);
+        }
+      });
+    });
+
+    state.nextOptionIndex =
+      elements.optionsContainer.find(".option-card").length;
   }
 
-  // Show loading indicator
+  // Show/hide loading state
   function showLoading(button) {
+    button.prop("disabled", true);
+
     const normalState = button.find(".normal-state");
     const loadingState = button.find(".loading-state");
 
     if (normalState.length && loadingState.length) {
       normalState.hide();
       loadingState.show();
+    } else {
+      button.data("original-text", button.text());
+      button.text("Saving...");
     }
-
-    button.prop("disabled", true);
   }
 
-  // Hide loading indicator
   function hideLoading(button) {
+    button.prop("disabled", false);
+
     const normalState = button.find(".normal-state");
     const loadingState = button.find(".loading-state");
 
     if (normalState.length && loadingState.length) {
       normalState.show();
       loadingState.hide();
+    } else if (button.data("original-text")) {
+      button.text(button.data("original-text"));
     }
+  }
 
-    button.prop("disabled", false);
+  // Show error
+  function showError(element, message) {
+    element.addClass("has-error");
+
+    // Remove existing error
+    element.next(".field-error").remove();
+
+    // Add error message
+    element.after('<div class="field-error">' + message + "</div>");
+  }
+
+  // Clear errors
+  function clearErrors() {
+    $(".has-error").removeClass("has-error");
+    $(".field-error").remove();
   }
 
   // Show notification
   function showNotification(message, type = "info") {
-    // Create notification element if it doesn't exist
-    if (!$("#notification-message").length) {
-      $("#notification-container").append(
-        '<div id="notification-message" class="notification"></div>'
-      );
-    }
+    $("#mobooking-notification").remove();
 
-    // Update notification
-    const notification = $("#notification-message");
-    notification
-      .removeClass()
-      .addClass("notification notification-" + type)
-      .text(message)
-      .fadeIn(300);
+    const colors = {
+      success: "#4CAF50",
+      error: "#f44336",
+      warning: "#ff9800",
+      info: "#2196F3",
+    };
 
-    // Auto-hide after delay
+    const notification = $(`
+            <div id="mobooking-notification" style="
+                position: fixed; 
+                top: 20px; 
+                right: 20px; 
+                background: ${colors[type]}; 
+                color: white; 
+                padding: 15px 20px; 
+                border-radius: 5px; 
+                z-index: 9999;
+                box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+                max-width: 300px;
+                font-weight: 500;
+            ">${message}</div>
+        `);
+
+    $("body").append(notification);
+
     setTimeout(function () {
-      notification.fadeOut(300);
+      notification.fadeOut(300, function () {
+        $(this).remove();
+      });
     }, 4000);
   }
 
-  // Show delete confirmation modal
+  // Delete confirmation
   function showDeleteConfirmation(type, id, element) {
     state.deleteType = type;
     state.deleteTarget = id;
     state.deleteElement = element;
 
-    // Update confirmation message
-    let message =
-      mobookingData.messages.deleteConfirm ||
-      "Are you sure you want to delete this? This action cannot be undone.";
-    if (type === "service") {
-      message =
-        translations.confirmDeleteService ||
-        "Are you sure you want to delete this service? This will also delete all options associated with it.";
-    } else if (type === "option") {
-      message =
-        translations.confirmDeleteOption ||
-        "Are you sure you want to delete this option?";
-    }
-
-    $("#confirmation-message").text(message);
-
-    // Show modal
-    elements.confirmationModal.css("display", "flex");
+    elements.confirmationModal.show();
   }
 
-  // Hide confirmation modal
   function hideConfirmationModal() {
     elements.confirmationModal.hide();
     state.deleteType = null;
@@ -1050,16 +999,7 @@
     state.deleteElement = null;
   }
 
-  // Handle delete confirmation
   function handleDeleteConfirmation() {
-    if (!state.deleteType || !state.deleteTarget) {
-      hideConfirmationModal();
-      return;
-    }
-
-    // Show loading in confirmation button
-    showLoading(elements.confirmDeleteBtn);
-
     if (state.deleteType === "service") {
       deleteService(state.deleteTarget);
     } else if (state.deleteType === "option") {
@@ -1067,156 +1007,62 @@
     }
   }
 
-  // Delete a service
   function deleteService(serviceId) {
     $.ajax({
-      url: mobookingData.ajaxUrl,
+      url: getAjaxUrl(),
       type: "POST",
       data: {
         action: "mobooking_delete_service",
         id: serviceId,
-        nonce: mobookingData.serviceNonce,
+        nonce: getNonce(),
       },
       success: function (response) {
         if (response.success) {
-          showNotification(
-            translations.serviceDeleted || "Service deleted successfully",
-            "success"
-          );
-
-          // Redirect to service list
+          showNotification("Service deleted successfully", "success");
           setTimeout(function () {
             window.location.href = window.location.pathname + "?view=list";
           }, 1000);
         } else {
-          showNotification(
-            response.data.message ||
-              translations.errorDeleting ||
-              "Error deleting service",
-            "error"
-          );
-          hideConfirmationModal();
-          hideLoading(elements.confirmDeleteBtn);
+          showNotification("Error deleting service", "error");
         }
+        hideConfirmationModal();
       },
       error: function () {
-        showNotification(
-          translations.errorDeleting || "Error deleting service",
-          "error"
-        );
+        showNotification("Error deleting service", "error");
         hideConfirmationModal();
-        hideLoading(elements.confirmDeleteBtn);
       },
     });
   }
 
-  // Delete an option
   function deleteOption(optionId, optionElement) {
-    // For existing options with IDs, we'll send an AJAX request
-    // For new options (no ID), we'll just remove them from the DOM
-    if (optionId) {
-      $.ajax({
-        url: mobookingData.ajaxUrl,
-        type: "POST",
-        data: {
-          action: "mobooking_delete_service_option",
-          id: optionId,
-          nonce: mobookingData.serviceNonce,
-        },
-        success: function (response) {
-          if (response.success) {
-            showNotification(
-              translations.optionDeleted || "Option deleted successfully",
-              "success"
-            );
-
-            // Remove from DOM if we have the element
-            if (optionElement) {
-              optionElement.fadeOut(300, function () {
-                $(this).remove();
-                updateOptionIndices();
-              });
-            }
-
-            hideConfirmationModal();
-            hideLoading(elements.confirmDeleteBtn);
-          } else {
-            showNotification(
-              response.data.message ||
-                translations.errorDeleting ||
-                "Error deleting option",
-              "error"
-            );
-            hideConfirmationModal();
-            hideLoading(elements.confirmDeleteBtn);
-          }
-        },
-        error: function () {
-          showNotification(
-            translations.errorDeleting || "Error deleting option",
-            "error"
-          );
-          hideConfirmationModal();
-          hideLoading(elements.confirmDeleteBtn);
-        },
-      });
-    } else if (optionElement) {
-      // Just remove the element from the DOM for new options
+    if (optionElement) {
       optionElement.fadeOut(300, function () {
         $(this).remove();
-        updateOptionIndices();
+        updateAllOptionIndices();
       });
-
-      hideConfirmationModal();
-      hideLoading(elements.confirmDeleteBtn);
     }
+    hideConfirmationModal();
   }
 
-  // Translation strings
-  const translations = {
-    nameRequired: "Service name is required",
-    priceRequired: "Price must be greater than zero",
-    durationRequired: "Duration must be at least 15 minutes",
-    confirmDeleteService:
-      "Are you sure you want to delete this service? This will also delete all options associated with it.",
-    confirmDeleteOption: "Are you sure you want to delete this option?",
-    serviceDeleted: "Service deleted successfully",
-    optionDeleted: "Option deleted successfully",
-    errorDeleting: "Error deleting. Please try again.",
+  // Utility functions
+  function getAjaxUrl() {
+    return (
+      (typeof mobookingData !== "undefined" && mobookingData.ajaxUrl) ||
+      (typeof mobooking_data !== "undefined" && mobooking_data.ajax_url) ||
+      "/wp-admin/admin-ajax.php"
+    );
+  }
 
-    // Option fields translations
-    defaultValue: "Default Value",
-    unchecked: "Unchecked",
-    checked: "Checked",
-    optionLabel: "Option Label",
-    choices: "Choices",
-    addChoice: "Add Choice",
-    enterDefaultValue: "Enter the value of the default choice",
-    minValue: "Minimum Value",
-    maxValue: "Maximum Value",
-    step: "Step",
-    unitLabel: "Unit Label",
-    unitPlaceholder: "e.g., hours, sq ft",
-    placeholder: "Placeholder",
-    rows: "Rows",
-    amountDollars: "Amount ($)",
-    percentagePercent: "Percentage (%)",
-    multiplier: "Multiplier",
+  function getNonce() {
+    return (
+      (typeof mobookingData !== "undefined" && mobookingData.serviceNonce) ||
+      (typeof mobooking_data !== "undefined" && mobooking_data.nonce) ||
+      ""
+    );
+  }
 
-    // Option type labels
-    checkboxLabel: "Checkbox",
-    numberLabel: "Number Input",
-    selectLabel: "Dropdown Select",
-    textLabel: "Text Input",
-    textareaLabel: "Text Area",
-    radioLabel: "Radio Buttons",
-    quantityLabel: "Quantity Selector",
-
-    // Field labels
-    value: "Value",
-    label: "Label",
-  };
-
-  // Initialize the form handler when the document is ready
-  $(init);
+  // Initialize when document is ready
+  $(document).ready(function () {
+    init();
+  });
 })(jQuery);

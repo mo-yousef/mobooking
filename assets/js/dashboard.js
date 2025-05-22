@@ -355,3 +355,249 @@ jQuery(document).ready(function ($) {
     };
   }
 });
+
+/**
+ * Debug Service Options JavaScript
+ * Add this to your services page to debug the options saving process
+ */
+jQuery(document).ready(function ($) {
+  console.log("=== MOBOOKING DEBUG SCRIPT LOADED ===");
+
+  // Add debug buttons to the page
+  if ($(".services-section").length > 0) {
+    var debugPanel = $(`
+            <div id="mobooking-debug-panel" style="
+                position: fixed; 
+                top: 100px; 
+                right: 20px; 
+                background: #fff; 
+                padding: 15px; 
+                border: 2px solid #007cba; 
+                border-radius: 5px; 
+                box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+                z-index: 9999;
+                max-width: 300px;
+                font-size: 12px;
+            ">
+                <h4 style="margin: 0 0 10px 0; color: #007cba;">Debug Panel</h4>
+                <button id="debug-db-structure" class="button button-small" style="margin-bottom: 5px; width: 100%;">Test DB Structure</button>
+                <button id="debug-collect-options" class="button button-small" style="margin-bottom: 5px; width: 100%;">Show Options Data</button>
+                <button id="debug-test-save" class="button button-small" style="margin-bottom: 5px; width: 100%;">Test Option Save</button>
+                <button id="debug-close" class="button button-small" style="width: 100%;">Close Debug</button>
+                <div id="debug-output" style="
+                    margin-top: 10px; 
+                    padding: 10px; 
+                    background: #f0f0f0; 
+                    border-radius: 3px; 
+                    max-height: 200px; 
+                    overflow-y: auto; 
+                    font-family: monospace; 
+                    font-size: 11px;
+                    display: none;
+                "></div>
+            </div>
+        `);
+
+    $("body").append(debugPanel);
+
+    // Debug button events
+    $("#debug-db-structure").on("click", function () {
+      console.log("Testing database structure...");
+      $("#debug-output").html("Testing database structure...").show();
+
+      $.ajax({
+        url: mobookingData.ajaxUrl,
+        type: "POST",
+        data: {
+          action: "mobooking_test_db_structure",
+        },
+        success: function (response) {
+          console.log("DB Structure Response:", response);
+          if (response.success) {
+            $("#debug-output").html(
+              "✅ DB Structure OK<br>Columns: " +
+                response.data.columns.join(", ")
+            );
+          } else {
+            $("#debug-output").html(
+              "❌ DB Structure Error: " + response.data.message
+            );
+          }
+        },
+        error: function (xhr, status, error) {
+          console.error("DB Structure Test Error:", error);
+          $("#debug-output").html("❌ AJAX Error: " + error);
+        },
+      });
+    });
+
+    $("#debug-collect-options").on("click", function () {
+      console.log("Collecting options data...");
+      $("#debug-output").show();
+
+      var optionsData = [];
+
+      // Method 1: Try to collect from option cards
+      $(".option-card").each(function (index) {
+        var card = $(this);
+        var option = {
+          index: index,
+          name: card.find('input[name$="[name]"]').val(),
+          type: card.find('select[name$="[type]"]').val(),
+          description: card.find('input[name$="[description]"]').val(),
+          is_required: card.find('select[name$="[is_required]"]').val(),
+          price_type: card.find('select[name$="[price_type]"]').val(),
+          price_impact: card.find('input[name$="[price_impact]"]').val(),
+        };
+
+        optionsData.push(option);
+        console.log("Found option " + index + ":", option);
+      });
+
+      if (optionsData.length === 0) {
+        // Method 2: Try to collect from service options container
+        $("#service-options-container .option-card").each(function (index) {
+          var card = $(this);
+          var option = {
+            index: index,
+            name: card.find('input[type="text"]').first().val(),
+            type: card.find("select").first().val(),
+            card_html: card.html().substring(0, 200) + "...",
+          };
+
+          optionsData.push(option);
+          console.log("Found option (method 2) " + index + ":", option);
+        });
+      }
+
+      var output = "Options found: " + optionsData.length + "<br>";
+      optionsData.forEach(function (option, index) {
+        output +=
+          index +
+          ": " +
+          (option.name || "NO NAME") +
+          " (" +
+          (option.type || "NO TYPE") +
+          ")<br>";
+      });
+
+      if (optionsData.length === 0) {
+        output += "❌ No options found!<br>";
+        output +=
+          "Available option cards: " + $(".option-card").length + "<br>";
+        output += "Available forms: " + $("form").length + "<br>";
+
+        // Show all inputs that might be options
+        var allInputs = [];
+        $('input[name*="option"]').each(function () {
+          allInputs.push($(this).attr("name") + " = " + $(this).val());
+        });
+
+        if (allInputs.length > 0) {
+          output += "Option-related inputs found:<br>" + allInputs.join("<br>");
+        }
+      }
+
+      $("#debug-output").html(output);
+    });
+
+    $("#debug-test-save").on("click", function () {
+      var serviceId = $("#service-id").val();
+
+      if (!serviceId) {
+        $("#debug-output").html("❌ No service ID found").show();
+        return;
+      }
+
+      console.log("Testing option save for service ID:", serviceId);
+      $("#debug-output").html("Testing option save...").show();
+
+      $.ajax({
+        url: mobookingData.ajaxUrl,
+        type: "POST",
+        data: {
+          action: "mobooking_test_option_save",
+          service_id: serviceId,
+        },
+        success: function (response) {
+          console.log("Test Save Response:", response);
+          if (response.success) {
+            $("#debug-output").html(
+              "✅ Test option saved successfully!<br>Option ID: " +
+                response.data.option_id
+            );
+          } else {
+            $("#debug-output").html(
+              "❌ Test save failed: " + response.data.message
+            );
+          }
+        },
+        error: function (xhr, status, error) {
+          console.error("Test Save Error:", error);
+          $("#debug-output").html("❌ AJAX Error: " + error);
+        },
+      });
+    });
+
+    $("#debug-close").on("click", function () {
+      $("#mobooking-debug-panel").remove();
+    });
+  }
+
+  // Intercept the original form submission to debug
+  $(document).on("submit", "#unified-service-form", function (e) {
+    console.log("=== FORM SUBMISSION INTERCEPTED ===");
+
+    // Don't prevent the default, but log what we're sending
+    var formData = new FormData(this);
+
+    console.log("Form action:", $(this).attr("action"));
+    console.log("Form method:", $(this).attr("method"));
+
+    // Log all form data
+    var formEntries = {};
+    for (var pair of formData.entries()) {
+      formEntries[pair[0]] = pair[1];
+    }
+    console.log("Form data being sent:", formEntries);
+
+    // Specifically look for options data
+    var optionsFound = [];
+    for (var key in formEntries) {
+      if (key.includes("options[")) {
+        optionsFound.push(key + " = " + formEntries[key]);
+      }
+    }
+
+    if (optionsFound.length > 0) {
+      console.log("Options data found in form:", optionsFound);
+    } else {
+      console.log("❌ NO OPTIONS DATA FOUND IN FORM!");
+    }
+
+    // Let the form continue submitting
+    return true;
+  });
+
+  // Debug: Watch for any AJAX calls
+  $(document).ajaxSend(function (event, xhr, settings) {
+    if (settings.url && settings.url.includes("admin-ajax.php")) {
+      console.log("AJAX Request being sent:", {
+        url: settings.url,
+        data: settings.data,
+        type: settings.type,
+      });
+    }
+  });
+
+  $(document).ajaxComplete(function (event, xhr, settings) {
+    if (settings.url && settings.url.includes("admin-ajax.php")) {
+      console.log("AJAX Response received:", {
+        status: xhr.status,
+        responseText: xhr.responseText.substring(0, 500),
+      });
+    }
+  });
+
+  console.log("=== DEBUG SCRIPT READY ===");
+});
