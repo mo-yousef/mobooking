@@ -233,11 +233,6 @@
         self.openMediaUploader();
       });
 
-      // Service filter (if on list view)
-      $("#service-filter").on("change", function () {
-        self.filterServices($(this).val());
-      });
-
       // Close modals on escape key
       $(document).on("keydown", function (e) {
         if (e.key === "Escape") {
@@ -1141,25 +1136,6 @@
     selectIcon: function (icon) {
       this.elements.serviceIcon.val(icon);
       this.elements.iconPreview.html(`<span class="dashicons ${icon}"></span>`);
-    },
-
-    // Filter services
-    filterServices: function (category) {
-      const serviceCards = $(".service-card");
-
-      if (!category) {
-        serviceCards.show();
-        return;
-      }
-
-      serviceCards.each(function () {
-        const cardCategory = $(this).data("category");
-        if (cardCategory === category) {
-          $(this).show();
-        } else {
-          $(this).hide();
-        }
-      });
     },
 
     // Show delete confirmation

@@ -23,7 +23,6 @@ body {
     color: var(--text-color);
     line-height: 1.5;
     -webkit-font-smoothing: antialiased;
-    transition: var(--transition);
 }
 
 /* Headings */
@@ -51,7 +50,6 @@ a {
     color: var(--primary-color);
     text-decoration: none;
     font-weight: 500;
-    transition: var(--transition);
 }
 
 a:hover {
@@ -68,7 +66,6 @@ button {
     border: none;
     border-radius: var(--radius);
     cursor: pointer;
-    transition: var(--transition);
     box-shadow: var(--shadow);
 }
 
@@ -93,7 +90,6 @@ select {
     color: var(--text-color);
     font-weight: 400;
     width: 100%;
-    transition: var(--transition);
 }
 
 input:focus,
@@ -235,7 +231,6 @@ div#footer {
     background-color: var(--card-bg);
     border-radius: var(--radius);
     box-shadow: var(--shadow);
-    transition: var(--transition);
     overflow: hidden;
     display: flex;
     flex-direction: column;
@@ -463,7 +458,6 @@ div#footer {
     right: 1rem;
     font-size: 1.5rem;
     cursor: pointer;
-    transition: var(--transition);
     line-height: 1;
     width: 30px;
     height: 30px;
@@ -621,7 +615,6 @@ div#footer {
     border: none;
     border-radius: var(--radius);
     font-weight: 500;
-    transition: var(--transition);
 }
 
 .add-new-option:hover {
@@ -655,7 +648,6 @@ div#footer {
     border-radius: var(--radius);
     margin-bottom: 0.75rem;
     cursor: pointer;
-    transition: var(--transition);
     display: flex;
     overflow: hidden;
 }
@@ -821,7 +813,6 @@ div#footer {
     border-bottom: 1px solid var(--border-color);
     align-items: center;
     background-color: white;
-    transition: var(--transition);
 }
 
 .choice-row:last-child {
@@ -916,7 +907,6 @@ div#footer {
     border: none;
     padding: 0;
     cursor: pointer;
-    transition: var(--transition);
 }
 
 .remove-choice:hover {

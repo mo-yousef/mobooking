@@ -5,18 +5,18 @@
   /* Main Blue */
   --primary-dark: var(--mobooking-primary-color-dark, #2863ec);
   /* Darker Blue */
-  --primary-light: var(--mobooking-primary-color-light, #f1f5f9);
+  --primary-light: var(--mobooking-primary-color-light, #f5f6f7);
   /* Light Blue */
 
-  --text-color: #020817;
+  --text-color: #1f2426;
   /* Deeper for contrast */
-  --text-light: #64748b;
+  --text-light: #5b6c74;
   /* Softer light text */
   --bg-color: #f4f6f8;
   /* Slightly warmer than pure white */
   --card-bg: #ffffff;
   /* Cards remain white */
-  --border-color: #e3e8f0;
+  --border-color: #e2e6e8;
   /* Modern light gray borders */
 
   --success-color: #43a047;
@@ -74,6 +74,7 @@ body {
   left: 0;
   right: 0;
   z-index: 100;
+  border-radius: 10px;
 }
 
 .mobooking-dashboard-branding {
@@ -87,15 +88,15 @@ body {
 }
 
 .dashboard-title {
-  font-size: 1.25rem;
+  font-size: 14px;
   font-weight: 600;
-  color: var(--primary-color);
   margin: 0;
 }
 
 .mobooking-dashboard-user {
   display: flex;
   align-items: center;
+  font-size: 14px;
 }
 
 .user-greeting {
@@ -109,7 +110,6 @@ body {
   font-size: 0.875rem;
   padding: 6px 12px;
   border-radius: var(--radius);
-  transition: var(--transition);
 }
 
 .logout-link:hover {
@@ -167,7 +167,6 @@ body {
   padding: 10px;
   color: var(--text-color);
   text-decoration: none;
-  transition: var(--transition);
   position: relative;
   border-radius: 5px;
 }
@@ -242,7 +241,6 @@ body {
 .signup-link {
   color: inherit;
   text-decoration: underline;
-  transition: var(--transition);
 }
 
 .renew-link:hover,
@@ -255,7 +253,6 @@ body {
   flex: 1;
   padding: 1.5rem;
   margin-left: var(--sidebar-width);
-  transition: var(--transition);
 }
 
 /* Dashboard Section Styling */
@@ -285,7 +282,6 @@ body {
   box-shadow: var(--shadow);
   display: flex;
   align-items: center;
-  transition: var(--transition);
   border: 1px solid var(--border-color);
 }
 
@@ -389,9 +385,7 @@ body {
   border-bottom: none;
 }
 
-.booking-row {
-  transition: var(--transition);
-}
+.booking-row {}
 
 .booking-row:hover {
   background-color: rgba(0, 0, 0, 0.02);
@@ -444,7 +438,6 @@ body {
   font-size: 0.875rem;
   color: var(--primary-color);
   text-decoration: none;
-  transition: var(--transition);
 }
 
 .view-all:hover {
@@ -499,7 +492,6 @@ textarea {
   border: 1px solid var(--border-color);
   border-radius: var(--radius);
   font-size: 0.9375rem;
-  transition: var(--transition);
   box-sizing: border-box;
 }
 
@@ -517,11 +509,10 @@ button,
   color: white;
   border: none;
   border-radius: var(--radius);
-  padding: 0.75rem 1.25rem;
+  padding: 10px 15px !important;
   font-size: 0.9375rem;
   font-weight: 500;
   cursor: pointer;
-  transition: var(--transition);
 }
 
 button:hover,
@@ -738,7 +729,6 @@ button:hover,
   border: none;
   text-align: center;
   border-radius: 50%;
-  transition: var(--transition);
 }
 
 .ui-state-highlight {
