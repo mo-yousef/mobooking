@@ -64,14 +64,14 @@ wp_add_inline_style('mobooking-dashboard-style', $custom_css);
 
 <div class="mobooking-dashboard">
     <div class="mobooking-dashboard-header">
-        <div class="mobooking-dashboard-branding">
+        <!-- <div class="mobooking-dashboard-branding">
             <?php if (!empty($settings->logo_url)) : ?>
                 <img src="<?php echo esc_url($settings->logo_url); ?>" alt="<?php echo esc_attr($settings->company_name); ?>" class="dashboard-logo">
             <?php else : ?>
                 <h1 class="dashboard-title"><?php echo esc_html($settings->company_name); ?></h1>
             <?php endif; ?>
-        </div>
-        
+        </div> -->
+        <div></div>
         <div class="mobooking-dashboard-user">
             <span class="user-greeting"><?php printf(__('Hello, %s', 'mobooking'), $user->display_name); ?></span>
             <div class="user-actions">

@@ -798,7 +798,7 @@ $available_icons = array(
 }
 
 .input-with-icon input {
-    padding-left: 2.5rem;
+    padding-left: 2.5rem !important;
 }
 
 .form-help {
