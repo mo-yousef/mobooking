@@ -6,17 +6,23 @@ if (!defined('ABSPATH')) {
 
 // Start output buffering to prevent "headers already sent" errors
 ob_start();
+// Debug panel
+echo mobooking_debug_panel();
+echo '<h2>' . __('Debug Information', 'mobooking') . '</h2>';
 
 // Get current view: list, add, edit
 $current_view = isset($_GET['view']) ? sanitize_text_field($_GET['view']) : 'list';
 $service_id = isset($_GET['service_id']) ? intval($_GET['service_id']) : 0;
 
-// Initialize the service manager and options manager
+// Initialize the managers using the new separate tables architecture
 $services_manager = new \MoBooking\Services\ServiceManager();
 $options_manager = new \MoBooking\Services\ServiceOptionsManager();
 
-// Get services
-$services = $services_manager->get_user_services(get_current_user_id());
+// Get current user ID
+$current_user_id = get_current_user_id();
+
+// Get services for the current user
+$services = $services_manager->get_user_services($current_user_id);
 
 // Set categories for filtering
 $categories = array(
@@ -49,8 +55,8 @@ $service = null;
 $options = array();
 
 if ($current_view === 'edit' && $service_id > 0) {
-    // Get the service with all its options
-    $service = $services_manager->get_service_with_options($service_id, get_current_user_id());
+    // Get the service with all its options using the new method
+    $service = $services_manager->get_service_with_options($service_id, $current_user_id);
     
     // Redirect to list if service not found
     if (!$service) {
@@ -71,25 +77,42 @@ wp_enqueue_style('mobooking-service-options-style');
 wp_enqueue_script('jquery-ui-sortable');
 wp_enqueue_media();
 
-// Register our service form handler script
+// Register our service form handler script (using the new separate tables handler)
 wp_register_script('mobooking-services-handler', 
-    MOBOOKING_URL . '/assets/js/services-handler.js', 
+    MOBOOKING_URL . '/assets/js/service-form-handler.js', 
     array('jquery', 'jquery-ui-sortable'), 
     MOBOOKING_VERSION, 
     true
 );
 
-// Localize script with needed data
+// Localize script with needed data for new architecture
 wp_localize_script('mobooking-services-handler', 'mobookingServices', array(
     'ajaxUrl' => admin_url('admin-ajax.php'),
     'serviceNonce' => wp_create_nonce('mobooking-service-nonce'),
-    'userId' => get_current_user_id(),
+    'userId' => $current_user_id,
     'currentServiceId' => $service_id,
+    'currentView' => $current_view,
+    'activeTab' => $active_tab,
     'messages' => array(
         'savingService' => __('Saving service...', 'mobooking'),
         'serviceSuccess' => __('Service saved successfully', 'mobooking'),
         'serviceError' => __('Error saving service', 'mobooking'),
-        'deleteConfirm' => __('Are you sure you want to delete this? This action cannot be undone.', 'mobooking')
+        'savingOption' => __('Saving option...', 'mobooking'),
+        'optionSuccess' => __('Option saved successfully', 'mobooking'),
+        'optionError' => __('Error saving option', 'mobooking'),
+        'deleteConfirm' => __('Are you sure you want to delete this? This action cannot be undone.', 'mobooking'),
+        'loadingOptions' => __('Loading options...', 'mobooking'),
+        'noOptionsFound' => __('No options found for this service.', 'mobooking')
+    ),
+    'endpoints' => array(
+        'saveService' => 'mobooking_save_service',
+        'deleteService' => 'mobooking_delete_service',
+        'getService' => 'mobooking_get_service',
+        'saveOption' => 'mobooking_save_service_option',
+        'getOption' => 'mobooking_get_service_option',
+        'getOptions' => 'mobooking_get_service_options',
+        'deleteOption' => 'mobooking_delete_service_option',
+        'updateOptionsOrder' => 'mobooking_update_options_order'
     )
 ));
 
@@ -120,6 +143,7 @@ wp_enqueue_script('mobooking-services-handler');
         </div>
         
         <?php if (empty($services)) : ?>
+            <?php     mobooking_diagnose_services(); ?>
             <div class="no-items">
                 <span class="dashicons dashicons-admin-tools"></span>
                 <p><?php _e('You haven\'t created any services yet.', 'mobooking'); ?></p>
@@ -243,8 +267,8 @@ wp_enqueue_script('mobooking-services-handler');
                     <!-- Service form -->
                     <form id="service-form" class="service-form">
                         <input type="hidden" name="id" id="service-id" value="<?php echo esc_attr($service_id); ?>">
-                        <input type="hidden" name="user_id" value="<?php echo get_current_user_id(); ?>">
-                        <?php wp_nonce_field('mobooking-service-nonce', 'service_nonce'); ?>
+                        <input type="hidden" name="user_id" value="<?php echo $current_user_id; ?>">
+                        <?php wp_nonce_field('mobooking-service-nonce', 'nonce'); ?>
                         
                         <div class="tab-content">
                             <!-- Basic Info Tab -->
@@ -409,7 +433,7 @@ wp_enqueue_script('mobooking-services-handler');
                                             <p><?php _e('Options allow customers to customize their booking with add-ons, variations, or special requests.', 'mobooking'); ?></p>
                                         </div>
                                         
-                                        <button type="button" class="button button-primary" id="add-option-btn">
+                                        <button type="button" class="button button-primary" id="add-option-btn" <?php echo !$service_id ? 'disabled title="' . __('Save the service first to add options', 'mobooking') . '"' : ''; ?>>
                                             <span class="dashicons dashicons-plus"></span>
                                             <?php _e('Add New Option', 'mobooking'); ?>
                                         </button>
@@ -445,9 +469,6 @@ wp_enqueue_script('mobooking-services-handler');
                                                             </button>
                                                         </div>
                                                     </div>
-                                                    <div class="option-card-details" style="display: none;">
-                                                        <!-- Option details will be loaded here -->
-                                                    </div>
                                                 </div>
                                             <?php endforeach; ?>
                                         <?php endif; ?>
@@ -458,8 +479,19 @@ wp_enqueue_script('mobooking-services-handler');
                         
                         <div class="form-actions">
                             <a href="<?php echo esc_url(add_query_arg('view', 'list', remove_query_arg(array('service_id')))); ?>" class="button button-secondary"><?php _e('Cancel', 'mobooking'); ?></a>
+                            
+                            <?php if ($current_view === 'edit' && $service_id): ?>
+                                <button type="button" class="button button-danger delete-service-btn" data-id="<?php echo esc_attr($service_id); ?>">
+                                    <span class="dashicons dashicons-trash"></span>
+                                    <?php _e('Delete Service', 'mobooking'); ?>
+                                </button>
+                            <?php endif; ?>
+                            
                             <button type="submit" class="button button-primary" id="save-service-button">
-                                <span class="normal-state"><?php _e('Save Service', 'mobooking'); ?></span>
+                                <span class="normal-state">
+                                    <span class="dashicons dashicons-yes"></span>
+                                    <?php _e('Save Service', 'mobooking'); ?>
+                                </span>
                                 <span class="loading-state" style="display: none;">
                                     <span class="spinner-icon"></span>
                                     <?php _e('Saving...', 'mobooking'); ?>
@@ -482,12 +514,13 @@ wp_enqueue_script('mobooking-services-handler');
         <form id="option-form">
             <input type="hidden" id="option-id" name="id" value="">
             <input type="hidden" id="option-service-id" name="service_id" value="<?php echo esc_attr($service_id); ?>">
-            <?php wp_nonce_field('mobooking-service-nonce', 'option_nonce'); ?>
+            <?php wp_nonce_field('mobooking-service-nonce', 'nonce'); ?>
             
             <div class="form-row">
                 <div class="form-group half">
                     <label for="option-name"><?php _e('Option Name', 'mobooking'); ?> <span class="required">*</span></label>
                     <input type="text" id="option-name" name="name" required>
+                    <div class="field-error" id="option-name-error"></div>
                 </div>
                 <div class="form-group half">
                     <label for="option-type"><?php _e('Option Type', 'mobooking'); ?></label>
@@ -501,7 +534,7 @@ wp_enqueue_script('mobooking-services-handler');
             
             <div class="form-group">
                 <label for="option-description"><?php _e('Description', 'mobooking'); ?></label>
-                <input type="text" id="option-description" name="description">
+                <input type="text" id="option-description" name="description" placeholder="<?php _e('Optional description for customers', 'mobooking'); ?>">
             </div>
             
             <div class="form-row">
@@ -524,22 +557,31 @@ wp_enqueue_script('mobooking-services-handler');
             
             <div class="form-group" id="price-impact-group">
                 <label for="option-price-impact"><?php _e('Price Impact Value', 'mobooking'); ?></label>
-                <input type="number" id="option-price-impact" name="price_impact" step="0.01" value="0">
+                <input type="number" id="option-price-impact" name="price_impact" step="0.01" value="0" placeholder="0.00">
+                <p class="field-hint"><?php _e('Enter the amount or percentage based on the type selected above', 'mobooking'); ?></p>
             </div>
             
             <!-- Dynamic fields will be loaded here based on option type -->
             <div id="option-dynamic-fields"></div>
             
             <div class="form-actions">
-                <div class="spacer"></div>
                 <button type="button" id="delete-option-btn" class="button button-danger" style="display: none;">
+                    <span class="dashicons dashicons-trash"></span>
                     <?php _e('Delete Option', 'mobooking'); ?>
                 </button>
+                <div class="spacer"></div>
                 <button type="button" class="button button-secondary" id="cancel-option-btn">
                     <?php _e('Cancel', 'mobooking'); ?>
                 </button>
                 <button type="submit" class="button button-primary">
-                    <?php _e('Save Option', 'mobooking'); ?>
+                    <span class="normal-state">
+                        <span class="dashicons dashicons-yes"></span>
+                        <?php _e('Save Option', 'mobooking'); ?>
+                    </span>
+                    <span class="loading-state" style="display: none;">
+                        <span class="spinner-icon"></span>
+                        <?php _e('Saving...', 'mobooking'); ?>
+                    </span>
                 </button>
             </div>
         </form>
@@ -554,12 +596,202 @@ wp_enqueue_script('mobooking-services-handler');
         <p id="confirmation-message"><?php _e('Are you sure you want to delete this? This action cannot be undone.', 'mobooking'); ?></p>
         <div class="modal-actions">
             <button type="button" class="button button-secondary cancel-delete-btn"><?php _e('Cancel', 'mobooking'); ?></button>
-            <button type="button" class="button button-danger confirm-delete-btn"><?php _e('Delete', 'mobooking'); ?></button>
+            <button type="button" class="button button-danger confirm-delete-btn">
+                <span class="dashicons dashicons-trash"></span>
+                <?php _e('Delete', 'mobooking'); ?>
+            </button>
         </div>
     </div>
 </div>
 
+<!-- Notification Container -->
+<div id="mobooking-notification" class="mobooking-notification" style="display: none;"></div>
+
+<!-- Loading Overlay -->
+<div id="loading-overlay" class="loading-overlay" style="display: none;">
+    <div class="loading-spinner">
+        <div class="spinner"></div>
+        <p><?php _e('Loading...', 'mobooking'); ?></p>
+    </div>
+</div>
+
+<style>
+/* Additional CSS for loading states and notifications */
+.loading-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(255, 255, 255, 0.8);
+    z-index: 9999;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.loading-spinner {
+    text-align: center;
+}
+
+.spinner {
+    width: 40px;
+    height: 40px;
+    border: 4px solid #f3f3f3;
+    border-top: 4px solid var(--primary-color);
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    margin: 0 auto 1rem;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+.mobooking-notification {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    padding: 15px 20px;
+    border-radius: 5px;
+    color: white;
+    font-weight: 500;
+    z-index: 10000;
+    max-width: 350px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    animation: slideInRight 0.3s ease;
+}
+
+.mobooking-notification.success {
+    background-color: var(--success-color);
+}
+
+.mobooking-notification.error {
+    background-color: var(--danger-color);
+}
+
+.mobooking-notification.warning {
+    background-color: var(--warning-color);
+}
+
+.mobooking-notification.info {
+    background-color: var(--info-color);
+}
+
+@keyframes slideInRight {
+    from {
+        transform: translateX(100%);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
+.form-actions {
+    display: flex;
+    gap: 1rem;
+    align-items: center;
+    padding-top: 1.5rem;
+    margin-top: 1.5rem;
+    border-top: 1px solid var(--border-color);
+}
+
+.form-actions .spacer {
+    flex: 1;
+}
+
+.input-prefix,
+.input-suffix {
+    display: flex;
+    align-items: center;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius);
+    overflow: hidden;
+}
+
+.input-prefix input,
+.input-suffix input {
+    border: none !important;
+    flex: 1;
+}
+
+.prefix,
+.suffix {
+    background-color: #f5f7fa;
+    padding: 0.75rem;
+    color: var(--text-light);
+    font-weight: 500;
+}
+
+.options-header-card {
+    background-color: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius);
+    padding: 1.5rem;
+    margin-bottom: 1.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.options-info h3 {
+    margin: 0 0 0.5rem 0;
+    color: var(--text-color);
+}
+
+.options-info p {
+    margin: 0;
+    color: var(--text-light);
+    font-size: 0.9rem;
+}
+
+.count-badge {
+    background-color: var(--primary-color);
+    color: white;
+    border-radius: 50%;
+    padding: 2px 6px;
+    font-size: 0.75rem;
+    margin-left: 0.5rem;
+}
+
+#add-option-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.no-options-message {
+    text-align: center;
+    padding: 3rem 1rem;
+    color: var(--text-light);
+    background-color: rgba(0, 0, 0, 0.02);
+    border-radius: var(--radius);
+    border: 1px dashed var(--border-color);
+}
+
+.no-options-message .dashicons {
+    font-size: 3rem;
+    width: 3rem;
+    height: 3rem;
+    margin-bottom: 1rem;
+    opacity: 0.3;
+}
+</style>
 <?php
 // End output buffering and flush
 ob_end_flush();
 ?>
+
+
+
+
+
+
+
+
+
+
+
+

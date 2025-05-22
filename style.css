@@ -541,6 +541,8 @@ div#footer {
 
 .tab-pane {
     display: none;
+    background: #ffffff;
+    padding: 20px;
 }
 
 .tab-pane.active {

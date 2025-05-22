@@ -1,16 +1,25 @@
 <?php
+/**
+ * MoBooking Theme Functions
+ * 
+ * Multi-tenant SaaS application for cleaning booking system
+ * 
+ * @package MoBooking
+ * @version 1.0.0
+ */
+
 // Prevent direct access
 if (!defined('ABSPATH')) {
     exit;
 }
 
-// Define constants
+// Define theme constants
 define('MOBOOKING_VERSION', '1.0.0');
 define('MOBOOKING_PATH', get_template_directory());
 define('MOBOOKING_URL', get_template_directory_uri());
 
 /**
- * Enhanced autoloader with better error handling
+ * Enhanced autoloader for MoBooking classes
  */
 spl_autoload_register(function ($class) {
     // Check if the class uses our namespace
@@ -22,722 +31,919 @@ spl_autoload_register(function ($class) {
     $relative_class = str_replace('MoBooking\\', '', $class);
     $file = MOBOOKING_PATH . '/classes/' . str_replace('\\', '/', $relative_class) . '.php';
     
-    // If the file exists, load it
+    // Load the file if it exists
     if (file_exists($file)) {
         require_once $file;
+    } else {
+        // Log missing class file in debug mode
+        if (defined('WP_DEBUG') && WP_DEBUG) {
+            error_log("MoBooking: Class file not found: {$file}");
+        }
     }
 });
 
 /**
- * Initialize the theme
+ * Initialize the MoBooking theme
  */
 function mobooking_init() {
-    $loader = new MoBooking\Core\Loader();
-    $loader->init();
+    try {
+        $loader = new MoBooking\Core\Loader();
+        $loader->init();
+    } catch (Exception $e) {
+        if (defined('WP_DEBUG') && WP_DEBUG) {
+            error_log('MoBooking initialization error: ' . $e->getMessage());
+        }
+        
+        // Show admin notice for initialization errors
+        add_action('admin_notices', function() use ($e) {
+            if (current_user_can('administrator')) {
+                echo '<div class="notice notice-error"><p>';
+                echo '<strong>MoBooking Error:</strong> Failed to initialize theme. ';
+                echo defined('WP_DEBUG') && WP_DEBUG ? esc_html($e->getMessage()) : 'Please check error logs.';
+                echo '</p></div>';
+            }
+        });
+    }
 }
 add_action('after_setup_theme', 'mobooking_init', 5);
 
 /**
- * Load dashicons on frontend
+ * Theme setup function
  */
-function mobooking_load_dashicons_frontend() {
-    wp_enqueue_style('dashicons');
+function mobooking_theme_setup() {
+    // Add theme support
+    add_theme_support('title-tag');
+    add_theme_support('post-thumbnails');
+    add_theme_support('html5', array(
+        'search-form',
+        'comment-form', 
+        'comment-list',
+        'gallery',
+        'caption'
+    ));
+    
+    // Register navigation menus
+    register_nav_menus(array(
+        'primary' => __('Primary Menu', 'mobooking'),
+        'footer' => __('Footer Menu', 'mobooking'),
+        'dashboard' => __('Dashboard Menu', 'mobooking'),
+    ));
+    
+    // Set content width
+    global $content_width;
+    if (!isset($content_width)) {
+        $content_width = 1200;
+    }
 }
-add_action('wp_enqueue_scripts', 'mobooking_load_dashicons_frontend');
+add_action('after_setup_theme', 'mobooking_theme_setup');
 
 /**
- * Register and localize scripts
+ * Enqueue frontend scripts and styles
  */
-function mobooking_register_scripts() {
-    // Ensure jQuery is loaded
-    wp_enqueue_script('jquery');
+function mobooking_enqueue_scripts() {
+    // Load dashicons on frontend
+    wp_enqueue_style('dashicons');
     
-    // Main data object for all scripts
-    $main_data = array(
-        'ajax_url' => admin_url('admin-ajax.php'),
-        'nonce' => wp_create_nonce('mobooking-nonce'),
-        'serviceNonce' => wp_create_nonce('mobooking-service-nonce'),
-        'option_nonce' => wp_create_nonce('mobooking-option-nonce')
+    // Main theme stylesheet
+    wp_enqueue_style(
+        'mobooking-style',
+        get_stylesheet_uri(),
+        array(),
+        MOBOOKING_VERSION
     );
     
-    // Localize scripts with data
-    wp_localize_script('jquery', 'mobooking_data', $main_data);
+    // Main theme JavaScript
+    wp_enqueue_script(
+        'mobooking-main',
+        MOBOOKING_URL . '/assets/js/main.js',
+        array('jquery'),
+        MOBOOKING_VERSION,
+        true
+    );
     
-    // Legacy localization objects (for backward compatibility)
-    wp_localize_script('jquery', 'mobooking_services', array(
-        'ajax_url' => admin_url('admin-ajax.php'),
-        'nonce' => wp_create_nonce('mobooking-service-nonce')
-    ));
-    
-    wp_localize_script('jquery', 'mobooking_areas', array(
-        'ajax_url' => admin_url('admin-ajax.php'),
-        'nonce' => wp_create_nonce('mobooking-area-nonce')
-    ));
-    
-    wp_localize_script('jquery', 'mobooking_discounts', array(
-        'ajax_url' => admin_url('admin-ajax.php'),
-        'nonce' => wp_create_nonce('mobooking-discount-nonce')
-    ));
-    
-    wp_localize_script('jquery', 'mobooking_bookings', array(
-        'ajax_url' => admin_url('admin-ajax.php'),
-        'nonce' => wp_create_nonce('mobooking-booking-status-nonce')
+    // Localize main script
+    wp_localize_script('mobooking-main', 'mobookingMain', array(
+        'ajaxUrl' => admin_url('admin-ajax.php'),
+        'nonce' => wp_create_nonce('mobooking-main-nonce'),
+        'isLoggedIn' => is_user_logged_in(),
+        'currentUserId' => get_current_user_id(),
+        'homeUrl' => home_url(),
+        'themeUrl' => MOBOOKING_URL,
+        'strings' => array(
+            'loading' => __('Loading...', 'mobooking'),
+            'error' => __('An error occurred. Please try again.', 'mobooking'),
+            'success' => __('Success!', 'mobooking'),
+            'confirm' => __('Are you sure?', 'mobooking'),
+        )
     ));
 }
-add_action('wp_enqueue_scripts', 'mobooking_register_scripts');
-add_action('admin_enqueue_scripts', 'mobooking_register_scripts');
+add_action('wp_enqueue_scripts', 'mobooking_enqueue_scripts');
+
+/**
+ * Enqueue dashboard-specific scripts and styles
+ */
+function mobooking_enqueue_dashboard_scripts() {
+    // Only load on dashboard pages
+    if (!is_page() || !is_user_logged_in()) {
+        return;
+    }
+    
+    global $wp_query;
+    $is_dashboard = isset($wp_query->query['pagename']) && $wp_query->query['pagename'] === 'dashboard';
+    
+    if (!$is_dashboard) {
+        return;
+    }
+    
+    // Dashboard styles
+    wp_enqueue_style(
+        'mobooking-dashboard',
+        MOBOOKING_URL . '/assets/css/dashboard.css',
+        array('dashicons'),
+        MOBOOKING_VERSION
+    );
+    
+    // Service options styles
+    wp_enqueue_style(
+        'mobooking-service-options',
+        MOBOOKING_URL . '/assets/css/service-options.css',
+        array('mobooking-dashboard'),
+        MOBOOKING_VERSION
+    );
+    
+    // Dashboard JavaScript
+    wp_enqueue_script(
+        'mobooking-dashboard',
+        MOBOOKING_URL . '/assets/js/dashboard.js',
+        array('jquery', 'jquery-ui-sortable'),
+        MOBOOKING_VERSION,
+        true
+    );
+    
+    // Services handler
+    wp_enqueue_script(
+        'mobooking-services-handler',
+        MOBOOKING_URL . '/assets/js/service-form-handler.js',
+        array('jquery', 'jquery-ui-sortable'),
+        MOBOOKING_VERSION,
+        true
+    );
+    
+    // Localize dashboard scripts
+    $dashboard_data = array(
+        'ajaxUrl' => admin_url('admin-ajax.php'),
+        'userId' => get_current_user_id(),
+        'currentSection' => get_query_var('section', 'overview'),
+        'nonces' => array(
+            'dashboard' => wp_create_nonce('mobooking-dashboard-nonce'),
+            'service' => wp_create_nonce('mobooking-service-nonce'),
+            'option' => wp_create_nonce('mobooking-option-nonce'),
+            'booking' => wp_create_nonce('mobooking-booking-nonce'),
+            'area' => wp_create_nonce('mobooking-area-nonce'),
+            'discount' => wp_create_nonce('mobooking-discount-nonce'),
+        ),
+        'strings' => array(
+            'saving' => __('Saving...', 'mobooking'),
+            'saved' => __('Saved successfully', 'mobooking'),
+            'error' => __('Error occurred', 'mobooking'),
+            'deleteConfirm' => __('Are you sure you want to delete this? This action cannot be undone.', 'mobooking'),
+            'requiredField' => __('This field is required', 'mobooking'),
+            'invalidEmail' => __('Please enter a valid email address', 'mobooking'),
+            'invalidPrice' => __('Price must be greater than zero', 'mobooking'),
+            'minDuration' => __('Duration must be at least 15 minutes', 'mobooking'),
+        )
+    );
+    
+    wp_localize_script('mobooking-dashboard', 'mobookingDashboard', $dashboard_data);
+    wp_localize_script('mobooking-services-handler', 'mobookingServices', $dashboard_data);
+}
+add_action('wp_enqueue_scripts', 'mobooking_enqueue_dashboard_scripts', 15);
+
+/**
+ * Enqueue media uploader when needed
+ */
+function mobooking_enqueue_media() {
+    if (is_user_logged_in() && (is_page() || is_admin())) {
+        wp_enqueue_media();
+    }
+}
+add_action('wp_enqueue_scripts', 'mobooking_enqueue_media');
+
+/**
+ * Register widget areas
+ */
+function mobooking_widgets_init() {
+    register_sidebar(array(
+        'name' => __('Footer Widget Area', 'mobooking'),
+        'id' => 'footer-widgets',
+        'description' => __('Add widgets here to appear in your footer.', 'mobooking'),
+        'before_widget' => '<div class="widget %2$s">',
+        'after_widget' => '</div>',
+        'before_title' => '<h3 class="widget-title">',
+        'after_title' => '</h3>',
+    ));
+    
+    register_sidebar(array(
+        'name' => __('Sidebar Widget Area', 'mobooking'),
+        'id' => 'sidebar-widgets',
+        'description' => __('Add widgets here to appear in your sidebar.', 'mobooking'),
+        'before_widget' => '<div class="widget %2$s">',
+        'after_widget' => '</div>',
+        'before_title' => '<h3 class="widget-title">',
+        'after_title' => '</h3>',
+    ));
+}
+add_action('widgets_init', 'mobooking_widgets_init');
+
+/**
+ * Add custom body classes
+ */
+function mobooking_body_classes($classes) {
+    // Add logged-in class
+    if (is_user_logged_in()) {
+        $classes[] = 'logged-in';
+        
+        // Add user role classes
+        $user = wp_get_current_user();
+        if (!empty($user->roles)) {
+            foreach ($user->roles as $role) {
+                $classes[] = 'role-' . sanitize_html_class($role);
+            }
+        }
+    }
+    
+    // Add dashboard class
+    global $wp_query;
+    if (isset($wp_query->query['pagename']) && $wp_query->query['pagename'] === 'dashboard') {
+        $classes[] = 'mobooking-dashboard-page';
+        
+        $section = get_query_var('section', 'overview');
+        $classes[] = 'dashboard-section-' . sanitize_html_class($section);
+    }
+    
+    return $classes;
+}
+add_filter('body_class', 'mobooking_body_classes');
+
+/**
+ * Customize login page
+ */
+function mobooking_login_styles() {
+    if (!defined('MOBOOKING_CUSTOM_LOGIN') || !MOBOOKING_CUSTOM_LOGIN) {
+        return;
+    }
+    
+    wp_enqueue_style(
+        'mobooking-login',
+        MOBOOKING_URL . '/assets/css/login.css',
+        array(),
+        MOBOOKING_VERSION
+    );
+}
+add_action('login_enqueue_scripts', 'mobooking_login_styles');
 
 /**
  * Utility function for logging (only when WP_DEBUG is enabled)
  */
 function mobooking_log($message, $data = null) {
-    if (defined('WP_DEBUG') && WP_DEBUG) {
-        $log_message = $message;
-        if ($data !== null) {
-            $log_message .= ': ' . (is_array($data) || is_object($data) ? json_encode($data) : $data);
-        }
-        error_log($log_message);
+    if (!defined('WP_DEBUG') || !WP_DEBUG) {
+        return;
     }
-}
-
-/**
- * Initialize service manager
- * This ensures only one service manager is used
- */
-function mobooking_initialize_service_manager() {
-    if (class_exists('\MoBooking\Services\ServiceManager')) {
-        return new \MoBooking\Services\ServiceManager();
-    }
-    return null;
-}
-
-/**
- * Register service-related AJAX handlers
- */
-function mobooking_register_service_handlers() {
-    // Unified service save handler
-    add_action('wp_ajax_mobooking_save_unified_service', function() {
-        $service_manager = mobooking_initialize_service_manager();
-        if ($service_manager && method_exists($service_manager, 'ajax_save_unified_service')) {
-            $service_manager->ajax_save_unified_service();
+    
+    $log_message = '[MoBooking] ' . $message;
+    
+    if ($data !== null) {
+        if (is_array($data) || is_object($data)) {
+            $log_message .= ': ' . json_encode($data, JSON_UNESCAPED_UNICODE);
         } else {
-            wp_send_json_error(['message' => 'Service manager not available']);
+            $log_message .= ': ' . $data;
         }
-    });
+    }
     
-    // Legacy service handlers for backward compatibility
-    add_action('wp_ajax_mobooking_save_service_ajax', 'mobooking_save_service_ajax_handler');
-    add_action('wp_ajax_mobooking_delete_service_ajax', 'mobooking_delete_service_ajax_handler');
-    
-    // Direct option management handlers
-    add_action('wp_ajax_mobooking_direct_save_options', 'mobooking_direct_save_service_options');
+    error_log($log_message);
 }
-add_action('init', 'mobooking_register_service_handlers');
 
 /**
- * Legacy AJAX handler for saving a service
+ * Get user's subscription status
  */
-function mobooking_save_service_ajax_handler() {
-    // Check nonce
-    if (!isset($_POST['service_nonce']) || !wp_verify_nonce($_POST['service_nonce'], 'mobooking-service-nonce')) {
-        wp_send_json_error(['message' => __('Security verification failed.', 'mobooking')]);
+function mobooking_get_user_subscription_status($user_id = null) {
+    if (!$user_id) {
+        $user_id = get_current_user_id();
     }
     
-    // Check permissions
-    if (!current_user_can('mobooking_business_owner') && !current_user_can('administrator')) {
-        wp_send_json_error(['message' => __('You do not have permission to do this.', 'mobooking')]);
+    if (!$user_id) {
+        return false;
     }
     
-    // Get current user ID
-    $user_id = get_current_user_id();
+    $has_subscription = get_user_meta($user_id, 'mobooking_has_subscription', true);
+    $subscription_type = get_user_meta($user_id, 'mobooking_subscription_type', true);
+    $subscription_expiry = get_user_meta($user_id, 'mobooking_subscription_expiry', true);
     
-    // Build service data from POST
-    $service_data = array(
-        'user_id' => $user_id,
-        'name' => isset($_POST['name']) ? sanitize_text_field($_POST['name']) : '',
-        'description' => isset($_POST['description']) ? sanitize_textarea_field($_POST['description']) : '',
-        'price' => isset($_POST['price']) ? floatval($_POST['price']) : 0,
-        'duration' => isset($_POST['duration']) ? intval($_POST['duration']) : 60,
-        'icon' => isset($_POST['icon']) ? sanitize_text_field($_POST['icon']) : '',
-        'category' => isset($_POST['category']) ? sanitize_text_field($_POST['category']) : '',
-        'image_url' => isset($_POST['image_url']) ? esc_url_raw($_POST['image_url']) : '',
-        'status' => isset($_POST['status']) ? sanitize_text_field($_POST['status']) : 'active'
+    $is_expired = false;
+    if (!$has_subscription && !empty($subscription_expiry)) {
+        $is_expired = strtotime($subscription_expiry) < time();
+    }
+    
+    return array(
+        'has_subscription' => (bool) $has_subscription,
+        'type' => $subscription_type ?: '',
+        'expiry' => $subscription_expiry ?: '',
+        'is_expired' => $is_expired,
+        'is_active' => (bool) $has_subscription && !$is_expired
     );
-    
-    // Add ID if editing
-    $service_id = isset($_POST['service_id']) ? intval($_POST['service_id']) : 0;
-    if ($service_id > 0) {
-        $service_data['id'] = $service_id;
-    }
-    
-    // Validate required fields
-    $errors = array();
-    if (empty($service_data['name'])) {
-        $errors[] = __('Service name is required', 'mobooking');
-    }
-    if ($service_data['price'] <= 0) {
-        $errors[] = __('Price must be greater than zero', 'mobooking');
-    }
-    if ($service_data['duration'] < 15) {
-        $errors[] = __('Duration must be at least 15 minutes', 'mobooking');
-    }
-    
-    if (!empty($errors)) {
-        wp_send_json_error(['message' => implode('<br>', $errors)]);
-        return;
-    }
-    
-    // Initialize the service manager
-    $services_manager = mobooking_initialize_service_manager();
-    
-    if (!$services_manager) {
-        wp_send_json_error(['message' => __('Service manager not available', 'mobooking')]);
-        return;
-    }
-    
-    // Save service
-    $new_service_id = $services_manager->save_service($service_data);
-    
-    if (!$new_service_id) {
-        wp_send_json_error(['message' => __('Failed to save service. Please try again.', 'mobooking')]);
-        return;
-    }
-    
-    // Return success
-    wp_send_json_success([
-        'id' => $new_service_id,
-        'message' => $service_id > 0 ? 
-            __('Service updated successfully', 'mobooking') : 
-            __('Service created successfully', 'mobooking')
-    ]);
 }
 
 /**
- * Legacy AJAX handler for deleting a service
+ * Check if user can access dashboard
  */
-function mobooking_delete_service_ajax_handler() {
-    // Check nonce
-    if (!isset($_POST['service_nonce']) || !wp_verify_nonce($_POST['service_nonce'], 'mobooking-service-nonce')) {
-        wp_send_json_error(['message' => __('Security verification failed.', 'mobooking')]);
+function mobooking_user_can_access_dashboard($user_id = null) {
+    if (!$user_id) {
+        $user_id = get_current_user_id();
     }
     
-    // Check permissions
-    if (!current_user_can('mobooking_business_owner') && !current_user_can('administrator')) {
-        wp_send_json_error(['message' => __('You do not have permission to do this.', 'mobooking')]);
+    if (!$user_id) {
+        return false;
     }
     
-    // Check service ID
-    $service_id = isset($_POST['service_id']) ? intval($_POST['service_id']) : 0;
-    if ($service_id <= 0) {
-        wp_send_json_error(['message' => __('Invalid service ID.', 'mobooking')]);
-        return;
+    $user = get_userdata($user_id);
+    if (!$user) {
+        return false;
     }
     
-    // Get current user ID
-    $user_id = get_current_user_id();
-    
-    // Initialize the service manager
-    $services_manager = mobooking_initialize_service_manager();
-    
-    if (!$services_manager) {
-        wp_send_json_error(['message' => __('Service manager not available', 'mobooking')]);
-        return;
-    }
-    
-    // Delete service
-    $result = $services_manager->delete_service($service_id, $user_id);
-    
-    if (!$result) {
-        wp_send_json_error(['message' => __('Failed to delete service.', 'mobooking')]);
-        return;
-    }
-    
-    // Return success
-    wp_send_json_success([
-        'message' => __('Service deleted successfully', 'mobooking')
-    ]);
+    return in_array('mobooking_business_owner', $user->roles) || 
+           in_array('administrator', $user->roles);
 }
 
 /**
- * Direct service options saving handler
- * A fallback solution for saving options when unified save fails
+ * Redirect non-dashboard users away from dashboard
  */
-function mobooking_direct_save_service_options() {
-    // Check nonce
-    if (!isset($_POST['service_nonce']) || !wp_verify_nonce($_POST['service_nonce'], 'mobooking-service-nonce')) {
-        wp_send_json_error(['message' => 'Security verification failed']);
+function mobooking_dashboard_access_control() {
+    global $wp_query;
+    
+    if (!isset($wp_query->query['pagename']) || $wp_query->query['pagename'] !== 'dashboard') {
         return;
     }
     
-    // Get basic service data
-    $service_id = isset($_POST['id']) ? absint($_POST['id']) : 0;
-    $user_id = get_current_user_id();
+    if (!is_user_logged_in()) {
+        wp_redirect(home_url('/login/?redirect_to=' . urlencode(home_url('/dashboard/'))));
+        exit;
+    }
     
-    if (!$service_id) {
-        wp_send_json_error(['message' => 'Service ID is required']);
+    if (!mobooking_user_can_access_dashboard()) {
+        wp_redirect(home_url('/?error=access_denied'));
+        exit;
+    }
+}
+add_action('template_redirect', 'mobooking_dashboard_access_control');
+
+/**
+ * Add admin notices for theme requirements
+ */
+function mobooking_admin_notices() {
+    if (!current_user_can('administrator')) {
         return;
     }
     
-    // Get options data - try multiple formats to be flexible
-    $options_data = [];
+    // Check for WooCommerce
+    if (!class_exists('WooCommerce')) {
+        echo '<div class="notice notice-warning"><p>';
+        echo '<strong>MoBooking:</strong> ';
+        echo __('WooCommerce is required for payment processing. Please install and activate WooCommerce.', 'mobooking');
+        echo '</p></div>';
+    }
     
-    if (isset($_POST['options']) && is_array($_POST['options'])) {
-        // Direct array access
-        $options_data = $_POST['options'];
-    } else if (isset($_POST['options']) && is_string($_POST['options'])) {
-        // JSON string
-        $decoded = json_decode(stripslashes($_POST['options']), true);
-        if (json_last_error() === JSON_ERROR_NONE) {
-            $options_data = $decoded;
+    // Check for required PHP extensions
+    $required_extensions = array('mysqli', 'json', 'curl');
+    $missing_extensions = array();
+    
+    foreach ($required_extensions as $extension) {
+        if (!extension_loaded($extension)) {
+            $missing_extensions[] = $extension;
         }
     }
     
-    // Skip if no options
-    if (empty($options_data)) {
-        wp_send_json_error(['message' => 'No option data provided']);
-        return;
-    }
-    
-    // Process options directly
-    global $wpdb;
-    $table_name = $wpdb->prefix . 'mobooking_services';
-    $success = 0;
-    $errors = 0;
-    
-    // Verify service exists and belongs to user
-    $service = $wpdb->get_row($wpdb->prepare(
-        "SELECT * FROM $table_name WHERE id = %d AND user_id = %d",
-        $service_id, $user_id
-    ));
-    
-    if (!$service) {
-        wp_send_json_error(['message' => 'Service not found or does not belong to you']);
-        return;
-    }
-    
-    // Begin transaction for safety
-    $wpdb->query('START TRANSACTION');
-    
-    try {
-        // First, remove old options
-        $wpdb->delete(
-            $table_name, 
-            ['parent_id' => $service_id, 'entity_type' => 'option'],
-            ['%d', '%s']
+    if (!empty($missing_extensions)) {
+        echo '<div class="notice notice-error"><p>';
+        echo '<strong>MoBooking:</strong> ';
+        echo sprintf(
+            __('Missing required PHP extensions: %s. Please contact your hosting provider.', 'mobooking'),
+            implode(', ', $missing_extensions)
         );
-        
-        // Now save new options
-        foreach ($options_data as $index => $option) {
-            // Skip if no name
-            if (empty($option['name'])) {
-                continue;
+        echo '</p></div>';
+    }
+}
+add_action('admin_notices', 'mobooking_admin_notices');
+
+/**
+ * Handle AJAX errors gracefully
+ */
+function mobooking_handle_ajax_errors() {
+    // Set up error handler for AJAX requests
+    if (defined('DOING_AJAX') && DOING_AJAX) {
+        set_error_handler(function($severity, $message, $file, $line) {
+            if (!(error_reporting() & $severity)) {
+                return false;
             }
             
-            $option_data = [
-                'user_id' => $user_id,
-                'parent_id' => $service_id,
-                'entity_type' => 'option',
-                'name' => sanitize_text_field($option['name']),
-                'description' => isset($option['description']) ? sanitize_textarea_field($option['description']) : '',
-                'price' => 0, // Options don't have a base price
-                'duration' => 0, // Options don't have a duration 
-                'type' => isset($option['type']) ? sanitize_text_field($option['type']) : 'checkbox',
-                'is_required' => isset($option['is_required']) ? absint($option['is_required']) : 0,
-                'default_value' => isset($option['default_value']) ? sanitize_text_field($option['default_value']) : '',
-                'placeholder' => isset($option['placeholder']) ? sanitize_text_field($option['placeholder']) : '',
-                'min_value' => isset($option['min_value']) && $option['min_value'] !== '' ? floatval($option['min_value']) : null,
-                'max_value' => isset($option['max_value']) && $option['max_value'] !== '' ? floatval($option['max_value']) : null,
-                'price_impact' => isset($option['price_impact']) ? floatval($option['price_impact']) : 0,
-                'price_type' => isset($option['price_type']) ? sanitize_text_field($option['price_type']) : 'fixed',
-                'options' => isset($option['options']) ? sanitize_textarea_field($option['options']) : '',
-                'option_label' => isset($option['option_label']) ? sanitize_text_field($option['option_label']) : '',
-                'step' => isset($option['step']) ? sanitize_text_field($option['step']) : '',
-                'unit' => isset($option['unit']) ? sanitize_text_field($option['unit']) : '',
-                'min_length' => isset($option['min_length']) && $option['min_length'] !== '' ? absint($option['min_length']) : null,
-                'max_length' => isset($option['max_length']) && $option['max_length'] !== '' ? absint($option['max_length']) : null,
-                'rows' => isset($option['rows']) && $option['rows'] !== '' ? absint($option['rows']) : null,
-                'display_order' => $index,
-            ];
+            mobooking_log("PHP Error during AJAX: {$message} in {$file}:{$line}");
             
-            // Clean up null values for proper DB insertion
-            foreach ($option_data as $key => $value) {
-                if ($value === null) {
-                    $option_data[$key] = '';
+            // Don't break AJAX responses
+            return true;
+        });
+    }
+}
+add_action('init', 'mobooking_handle_ajax_errors');
+
+/**
+ * Optimize database queries
+ */
+function mobooking_optimize_queries() {
+    // Remove unnecessary queries on frontend
+    if (!is_admin() && !is_dashboard_page()) {
+        remove_action('wp_head', 'wp_generator');
+        remove_action('wp_head', 'wlwmanifest_link');
+        remove_action('wp_head', 'rsd_link');
+    }
+}
+add_action('init', 'mobooking_optimize_queries');
+
+/**
+ * Helper function to check if current page is dashboard
+ */
+function is_dashboard_page() {
+    global $wp_query;
+    return isset($wp_query->query['pagename']) && $wp_query->query['pagename'] === 'dashboard';
+}
+
+/**
+ * Add custom rewrite rules for better URLs
+ */
+function mobooking_rewrite_rules() {
+    // Dashboard rewrite rules are handled by Dashboard\Manager
+    // Add any additional rewrite rules here if needed
+}
+add_action('init', 'mobooking_rewrite_rules');
+
+/**
+ * Flush rewrite rules on theme activation
+ */
+function mobooking_flush_rewrite_rules() {
+    mobooking_rewrite_rules();
+    flush_rewrite_rules();
+}
+add_action('after_switch_theme', 'mobooking_flush_rewrite_rules');
+
+/**
+ * Theme deactivation cleanup
+ */
+function mobooking_theme_deactivation() {
+    // Clean up rewrite rules
+    flush_rewrite_rules();
+    
+    // Clean up scheduled events if any
+    wp_clear_scheduled_hook('mobooking_cleanup_old_bookings');
+    wp_clear_scheduled_hook('mobooking_send_reminder_emails');
+}
+add_action('switch_theme', 'mobooking_theme_deactivation');
+
+/**
+ * Prevent file editing from WordPress admin
+ */
+if (!defined('DISALLOW_FILE_EDIT')) {
+    define('DISALLOW_FILE_EDIT', true);
+}
+
+/**
+ * Set up cron jobs for maintenance tasks
+ */
+function mobooking_setup_cron_jobs() {
+    // Schedule daily cleanup
+    if (!wp_next_scheduled('mobooking_daily_cleanup')) {
+        wp_schedule_event(time(), 'daily', 'mobooking_daily_cleanup');
+    }
+    
+    // Schedule reminder emails
+    if (!wp_next_scheduled('mobooking_send_reminders')) {
+        wp_schedule_event(time(), 'hourly', 'mobooking_send_reminders');
+    }
+}
+add_action('init', 'mobooking_setup_cron_jobs');
+
+/**
+ * Daily cleanup tasks
+ */
+function mobooking_daily_cleanup() {
+    global $wpdb;
+    
+    // Clean up old expired discount codes
+    $discounts_table = $wpdb->prefix . 'mobooking_discounts';
+    $wpdb->query($wpdb->prepare(
+        "UPDATE $discounts_table SET active = 0 WHERE expiry_date < %s AND active = 1",
+        current_time('mysql')
+    ));
+    
+    // Clean up old booking data (if needed)
+    // Add any other cleanup tasks here
+    
+    mobooking_log('Daily cleanup completed');
+}
+add_action('mobooking_daily_cleanup', 'mobooking_daily_cleanup');
+
+/**
+ * Send reminder emails
+ */
+function mobooking_send_reminder_emails() {
+    // Implementation for sending booking reminders
+    // This would typically check for bookings in the next 24 hours
+    // and send reminder emails to customers
+    
+    mobooking_log('Reminder emails processed');
+}
+add_action('mobooking_send_reminders', 'mobooking_send_reminder_emails');
+
+/**
+ * Security headers
+ */
+function mobooking_security_headers() {
+    if (!is_admin()) {
+        header('X-Content-Type-Options: nosniff');
+        header('X-Frame-Options: SAMEORIGIN');
+        header('X-XSS-Protection: 1; mode=block');
+    }
+}
+add_action('send_headers', 'mobooking_security_headers');
+
+/**
+ * Customize excerpt length and more text
+ */
+function mobooking_excerpt_length($length) {
+    return 20;
+}
+add_filter('excerpt_length', 'mobooking_excerpt_length');
+
+function mobooking_excerpt_more($more) {
+    return '...';
+}
+add_filter('excerpt_more', 'mobooking_excerpt_more');
+
+/**
+ * Load textdomain for translations
+ */
+function mobooking_load_textdomain() {
+    load_theme_textdomain('mobooking', MOBOOKING_PATH . '/languages');
+}
+add_action('after_setup_theme', 'mobooking_load_textdomain');
+
+/**
+ * Disable WordPress core updates for non-admins in production
+ */
+if (defined('MOBOOKING_PRODUCTION') && MOBOOKING_PRODUCTION) {
+    function mobooking_disable_updates() {
+        if (!current_user_can('administrator')) {
+            remove_action('admin_init', '_maybe_update_core');
+            remove_action('admin_init', '_maybe_update_plugins');
+            remove_action('admin_init', '_maybe_update_themes');
+        }
+    }
+    add_action('admin_init', 'mobooking_disable_updates', 1);
+}
+
+
+
+
+
+
+
+
+
+
+/**
+ * Add this to your functions.php file
+ * Compact MoBooking Debug Function
+ */
+
+if (!function_exists('mobooking_debug_panel')) {
+    function mobooking_debug_panel() {
+        // Only show for admins with debug enabled
+        if (!current_user_can('administrator') || !defined('WP_DEBUG') || !WP_DEBUG) {
+            return;
+        }
+
+        global $wpdb;
+        $user_id = get_current_user_id();
+        
+        // Check tables
+        $services_table = $wpdb->prefix . 'mobooking_services';
+        $options_table = $wpdb->prefix . 'mobooking_service_options';
+        
+        $services_exists = $wpdb->get_var("SHOW TABLES LIKE '$services_table'") == $services_table;
+        $options_exists = $wpdb->get_var("SHOW TABLES LIKE '$options_table'") == $options_table;
+        
+        // Get data counts
+        $total_services = $services_exists ? $wpdb->get_var("SELECT COUNT(*) FROM $services_table") : 0;
+        $user_services = $services_exists ? $wpdb->get_var($wpdb->prepare("SELECT COUNT(*) FROM $services_table WHERE user_id = %d", $user_id)) : 0;
+        $old_options = $services_exists ? $wpdb->get_var("SELECT COUNT(*) FROM $services_table WHERE entity_type = 'option'") : 0;
+        $new_options = $options_exists ? $wpdb->get_var("SELECT COUNT(*) FROM $options_table") : 0;
+        
+        // Check for architecture type
+        $is_unified = $old_options > 0;
+        $is_separated = $options_exists && $new_options > 0;
+        
+        ?>
+        <style>
+        .mb-debug {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: #1a1a1a;
+            color: #fff;
+            padding: 15px;
+            border-radius: 8px;
+            font-family: monospace;
+            font-size: 12px;
+            max-width: 350px;
+            z-index: 99999;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+            border-left: 4px solid #00ff00;
+        }
+        .mb-debug h4 {
+            margin: 0 0 10px 0;
+            color: #00ff00;
+            font-size: 14px;
+        }
+        .mb-debug-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin: 10px 0;
+        }
+        .mb-debug-item {
+            background: #2a2a2a;
+            padding: 8px;
+            border-radius: 4px;
+            text-align: center;
+        }
+        .mb-debug-value {
+            font-size: 16px;
+            font-weight: bold;
+            color: #00ff00;
+        }
+        .mb-debug-label {
+            font-size: 10px;
+            color: #ccc;
+        }
+        .mb-debug-status {
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-size: 10px;
+            font-weight: bold;
+        }
+        .status-ok { background: #4CAF50; }
+        .status-error { background: #f44336; }
+        .status-warning { background: #FF9800; }
+        .mb-debug-close {
+            position: absolute;
+            top: 5px;
+            right: 8px;
+            background: none;
+            border: none;
+            color: #fff;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        .mb-debug-section {
+            margin: 8px 0;
+            padding: 8px;
+            background: #2a2a2a;
+            border-radius: 4px;
+        }
+        .mb-debug-code {
+            background: #000;
+            padding: 5px;
+            border-radius: 3px;
+            font-size: 10px;
+            margin: 5px 0;
+        }
+        </style>
+
+        <div class="mb-debug" id="mb-debug-panel">
+            <button class="mb-debug-close" onclick="document.getElementById('mb-debug-panel').style.display='none'">×</button>
+            <h4>🐛 MoBooking Debug</h4>
+            
+            <!-- Quick Stats -->
+            <div class="mb-debug-grid">
+                <div class="mb-debug-item">
+                    <div class="mb-debug-value"><?php echo $user_services; ?></div>
+                    <div class="mb-debug-label">Your Services</div>
+                </div>
+                <div class="mb-debug-item">
+                    <div class="mb-debug-value"><?php echo $new_options; ?></div>
+                    <div class="mb-debug-label">Options</div>
+                </div>
+            </div>
+
+            <!-- Table Status -->
+            <div class="mb-debug-section">
+                <strong>📊 Tables:</strong><br>
+                Services: <span class="mb-debug-status <?php echo $services_exists ? 'status-ok' : 'status-error'; ?>">
+                    <?php echo $services_exists ? '✅ EXISTS' : '❌ MISSING'; ?>
+                </span><br>
+                Options: <span class="mb-debug-status <?php echo $options_exists ? 'status-ok' : 'status-error'; ?>">
+                    <?php echo $options_exists ? '✅ EXISTS' : '❌ MISSING'; ?>
+                </span>
+            </div>
+
+            <!-- Architecture Status -->
+            <div class="mb-debug-section">
+                <strong>🏗️ Architecture:</strong><br>
+                <?php if (!$options_exists): ?>
+                    <span class="mb-debug-status status-error">❌ SEPARATED TABLES MISSING</span>
+                    <div class="mb-debug-code">
+                        Run: $db_manager = new \MoBooking\Database\Manager();<br>
+                        $db_manager->create_tables();
+                    </div>
+                <?php elseif ($is_unified && $old_options > 0): ?>
+                    <span class="mb-debug-status status-warning">⚠️ MIGRATION NEEDED</span>
+                    <div class="mb-debug-code">
+                        Found <?php echo $old_options; ?> options in unified table.<br>
+                        Run migration to separate tables.
+                    </div>
+                <?php else: ?>
+                    <span class="mb-debug-status status-ok">✅ SEPARATED TABLES</span>
+                <?php endif; ?>
+            </div>
+
+            <!-- Services Debug -->
+            <?php if ($services_exists): ?>
+            <div class="mb-debug-section">
+                <strong>🏢 Services Debug:</strong><br>
+                <?php
+                $recent_service = $wpdb->get_row($wpdb->prepare(
+                    "SELECT * FROM $services_table WHERE user_id = %d ORDER BY id DESC LIMIT 1", 
+                    $user_id
+                ));
+                
+                if ($recent_service) {
+                    echo "Last: " . esc_html($recent_service->name) . " (ID: {$recent_service->id})<br>";
+                    echo "Status: " . esc_html($recent_service->status);
+                } else {
+                    echo '<span class="mb-debug-status status-warning">⚠️ NO SERVICES FOUND</span>';
                 }
+                ?>
+            </div>
+            <?php endif; ?>
+
+            <!-- Quick Fix Actions -->
+            <div class="mb-debug-section">
+                <strong>🔧 Quick Actions:</strong><br>
+                <button onclick="mbDebugCreateTables()" style="background:#4CAF50;color:white;border:none;padding:4px 8px;border-radius:3px;font-size:10px;margin:2px;">
+                    Create Tables
+                </button>
+                <button onclick="mbDebugMigrate()" style="background:#FF9800;color:white;border:none;padding:4px 8px;border-radius:3px;font-size:10px;margin:2px;">
+                    Run Migration
+                </button>
+                <button onclick="location.reload()" style="background:#2196F3;color:white;border:none;padding:4px 8px;border-radius:3px;font-size:10px;margin:2px;">
+                    Refresh
+                </button>
+            </div>
+
+            <div style="font-size:10px;color:#888;margin-top:10px;">
+                Press Ctrl+Shift+D to toggle
+            </div>
+        </div>
+
+        <script>
+        // Toggle with keyboard shortcut
+        document.addEventListener('keydown', function(e) {
+            if (e.ctrlKey && e.shiftKey && e.key === 'D') {
+                e.preventDefault();
+                const panel = document.getElementById('mb-debug-panel');
+                panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
             }
-            
-            $result = $wpdb->insert($table_name, $option_data);
-            
-            if ($result) {
-                $success++;
-            } else {
-                $errors++;
+        });
+
+        // Quick actions
+        function mbDebugCreateTables() {
+            if (confirm('Create/update database tables?')) {
+                jQuery.post(ajaxurl || '<?php echo admin_url('admin-ajax.php'); ?>', {
+                    action: 'mobooking_debug_create_tables',
+                    nonce: '<?php echo wp_create_nonce('mobooking-debug'); ?>'
+                }, function(response) {
+                    alert(response.success ? 'Tables created successfully!' : 'Error: ' + response.data);
+                    location.reload();
+                });
             }
         }
-        
-        // Commit if successful
-        $wpdb->query('COMMIT');
-        
-        wp_send_json_success([
-            'message' => "Service updated with $success options",
-            'options_saved' => $success
-        ]);
-        
-    } catch (Exception $e) {
-        $wpdb->query('ROLLBACK');
-        wp_send_json_error(['message' => 'Error saving options: ' . $e->getMessage()]);
+
+        function mbDebugMigrate() {
+            if (confirm('Run migration from unified to separated tables?')) {
+                jQuery.post(ajaxurl || '<?php echo admin_url('admin-ajax.php'); ?>', {
+                    action: 'mobooking_debug_migrate',
+                    nonce: '<?php echo wp_create_nonce('mobooking-debug'); ?>'
+                }, function(response) {
+                    alert(response.success ? 'Migration completed!' : 'Error: ' + response.data);
+                    location.reload();
+                });
+            }
+        }
+
+        console.log('🐛 MoBooking Debug Panel Loaded - Press Ctrl+Shift+D to toggle');
+        </script>
+        <?php
     }
 }
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-// DELETE THIS PART AFTER TESTING
-// Add a direct debug endpoint
-add_action('wp_ajax_mobooking_debug_save_options', function() {
-    // Check nonce
-    if (!isset($_POST['service_nonce']) || !wp_verify_nonce($_POST['service_nonce'], 'mobooking-service-nonce')) {
-        wp_send_json_error(['message' => 'Security check failed']);
-        return;
+/**
+ * AJAX handler for creating tables
+ */
+add_action('wp_ajax_mobooking_debug_create_tables', function() {
+    if (!wp_verify_nonce($_POST['nonce'], 'mobooking-debug') || !current_user_can('administrator')) {
+        wp_send_json_error('Permission denied');
     }
-    
-    // Log the received data
-    error_log('Debug options received: ' . json_encode($_POST));
-    
-    if (!isset($_POST['id']) || empty($_POST['id'])) {
-        wp_send_json_error(['message' => 'Service ID required']);
-        return;
-    }
-    
-    // Get the options data
-    $service_id = absint($_POST['id']);
-    $user_id = get_current_user_id();
-    $options_data = isset($_POST['options']) ? $_POST['options'] : [];
-    
-    // Save directly to database
-    global $wpdb;
-    $table_name = $wpdb->prefix . 'mobooking_services';
-    
-    // First, clear existing options
-    $wpdb->delete($table_name, [
-        'parent_id' => $service_id,
-        'entity_type' => 'option'
-    ]);
-    
-    $success_count = 0;
-    
-    // Insert new options
-    foreach ($options_data as $option) {
-        if (empty($option['name'])) continue;
-        
-        $result = $wpdb->insert($table_name, [
-            'user_id' => $user_id,
-            'parent_id' => $service_id,
-            'entity_type' => 'option',
-            'name' => sanitize_text_field($option['name']),
-            'description' => isset($option['description']) ? sanitize_textarea_field($option['description']) : '',
-            'type' => isset($option['type']) ? sanitize_text_field($option['type']) : 'checkbox',
-            'is_required' => isset($option['is_required']) ? (int)$option['is_required'] : 0,
-            'price_impact' => isset($option['price_impact']) ? floatval($option['price_impact']) : 0,
-            'price_type' => isset($option['price_type']) ? sanitize_text_field($option['price_type']) : 'fixed',
-            'options' => isset($option['options']) ? sanitize_textarea_field($option['options']) : '',
-            'option_label' => isset($option['option_label']) ? sanitize_text_field($option['option_label']) : '',
-            'display_order' => isset($option['display_order']) ? intval($option['display_order']) : 0
-        ]);
-        
-        if ($result) $success_count++;
-    }
-    
-    wp_send_json_success([
-        'message' => "Successfully saved $success_count options",
-        'count' => $success_count
-    ]);
-});
 
-
-
-
-
-
-
-// Add this to your functions.php file for comprehensive debugging
-
-// 1. First, let's create a simple test to verify your database structure
-add_action('wp_ajax_mobooking_test_db_structure', function() {
-    global $wpdb;
-    $table_name = $wpdb->prefix . 'mobooking_services';
-    
-    // Check if table exists
-    $table_exists = $wpdb->get_var("SHOW TABLES LIKE '$table_name'") == $table_name;
-    
-    if (!$table_exists) {
-        wp_send_json_error(['message' => 'Services table does not exist']);
-        return;
-    }
-    
-    // Get table structure
-    $columns = $wpdb->get_results("SHOW COLUMNS FROM $table_name");
-    $column_names = array_map(function($col) { return $col->Field; }, $columns);
-    
-    // Check for required columns
-    $required_columns = ['id', 'user_id', 'entity_type', 'parent_id', 'name', 'type', 'is_required'];
-    $missing_columns = array_diff($required_columns, $column_names);
-    
-    if (!empty($missing_columns)) {
-        wp_send_json_error([
-            'message' => 'Missing required columns: ' . implode(', ', $missing_columns),
-            'existing_columns' => $column_names
-        ]);
-        return;
-    }
-    
-    wp_send_json_success([
-        'message' => 'Database structure is correct',
-        'columns' => $column_names
-    ]);
-});
-
-// 2. Create a comprehensive options saving handler with detailed logging
-add_action('wp_ajax_mobooking_debug_options_save', function() {
-    // Enable error logging
-    error_log('=== MOBOOKING DEBUG OPTIONS SAVE START ===');
-    
-    // Check nonce
-    if (!isset($_POST['service_nonce']) || !wp_verify_nonce($_POST['service_nonce'], 'mobooking-service-nonce')) {
-        error_log('MOBOOKING DEBUG: Nonce verification failed');
-        wp_send_json_error(['message' => 'Security verification failed']);
-        return;
-    }
-    
-    error_log('MOBOOKING DEBUG: Nonce verified successfully');
-    
-    // Get and validate service ID
-    $service_id = isset($_POST['service_id']) ? absint($_POST['service_id']) : 0;
-    if (!$service_id) {
-        error_log('MOBOOKING DEBUG: No service ID provided');
-        wp_send_json_error(['message' => 'Service ID is required']);
-        return;
-    }
-    
-    error_log('MOBOOKING DEBUG: Service ID = ' . $service_id);
-    
-    // Get user ID
-    $user_id = get_current_user_id();
-    error_log('MOBOOKING DEBUG: User ID = ' . $user_id);
-    
-    // Log all POST data for debugging
-    error_log('MOBOOKING DEBUG: Full POST data = ' . print_r($_POST, true));
-    
-    // Get options data - try multiple methods
-    $options_data = null;
-    
-    if (isset($_POST['options']) && is_array($_POST['options'])) {
-        $options_data = $_POST['options'];
-        error_log('MOBOOKING DEBUG: Found options as direct array, count = ' . count($options_data));
-    } elseif (isset($_POST['options']) && is_string($_POST['options'])) {
-        $decoded = json_decode(stripslashes($_POST['options']), true);
-        if (json_last_error() === JSON_ERROR_NONE) {
-            $options_data = $decoded;
-            error_log('MOBOOKING DEBUG: Found options as JSON string, count = ' . count($options_data));
-        } else {
-            error_log('MOBOOKING DEBUG: JSON decode error: ' . json_last_error_msg());
-        }
-    }
-    
-    // Also check for individual option fields
-    if (!$options_data) {
-        $options_data = [];
-        $option_index = 0;
-        
-        while (isset($_POST["option_{$option_index}_name"])) {
-            $option = [
-                'name' => $_POST["option_{$option_index}_name"],
-                'type' => $_POST["option_{$option_index}_type"] ?? 'checkbox',
-                'description' => $_POST["option_{$option_index}_description"] ?? '',
-                'is_required' => $_POST["option_{$option_index}_is_required"] ?? 0,
-                'price_type' => $_POST["option_{$option_index}_price_type"] ?? 'fixed',
-                'price_impact' => $_POST["option_{$option_index}_price_impact"] ?? 0,
-            ];
-            
-            $options_data[] = $option;
-            $option_index++;
-        }
-        
-        if (count($options_data) > 0) {
-            error_log('MOBOOKING DEBUG: Found options using individual fields, count = ' . count($options_data));
-        }
-    }
-    
-    if (empty($options_data)) {
-        error_log('MOBOOKING DEBUG: No options data found in any format');
-        wp_send_json_error(['message' => 'No options data found']);
-        return;
-    }
-    
-    error_log('MOBOOKING DEBUG: Options data = ' . print_r($options_data, true));
-    
-    // Verify service exists and belongs to user
-    global $wpdb;
-    $table_name = $wpdb->prefix . 'mobooking_services';
-    
-    $service = $wpdb->get_row($wpdb->prepare(
-        "SELECT * FROM $table_name WHERE id = %d AND user_id = %d AND entity_type = 'service'",
-        $service_id, $user_id
-    ));
-    
-    if (!$service) {
-        error_log('MOBOOKING DEBUG: Service not found or does not belong to user');
-        wp_send_json_error(['message' => 'Service not found or access denied']);
-        return;
-    }
-    
-    error_log('MOBOOKING DEBUG: Service found: ' . $service->name);
-    
-    // Begin transaction
-    $wpdb->query('START TRANSACTION');
-    error_log('MOBOOKING DEBUG: Transaction started');
-    
     try {
-        // Delete existing options
-        $deleted = $wpdb->delete(
-            $table_name,
-            [
-                'parent_id' => $service_id,
-                'entity_type' => 'option'
-            ],
-            ['%d', '%s']
-        );
-        
-        error_log('MOBOOKING DEBUG: Deleted ' . $deleted . ' existing options');
-        
-        $success_count = 0;
-        $error_count = 0;
-        
-        // Insert new options
-        foreach ($options_data as $index => $option) {
-            if (empty($option['name'])) {
-                error_log('MOBOOKING DEBUG: Skipping option ' . $index . ' - no name');
-                continue;
-            }
-            
-            $option_data = [
-                'user_id' => $user_id,
-                'parent_id' => $service_id,
-                'entity_type' => 'option',
-                'name' => sanitize_text_field($option['name']),
-                'description' => isset($option['description']) ? sanitize_textarea_field($option['description']) : '',
-                'price' => 0,
-                'duration' => 0,
-                'type' => isset($option['type']) ? sanitize_text_field($option['type']) : 'checkbox',
-                'is_required' => isset($option['is_required']) ? absint($option['is_required']) : 0,
-                'default_value' => isset($option['default_value']) ? sanitize_text_field($option['default_value']) : '',
-                'placeholder' => isset($option['placeholder']) ? sanitize_text_field($option['placeholder']) : '',
-                'min_value' => isset($option['min_value']) && $option['min_value'] !== '' ? floatval($option['min_value']) : null,
-                'max_value' => isset($option['max_value']) && $option['max_value'] !== '' ? floatval($option['max_value']) : null,
-                'price_impact' => isset($option['price_impact']) ? floatval($option['price_impact']) : 0,
-                'price_type' => isset($option['price_type']) ? sanitize_text_field($option['price_type']) : 'fixed',
-                'options' => isset($option['options']) ? sanitize_textarea_field($option['options']) : '',
-                'option_label' => isset($option['option_label']) ? sanitize_text_field($option['option_label']) : '',
-                'step' => isset($option['step']) ? sanitize_text_field($option['step']) : '',
-                'unit' => isset($option['unit']) ? sanitize_text_field($option['unit']) : '',
-                'min_length' => isset($option['min_length']) && $option['min_length'] !== '' ? absint($option['min_length']) : null,
-                'max_length' => isset($option['max_length']) && $option['max_length'] !== '' ? absint($option['max_length']) : null,
-                'rows' => isset($option['rows']) && $option['rows'] !== '' ? absint($option['rows']) : null,
-                'display_order' => $index,
-                'created_at' => current_time('mysql'),
-                'updated_at' => current_time('mysql')
-            ];
-            
-            error_log('MOBOOKING DEBUG: Inserting option ' . $index . ': ' . print_r($option_data, true));
-            
-            $result = $wpdb->insert($table_name, $option_data);
-            
-            if ($result === false) {
-                error_log('MOBOOKING DEBUG: Failed to insert option ' . $index . ': ' . $wpdb->last_error);
-                $error_count++;
-            } else {
-                error_log('MOBOOKING DEBUG: Successfully inserted option ' . $index . ' with ID: ' . $wpdb->insert_id);
-                $success_count++;
-            }
-        }
-        
-        if ($error_count > 0) {
-            $wpdb->query('ROLLBACK');
-            error_log('MOBOOKING DEBUG: Rolling back due to errors');
-            wp_send_json_error(['message' => "Failed to save some options. $error_count errors occurred."]);
-        } else {
-            $wpdb->query('COMMIT');
-            error_log('MOBOOKING DEBUG: Transaction committed successfully');
-            wp_send_json_success([
-                'message' => "Successfully saved $success_count options",
-                'options_saved' => $success_count
-            ]);
-        }
-        
+        $db_manager = new \MoBooking\Database\Manager();
+        $db_manager->create_tables();
+        wp_send_json_success('Tables created successfully');
     } catch (Exception $e) {
-        $wpdb->query('ROLLBACK');
-        error_log('MOBOOKING DEBUG: Exception occurred: ' . $e->getMessage());
-        wp_send_json_error(['message' => 'Database error: ' . $e->getMessage()]);
+        wp_send_json_error('Error: ' . $e->getMessage());
     }
-    
-    error_log('=== MOBOOKING DEBUG OPTIONS SAVE END ===');
 });
 
-// 3. Add a simple test option save
-add_action('wp_ajax_mobooking_test_option_save', function() {
-    if (!isset($_POST['service_id'])) {
-        wp_send_json_error(['message' => 'Service ID required']);
-        return;
+/**
+ * AJAX handler for migration
+ */
+add_action('wp_ajax_mobooking_debug_migrate', function() {
+    if (!wp_verify_nonce($_POST['nonce'], 'mobooking-debug') || !current_user_can('administrator')) {
+        wp_send_json_error('Permission denied');
     }
-    
-    $service_id = absint($_POST['service_id']);
-    $user_id = get_current_user_id();
-    
-    global $wpdb;
-    $table_name = $wpdb->prefix . 'mobooking_services';
-    
-    // Try to insert a simple test option
-    $result = $wpdb->insert($table_name, [
-        'user_id' => $user_id,
-        'parent_id' => $service_id,
-        'entity_type' => 'option',
-        'name' => 'Test Option',
-        'description' => 'Test option created at ' . current_time('mysql'),
-        'type' => 'checkbox',
-        'is_required' => 0,
-        'price' => 0,
-        'duration' => 0,
-        'display_order' => 0,
-        'created_at' => current_time('mysql'),
-        'updated_at' => current_time('mysql')
-    ]);
-    
-    if ($result === false) {
-        wp_send_json_error([
-            'message' => 'Failed to insert test option',
-            'error' => $wpdb->last_error
-        ]);
-    } else {
-        wp_send_json_success([
-            'message' => 'Test option created successfully',
-            'option_id' => $wpdb->insert_id
-        ]);
+
+    try {
+        // Check if migration class exists
+        if (class_exists('\MoBooking\Database\SeparateTablesMigration')) {
+            $migration = new \MoBooking\Database\SeparateTablesMigration();
+            $result = $migration->run();
+            wp_send_json_success($result ? 'Migration completed' : 'Migration failed');
+        } else {
+            wp_send_json_error('Migration class not found');
+        }
+    } catch (Exception $e) {
+        wp_send_json_error('Error: ' . $e->getMessage());
     }
 });
+
+/**
+ * Helper function to diagnose why services aren't showing
+ */
+if (!function_exists('mobooking_diagnose_services')) {
+    function mobooking_diagnose_services() {
+        global $wpdb;
+        $user_id = get_current_user_id();
+        $services_table = $wpdb->prefix . 'mobooking_services';
+        
+        echo "<div style='background:#fff;padding:20px;margin:20px 0;border:1px solid #ccc;'>";
+        echo "<h3>🔍 Services Diagnosis</h3>";
+        
+        // Check if table exists
+        $table_exists = $wpdb->get_var("SHOW TABLES LIKE '$services_table'") == $services_table;
+        echo "<p><strong>Table exists:</strong> " . ($table_exists ? "✅ Yes" : "❌ No") . "</p>";
+        
+        if ($table_exists) {
+            // Check total services
+            $total = $wpdb->get_var("SELECT COUNT(*) FROM $services_table");
+            echo "<p><strong>Total services:</strong> $total</p>";
+            
+            // Check user services
+            $user_services = $wpdb->get_var($wpdb->prepare("SELECT COUNT(*) FROM $services_table WHERE user_id = %d", $user_id));
+            echo "<p><strong>Your services:</strong> $user_services</p>";
+            
+            // Check for entity_type column (unified table)
+            $has_entity_type = $wpdb->get_var("SHOW COLUMNS FROM $services_table LIKE 'entity_type'");
+            echo "<p><strong>Has entity_type column:</strong> " . ($has_entity_type ? "✅ Yes (Unified)" : "❌ No (Separated)") . "</p>";
+            
+            if ($has_entity_type) {
+                $actual_services = $wpdb->get_var($wpdb->prepare(
+                    "SELECT COUNT(*) FROM $services_table WHERE user_id = %d AND (entity_type = 'service' OR entity_type IS NULL)", 
+                    $user_id
+                ));
+                echo "<p><strong>Actual services (filtered):</strong> $actual_services</p>";
+            }
+            
+            // Show recent services
+            $recent = $wpdb->get_results($wpdb->prepare(
+                "SELECT id, name, user_id, entity_type FROM $services_table WHERE user_id = %d ORDER BY id DESC LIMIT 3", 
+                $user_id
+            ));
+            
+            if ($recent) {
+                echo "<p><strong>Recent services:</strong></p><ul>";
+                foreach ($recent as $service) {
+                    echo "<li>ID: {$service->id}, Name: {$service->name}, Type: " . ($service->entity_type ?? 'NULL') . "</li>";
+                }
+                echo "</ul>";
+            }
+        }
+        
+        echo "</div>";
+    }
+}
