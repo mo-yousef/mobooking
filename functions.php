@@ -800,3 +800,92 @@ function mobooking_fix_tables() {
 
 
 
+// Add these debugging functions to your functions.php file
+
+/**
+ * Database diagnostic AJAX handler
+ */
+add_action('wp_ajax_mobooking_db_diagnostic', 'mobooking_db_diagnostic');
+function mobooking_db_diagnostic() {
+    if (!current_user_can('administrator')) {
+        wp_send_json_error('Access denied');
+    }
+    
+    global $wpdb;
+    
+    $diagnostic = array(
+        'tables' => array(),
+        'user' => array(
+            'id' => get_current_user_id(),
+            'can_manage' => current_user_can('mobooking_business_owner') || current_user_can('administrator'),
+            'roles' => wp_get_current_user()->roles
+        ),
+        'ajax_actions' => array(),
+        'database_info' => array()
+    );
+    
+    // Check tables
+    $tables_to_check = array('services', 'service_options', 'bookings', 'discounts', 'areas', 'settings');
+    
+    foreach ($tables_to_check as $table) {
+        $full_table_name = $wpdb->prefix . 'mobooking_' . $table;
+        $exists = $wpdb->get_var("SHOW TABLES LIKE '$full_table_name'") == $full_table_name;
+        
+        $diagnostic['tables'][$table] = array(
+            'exists' => $exists,
+            'name' => $full_table_name
+        );
+        
+        if ($exists) {
+            $columns = $wpdb->get_results("SHOW COLUMNS FROM $full_table_name");
+            $row_count = $wpdb->get_var("SELECT COUNT(*) FROM $full_table_name");
+            
+            $diagnostic['tables'][$table]['columns'] = array_map(function($col) {
+                return $col->Field;
+            }, $columns);
+            $diagnostic['tables'][$table]['row_count'] = intval($row_count);
+        }
+    }
+    
+    // Check AJAX actions
+    global $wp_filter;
+    $actions_to_check = array(
+        'wp_ajax_mobooking_save_service_option',
+        'wp_ajax_mobooking_get_service_options',
+        'wp_ajax_mobooking_save_service',
+        'wp_ajax_mobooking_test'
+    );
+    
+    foreach ($actions_to_check as $action) {
+        $diagnostic['ajax_actions'][$action] = isset($wp_filter[$action]) && !empty($wp_filter[$action]->callbacks);
+    }
+    
+    // Database info
+    $diagnostic['database_info'] = array(
+        'mysql_version' => $wpdb->get_var('SELECT VERSION()'),
+        'charset' => $wpdb->charset,
+        'collate' => $wpdb->collate,
+        'prefix' => $wpdb->prefix
+    );
+    
+    wp_send_json_success($diagnostic);
+}
+
+/**
+ * Force create missing tables
+ */
+add_action('wp_ajax_mobooking_create_tables', 'mobooking_create_tables');
+function mobooking_create_tables() {
+    if (!current_user_can('administrator')) {
+        wp_send_json_error('Access denied');
+    }
+    
+    try {
+        $db_manager = new \MoBooking\Database\Manager();
+        $db_manager->create_tables();
+        
+        wp_send_json_success('Tables created successfully');
+    } catch (Exception $e) {
+        wp_send_json_error('Error creating tables: ' . $e->getMessage());
+    }
+}

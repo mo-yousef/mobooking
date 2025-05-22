@@ -2,7 +2,7 @@
 namespace MoBooking\Services;
 
 /**
- * Service Options Manager class
+ * Service Options Manager class - Fixed Duplicate Issues
  */
 class ServiceOptionsManager {
     /**
@@ -16,7 +16,7 @@ class ServiceOptionsManager {
         add_action('wp_ajax_mobooking_get_service_option', array($this, 'ajax_get_option'));
         add_action('wp_ajax_mobooking_update_options_order', array($this, 'ajax_update_options_order'));
         
-        // Debug: Log that handlers are registered
+        // Debug logging
         if (defined('WP_DEBUG') && WP_DEBUG) {
             error_log('MoBooking: Service Options AJAX handlers registered');
         }
@@ -49,11 +49,16 @@ class ServiceOptionsManager {
     }
     
     /**
-     * Save an option
+     * Save an option - FIXED to prevent duplicates
      */
     public function save_option($data) {
         global $wpdb;
         $table_name = $wpdb->prefix . 'mobooking_service_options';
+        
+        // Debug logging
+        if (defined('WP_DEBUG') && WP_DEBUG) {
+            error_log('MoBooking: Saving option with data: ' . print_r($data, true));
+        }
         
         // Sanitize data
         $option_data = array(
@@ -78,30 +83,69 @@ class ServiceOptionsManager {
             'display_order' => isset($data['display_order']) ? absint($data['display_order']) : $this->get_next_display_order($data['service_id'])
         );
         
-        // Check if we're updating or creating
-        if (!empty($data['id'])) {
+        // Check if we're updating or creating - FIXED LOGIC
+        if (!empty($data['id']) && absint($data['id']) > 0) {
             // Update existing option
+            $option_id = absint($data['id']);
+            
+            // Verify the option exists and belongs to the correct service
+            $existing_option = $this->get_option($option_id);
+            if (!$existing_option || $existing_option->service_id != $option_data['service_id']) {
+                if (defined('WP_DEBUG') && WP_DEBUG) {
+                    error_log('MoBooking: Option not found or service mismatch for ID: ' . $option_id);
+                }
+                return false;
+            }
+            
             $result = $wpdb->update(
                 $table_name,
                 $option_data,
-                array('id' => absint($data['id'])),
+                array('id' => $option_id),
                 array('%d', '%s', '%s', '%s', '%d', '%s', '%s', '%f', '%f', '%f', '%s', '%s', '%s', '%s', '%s', '%d', '%d', '%d', '%d'),
                 array('%d')
             );
             
+            if (defined('WP_DEBUG') && WP_DEBUG) {
+                error_log('MoBooking: Update result: ' . ($result !== false ? 'SUCCESS' : 'FAILED') . ' for option ID: ' . $option_id);
+            }
+            
             if ($result !== false) {
-                return absint($data['id']);
+                return $option_id;
             }
         } else {
-            // Create new option
+            // Create new option - ensure no duplicate names for the same service
+            $existing_option = $wpdb->get_var($wpdb->prepare(
+                "SELECT id FROM $table_name WHERE service_id = %d AND name = %s",
+                $option_data['service_id'],
+                $option_data['name']
+            ));
+            
+            if ($existing_option) {
+                if (defined('WP_DEBUG') && WP_DEBUG) {
+                    error_log('MoBooking: Option with same name already exists for service: ' . $option_data['service_id']);
+                }
+                return false; // Prevent duplicate names
+            }
+            
             $result = $wpdb->insert(
                 $table_name,
                 $option_data,
                 array('%d', '%s', '%s', '%s', '%d', '%s', '%s', '%f', '%f', '%f', '%s', '%s', '%s', '%s', '%s', '%d', '%d', '%d', '%d')
             );
             
+            if (defined('WP_DEBUG') && WP_DEBUG) {
+                error_log('MoBooking: Insert result: ' . ($result !== false ? 'SUCCESS' : 'FAILED') . ', Insert ID: ' . $wpdb->insert_id);
+            }
+            
             if ($result !== false) {
                 return $wpdb->insert_id;
+            }
+        }
+        
+        // Log any database errors
+        if ($wpdb->last_error) {
+            if (defined('WP_DEBUG') && WP_DEBUG) {
+                error_log('MoBooking: Database error: ' . $wpdb->last_error);
             }
         }
         
@@ -214,24 +258,20 @@ class ServiceOptionsManager {
         
         switch ($option->price_type) {
             case 'fixed':
-                // Fixed amount regardless of value
                 $price_impact = $option->price_impact;
                 break;
                 
             case 'percentage':
-                // This would need base price context, return the percentage for now
                 $price_impact = $option->price_impact;
                 break;
                 
             case 'multiply':
-                // Multiply by the numeric value
                 if (is_numeric($value)) {
                     $price_impact = $option->price_impact * floatval($value);
                 }
                 break;
                 
             case 'choice':
-                // For select/radio options, get price from choices
                 if (in_array($option->type, array('select', 'radio'))) {
                     $choices = $this->parse_choices($option->options);
                     foreach ($choices as $choice) {
@@ -298,7 +338,6 @@ class ServiceOptionsManager {
                 
             case 'select':
             case 'radio':
-                // Validate that the value is one of the allowed choices
                 $choices = $this->parse_choices($option->options);
                 $valid_values = array_column($choices, 'value');
                 
@@ -312,16 +351,36 @@ class ServiceOptionsManager {
     }
     
     /**
-     * AJAX handler to save option
+     * AJAX handler to save option - FIXED to prevent duplicates
      */
     public function ajax_save_option() {
+        // Prevent duplicate processing
+        if (defined('MOBOOKING_PROCESSING_OPTION')) {
+            if (defined('WP_DEBUG') && WP_DEBUG) {
+                error_log('MoBooking: Preventing duplicate option processing');
+            }
+            wp_send_json_error(__('Request already being processed.', 'mobooking'));
+        }
+        define('MOBOOKING_PROCESSING_OPTION', true);
+        
+        // Debug logging
+        if (defined('WP_DEBUG') && WP_DEBUG) {
+            error_log('MoBooking: ajax_save_option called with POST data: ' . print_r($_POST, true));
+        }
+        
         // Check nonce
         if (!isset($_POST['nonce']) || !wp_verify_nonce($_POST['nonce'], 'mobooking-service-nonce')) {
+            if (defined('WP_DEBUG') && WP_DEBUG) {
+                error_log('MoBooking: Nonce verification failed for save_option');
+            }
             wp_send_json_error(__('Security verification failed.', 'mobooking'));
         }
         
         // Check permissions
         if (!current_user_can('mobooking_business_owner') && !current_user_can('administrator')) {
+            if (defined('WP_DEBUG') && WP_DEBUG) {
+                error_log('MoBooking: Permission check failed for save_option');
+            }
             wp_send_json_error(__('You do not have permission to do this.', 'mobooking'));
         }
         
@@ -330,40 +389,53 @@ class ServiceOptionsManager {
         // Verify service ownership
         $service_id = isset($_POST['service_id']) ? absint($_POST['service_id']) : 0;
         if (!$service_id) {
+            if (defined('WP_DEBUG') && WP_DEBUG) {
+                error_log('MoBooking: No service_id provided for save_option');
+            }
             wp_send_json_error(__('Service ID is required.', 'mobooking'));
         }
         
         $service_manager = new ServiceManager();
         $service = $service_manager->get_service($service_id, $user_id);
         if (!$service) {
+            if (defined('WP_DEBUG') && WP_DEBUG) {
+                error_log('MoBooking: Service not found or access denied for save_option. Service ID: ' . $service_id . ', User ID: ' . $user_id);
+            }
             wp_send_json_error(__('Service not found or access denied.', 'mobooking'));
         }
         
         // Prepare option data
         $option_data = array(
             'service_id' => $service_id,
-            'name' => isset($_POST['name']) ? $_POST['name'] : '',
-            'description' => isset($_POST['description']) ? $_POST['description'] : '',
+            'name' => isset($_POST['name']) ? trim($_POST['name']) : '',
+            'description' => isset($_POST['description']) ? trim($_POST['description']) : '',
             'type' => isset($_POST['type']) ? $_POST['type'] : 'text',
-            'is_required' => isset($_POST['is_required']) ? $_POST['is_required'] : 0,
+            'is_required' => isset($_POST['is_required']) ? absint($_POST['is_required']) : 0,
             'price_type' => isset($_POST['price_type']) ? $_POST['price_type'] : 'fixed',
-            'price_impact' => isset($_POST['price_impact']) ? $_POST['price_impact'] : 0,
-            'default_value' => isset($_POST['default_value']) ? $_POST['default_value'] : '',
-            'placeholder' => isset($_POST['placeholder']) ? $_POST['placeholder'] : '',
-            'min_value' => isset($_POST['min_value']) ? $_POST['min_value'] : '',
-            'max_value' => isset($_POST['max_value']) ? $_POST['max_value'] : '',
+            'price_impact' => isset($_POST['price_impact']) ? floatval($_POST['price_impact']) : 0,
+            'default_value' => isset($_POST['default_value']) ? trim($_POST['default_value']) : '',
+            'placeholder' => isset($_POST['placeholder']) ? trim($_POST['placeholder']) : '',
+            'min_value' => isset($_POST['min_value']) && $_POST['min_value'] !== '' ? floatval($_POST['min_value']) : null,
+            'max_value' => isset($_POST['max_value']) && $_POST['max_value'] !== '' ? floatval($_POST['max_value']) : null,
             'step' => isset($_POST['step']) ? $_POST['step'] : '1',
-            'unit' => isset($_POST['unit']) ? $_POST['unit'] : '',
-            'min_length' => isset($_POST['min_length']) ? $_POST['min_length'] : '',
-            'max_length' => isset($_POST['max_length']) ? $_POST['max_length'] : '',
-            'rows' => isset($_POST['rows']) ? $_POST['rows'] : 3,
-            'options' => isset($_POST['options']) ? $_POST['options'] : '',
-            'option_label' => isset($_POST['option_label']) ? $_POST['option_label'] : ''
+            'unit' => isset($_POST['unit']) ? trim($_POST['unit']) : '',
+            'min_length' => isset($_POST['min_length']) && $_POST['min_length'] !== '' ? absint($_POST['min_length']) : null,
+            'max_length' => isset($_POST['max_length']) && $_POST['max_length'] !== '' ? absint($_POST['max_length']) : null,
+            'rows' => isset($_POST['rows']) ? absint($_POST['rows']) : 3,
+            'options' => isset($_POST['options']) ? trim($_POST['options']) : '',
+            'option_label' => isset($_POST['option_label']) ? trim($_POST['option_label']) : ''
         );
         
-        // Add ID if editing
-        if (isset($_POST['id']) && !empty($_POST['id'])) {
+        // Add ID if editing - FIXED LOGIC
+        if (isset($_POST['id']) && !empty($_POST['id']) && absint($_POST['id']) > 0) {
             $option_data['id'] = absint($_POST['id']);
+            if (defined('WP_DEBUG') && WP_DEBUG) {
+                error_log('MoBooking: Updating existing option with ID: ' . $option_data['id']);
+            }
+        } else {
+            if (defined('WP_DEBUG') && WP_DEBUG) {
+                error_log('MoBooking: Creating new option');
+            }
         }
         
         // Validate data
@@ -387,7 +459,14 @@ class ServiceOptionsManager {
         $option_id = $this->save_option($option_data);
         
         if (!$option_id) {
-            wp_send_json_error(__('Failed to save option.', 'mobooking'));
+            if (defined('WP_DEBUG') && WP_DEBUG) {
+                error_log('MoBooking: Failed to save option. Data: ' . print_r($option_data, true));
+            }
+            wp_send_json_error(__('Failed to save option. This may be a duplicate name.', 'mobooking'));
+        }
+        
+        if (defined('WP_DEBUG') && WP_DEBUG) {
+            error_log('MoBooking: Option saved successfully with ID: ' . $option_id);
         }
         
         wp_send_json_success(array(
