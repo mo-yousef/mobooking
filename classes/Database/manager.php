@@ -10,6 +10,7 @@ class Manager {
      */
     private $tables = array(
         'services',
+        'service_options', // New separate table for service options
         'bookings',
         'discounts',
         'areas',
@@ -27,14 +28,14 @@ class Manager {
             }
         }
         
-        // Run services migration if needed
-        $this->maybe_migrate_services();
+        // Run migration if needed to move data from unified table to separate tables
+        $this->maybe_migrate_to_separate_tables();
     }
     
     /**
-     * Check if we need to migrate services data
+     * Check if we need to migrate from unified table to separate tables
      */
-    private function maybe_migrate_services() {
+    private function maybe_migrate_to_separate_tables() {
         global $wpdb;
         $services_table = $wpdb->prefix . 'mobooking_services';
         $options_table = $wpdb->prefix . 'mobooking_service_options';
@@ -43,27 +44,21 @@ class Manager {
         $services_exists = $wpdb->get_var("SHOW TABLES LIKE '$services_table'") == $services_table;
         $options_exists = $wpdb->get_var("SHOW TABLES LIKE '$options_table'") == $options_table;
         
-        if ($services_exists) {
-            // Check if entity_type column exists in services table
-            $column_exists = false;
-            $columns = $wpdb->get_results("SHOW COLUMNS FROM $services_table");
-            foreach ($columns as $column) {
-                if ($column->Field == 'entity_type') {
-                    $column_exists = true;
-                    break;
-                }
-            }
+        if ($services_exists && $options_exists) {
+            // Check if there are options in the unified services table that need migration
+            $options_in_services_table = $wpdb->get_var(
+                "SELECT COUNT(*) FROM $services_table WHERE entity_type = 'option'"
+            );
             
-            // If services table exists but doesn't have entity_type column, we need to migrate
-            if (!$column_exists && $options_exists) {
-                $migration = new ServicesTableMigration();
+            if ($options_in_services_table > 0) {
+                $migration = new SeparateTablesMigration();
                 $migration->run();
             }
         }
     }
     
     /**
-     * Create services table
+     * Create services table (simplified, only for services)
      */
     public function create_services_table() {
         global $wpdb;
@@ -74,8 +69,6 @@ class Manager {
         $sql = "CREATE TABLE IF NOT EXISTS $table_name (
             id bigint(20) NOT NULL AUTO_INCREMENT,
             user_id bigint(20) NOT NULL,
-            entity_type varchar(20) DEFAULT 'service',
-            parent_id bigint(20) NULL,
             name varchar(255) NOT NULL,
             description text NULL,
             price decimal(10,2) NOT NULL DEFAULT 0,
@@ -84,7 +77,32 @@ class Manager {
             image_url varchar(255) NULL,
             category varchar(255) NULL,
             status varchar(20) DEFAULT 'active',
-            type varchar(50) NULL,
+            created_at datetime DEFAULT CURRENT_TIMESTAMP,
+            updated_at datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            PRIMARY KEY  (id),
+            KEY user_id (user_id),
+            KEY status (status)
+        ) $charset_collate;";
+        
+        require_once(ABSPATH . 'wp-admin/includes/upgrade.php');
+        dbDelta($sql);
+    }
+    
+    /**
+     * Create service options table (new separate table)
+     */
+    public function create_service_options_table() {
+        global $wpdb;
+        $table_name = $wpdb->prefix . 'mobooking_service_options';
+        
+        $charset_collate = $wpdb->get_charset_collate();
+        
+        $sql = "CREATE TABLE IF NOT EXISTS $table_name (
+            id bigint(20) NOT NULL AUTO_INCREMENT,
+            service_id bigint(20) NOT NULL,
+            name varchar(255) NOT NULL,
+            description text NULL,
+            type varchar(50) NOT NULL DEFAULT 'checkbox',
             is_required tinyint(1) DEFAULT 0,
             default_value text NULL,
             placeholder text NULL,
@@ -103,9 +121,9 @@ class Manager {
             created_at datetime DEFAULT CURRENT_TIMESTAMP,
             updated_at datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
             PRIMARY KEY  (id),
-            KEY user_id (user_id),
-            KEY entity_type (entity_type),
-            KEY parent_id (parent_id)
+            KEY service_id (service_id),
+            KEY display_order (display_order),
+            FOREIGN KEY (service_id) REFERENCES {$wpdb->prefix}mobooking_services(id) ON DELETE CASCADE
         ) $charset_collate;";
         
         require_once(ABSPATH . 'wp-admin/includes/upgrade.php');
@@ -236,26 +254,50 @@ class Manager {
     }
     
     /**
-     * Force recreation of services table
-     * Use with caution - all service data will be lost
+     * Force recreation of tables (use with caution)
      */
-    public function force_recreate_services_table() {
+    public function force_recreate_tables() {
         global $wpdb;
-        $table_name = $wpdb->prefix . 'mobooking_services';
         
-        // Drop the table if it exists
-        $wpdb->query("DROP TABLE IF EXISTS $table_name");
+        $tables = [
+            $wpdb->prefix . 'mobooking_services',
+            $wpdb->prefix . 'mobooking_service_options'
+        ];
         
-        // Recreate the table
+        // Drop tables if they exist
+        foreach ($tables as $table) {
+            $wpdb->query("DROP TABLE IF EXISTS $table");
+        }
+        
+        // Recreate tables
         $this->create_services_table();
+        $this->create_service_options_table();
     }
     
     /**
-     * Migrate services data from old structure to new unified structure
-     * This is a utility method that can be called directly if needed
+     * Utility method to get table info
      */
-    public function migrate_services() {
-        $migration = new ServicesTableMigration();
-        return $migration->run();
+    public function get_table_info($table_name) {
+        global $wpdb;
+        $full_table_name = $wpdb->prefix . 'mobooking_' . $table_name;
+        
+        $exists = $wpdb->get_var("SHOW TABLES LIKE '$full_table_name'") == $full_table_name;
+        
+        if (!$exists) {
+            return [
+                'exists' => false,
+                'columns' => [],
+                'row_count' => 0
+            ];
+        }
+        
+        $columns = $wpdb->get_results("SHOW COLUMNS FROM $full_table_name");
+        $row_count = $wpdb->get_var("SELECT COUNT(*) FROM $full_table_name");
+        
+        return [
+            'exists' => true,
+            'columns' => array_map(function($col) { return $col->Field; }, $columns),
+            'row_count' => intval($row_count)
+        ];
     }
 }

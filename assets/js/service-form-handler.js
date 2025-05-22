@@ -1,28 +1,23 @@
 /**
- * Complete Working Service Form Handler
- * Handles both service data and options with proper debugging and fallback mechanisms
+ * Services Handler for Separate Tables Architecture
+ * Handles services and options with clean separation
  */
 (function ($) {
   "use strict";
 
-  console.log("=== Service Form Handler Loading ===");
+  console.log("=== Services Handler Loading (Separate Tables) ===");
 
   // Cache DOM elements
   const elements = {
-    serviceForm: $("#unified-service-form"),
-    serviceName: $("#service-name"),
-    servicePrice: $("#service-price"),
-    serviceDuration: $("#service-duration"),
-    saveButton: $("#save-service-button"),
+    serviceForm: $("#service-form"),
+    optionModal: $("#option-modal"),
+    optionForm: $("#option-form"),
+    addOptionBtn: $("#add-option-btn"),
     optionsContainer: $("#service-options-container"),
-    addOptionButton: $(".add-new-option-btn"),
+    confirmationModal: $("#confirmation-modal"),
     tabButtons: $(".tab-button"),
     tabPanes: $(".tab-pane"),
-    deleteButtons: $(".delete-service-btn"),
-    confirmationModal: $("#confirmation-modal"),
-    confirmDeleteBtn: $(".confirm-delete-btn"),
-    cancelDeleteBtn: $(".cancel-delete-btn"),
-    modalClose: $(".modal-close"),
+    deleteServiceBtns: $(".delete-service-btn"),
     selectImageBtn: $(".select-image"),
     imagePreview: $(".image-preview"),
     iconItems: $(".icon-item"),
@@ -32,10 +27,10 @@
 
   // Application state
   const state = {
-    nextOptionIndex: 0,
+    currentServiceId: mobookingServices?.currentServiceId || null,
+    currentOptionId: null,
     deleteTarget: null,
     deleteType: null,
-    deleteElement: null,
     isSubmitting: false,
   };
 
@@ -50,35 +45,33 @@
     quantity: "Quantity Selector",
   };
 
-  // Initialize the form handler
+  // Initialize the handler
   function init() {
-    console.log("Initializing Service Form Handler...");
+    console.log("Initializing Services Handler...");
 
-    // Only initialize if the form exists
     if (elements.serviceForm.length === 0) {
       console.log("Service form not found, skipping initialization");
       return;
     }
 
-    // Set initial option index
-    state.nextOptionIndex =
-      elements.optionsContainer.find(".option-card").length;
-    console.log("Initial option count:", state.nextOptionIndex);
-
     attachEventListeners();
     initSortables();
     initMediaUploader();
-    updateAllOptionIndices();
 
-    console.log("Service Form Handler initialized successfully");
+    // Load options if editing a service
+    if (state.currentServiceId) {
+      loadServiceOptions(state.currentServiceId);
+    }
+
+    console.log("Services Handler initialized successfully");
   }
 
   // Attach all event listeners
   function attachEventListeners() {
     console.log("Attaching event listeners...");
 
-    // Form submission
-    elements.serviceForm.on("submit", handleFormSubmit);
+    // Service form submission
+    elements.serviceForm.on("submit", handleServiceSubmit);
 
     // Tab switching
     elements.tabButtons.on("click", function () {
@@ -86,56 +79,45 @@
     });
 
     // Add new option
-    elements.addOptionButton.on("click", addNewOption);
+    elements.addOptionBtn.on("click", showAddOptionModal);
 
-    // Option card interactions (using event delegation)
-    elements.optionsContainer.on("click", ".edit-option-btn", function (e) {
-      e.preventDefault();
-      toggleOptionDetails($(this).closest(".option-card"));
-    });
+    // Option form submission
+    elements.optionForm.on("submit", handleOptionSubmit);
 
-    elements.optionsContainer.on("click", ".remove-option-btn", function (e) {
-      e.preventDefault();
-      removeOption($(this).closest(".option-card"));
-    });
-
-    // Option type change
-    elements.optionsContainer.on("change", ".option-type-select", function () {
-      updateOptionTypeFields($(this).closest(".option-card"), $(this).val());
-    });
-
-    // Price type change
-    elements.optionsContainer.on("change", ".price-type-select", function () {
-      updatePriceFields($(this).closest(".option-card"), $(this).val());
-    });
-
-    // Choice management for select/radio options
-    elements.optionsContainer.on("click", ".add-choice-btn", function (e) {
-      e.preventDefault();
-      addChoiceRow($(this).prev(".choices-list"));
-    });
-
-    elements.optionsContainer.on("click", ".remove-choice-btn", function (e) {
-      e.preventDefault();
-      removeChoiceRow($(this));
-    });
-
-    // Update option name in header when changed
-    elements.optionsContainer.on("input", 'input[name$="[name]"]', function () {
+    // Edit option
+    elements.optionsContainer.on("click", ".edit-option-btn", function () {
       const optionCard = $(this).closest(".option-card");
-      const newName = $(this).val() || "New Option";
-      optionCard.find(".option-name").text(newName);
+      editOption(optionCard.data("option-id"));
+    });
+
+    // Delete option
+    elements.optionsContainer.on("click", ".delete-option-btn", function () {
+      const optionId = $(this).data("option-id");
+      showDeleteConfirmation("option", optionId);
     });
 
     // Service deletion
-    elements.deleteButtons.on("click", function () {
+    elements.deleteServiceBtns.on("click", function () {
       showDeleteConfirmation("service", $(this).data("id"));
     });
 
-    // Confirmation modal
-    elements.confirmDeleteBtn.on("click", handleDeleteConfirmation);
-    elements.cancelDeleteBtn.on("click", hideConfirmationModal);
-    elements.modalClose.on("click", hideConfirmationModal);
+    // Modal events
+    $(".modal-close, .cancel-delete-btn, #cancel-option-btn").on(
+      "click",
+      hideModals
+    );
+
+    $(".confirm-delete-btn").on("click", handleDeleteConfirmation);
+
+    // Option type change
+    $("#option-type").on("change", function () {
+      updateDynamicFields($(this).val());
+    });
+
+    // Price type change
+    $("#option-price-type").on("change", function () {
+      updatePriceImpactVisibility($(this).val());
+    });
 
     // Icon selection
     elements.iconItems.on("click", function () {
@@ -154,9 +136,8 @@
         placeholder: "option-card-placeholder",
         axis: "y",
         opacity: 0.8,
-        tolerance: "pointer",
         update: function () {
-          updateAllOptionIndices();
+          updateOptionsOrder();
         },
       });
       console.log("Options sortable initialized");
@@ -219,370 +200,603 @@
     elements.iconPreview.html('<span class="dashicons ' + icon + '"></span>');
   }
 
-  // Handle form submission
-  function handleFormSubmit(e) {
+  // Handle service form submission
+  function handleServiceSubmit(e) {
     e.preventDefault();
 
     if (state.isSubmitting) {
-      console.log("Form submission already in progress");
       return;
     }
 
-    console.log("=== FORM SUBMISSION STARTED ===");
+    console.log("=== SERVICE SUBMISSION STARTED ===");
 
-    // Validate form
-    if (!validateForm()) {
-      console.log("Form validation failed");
+    if (!validateServiceForm()) {
       return;
     }
 
     state.isSubmitting = true;
-    showLoading(elements.saveButton);
+    showLoading($("#save-service-button"));
 
-    // Prepare and submit form data
-    submitFormData();
-  }
-
-  // Validate the form
-  function validateForm() {
-    console.log("Validating form...");
-
-    let isValid = true;
-    clearErrors();
-
-    // Validate service name
-    if (!elements.serviceName.val().trim()) {
-      showError(elements.serviceName, "Service name is required");
-      isValid = false;
-    }
-
-    // Validate price
-    const price = parseFloat(elements.servicePrice.val());
-    if (isNaN(price) || price <= 0) {
-      showError(elements.servicePrice, "Price must be greater than zero");
-      isValid = false;
-    }
-
-    // Validate duration
-    const duration = parseInt(elements.serviceDuration.val());
-    if (isNaN(duration) || duration < 15) {
-      showError(
-        elements.serviceDuration,
-        "Duration must be at least 15 minutes"
-      );
-      isValid = false;
-    }
-
-    // Validate options
-    elements.optionsContainer.find(".option-card").each(function () {
-      const optionCard = $(this);
-      const nameField = optionCard.find('input[name$="[name]"]');
-      const type = optionCard.find('select[name$="[type]"]').val();
-
-      if (!nameField.val().trim()) {
-        showError(nameField, "Option name is required");
-        // Open the option details if closed
-        const details = optionCard.find(".option-card-details");
-        if (!details.is(":visible")) {
-          details.show();
-        }
-        isValid = false;
-      }
-
-      // For select/radio, validate choices
-      if (
-        (type === "select" || type === "radio") &&
-        optionCard.find(".choices-list").length
-      ) {
-        let hasValidChoice = false;
-        optionCard.find(".choice-row").each(function () {
-          if ($(this).find("input").first().val().trim()) {
-            hasValidChoice = true;
-          }
-        });
-
-        if (!hasValidChoice) {
-          const choicesContainer = optionCard.find(".choices-container");
-          showError(
-            choicesContainer,
-            "At least one choice with a value is required"
-          );
-          isValid = false;
-        }
-      }
-    });
-
-    console.log("Form validation result:", isValid);
-    return isValid;
-  }
-
-  // Submit form data
-  function submitFormData() {
-    console.log("Preparing form data for submission...");
-
-    const serviceData = collectServiceData();
-    const optionsData = collectOptionsData();
-
-    console.log("Service data:", serviceData);
-    console.log("Options data:", optionsData);
-
-    // Try unified save first
-    const unifiedData = Object.assign({}, serviceData, {
-      action: "mobooking_save_unified_service",
-      options: optionsData,
-    });
-
-    console.log("Attempting unified save...");
+    const formData = new FormData(elements.serviceForm[0]);
+    formData.append("action", "mobooking_save_service");
 
     $.ajax({
       url: getAjaxUrl(),
       type: "POST",
-      data: unifiedData,
+      data: formData,
+      processData: false,
+      contentType: false,
       success: function (response) {
-        console.log("Unified save response:", response);
-        handleSaveSuccess(response, "unified");
-      },
-      error: function (xhr, status, error) {
-        console.log("Unified save failed, trying fallback method...");
-        console.error("Unified save error:", error);
-
-        // Fallback to two-step save
-        fallbackSave(serviceData, optionsData);
-      },
-    });
-  }
-
-  // Fallback save method
-  function fallbackSave(serviceData, optionsData) {
-    console.log("Using fallback save method...");
-
-    // First save the service
-    $.ajax({
-      url: getAjaxUrl(),
-      type: "POST",
-      data: Object.assign({}, serviceData, {
-        action: "mobooking_save_service_ajax",
-      }),
-      success: function (serviceResponse) {
-        console.log("Service save response:", serviceResponse);
-
-        if (serviceResponse.success) {
-          const serviceId = serviceResponse.data.id;
-
-          if (optionsData.length > 0) {
-            // Now save options
-            saveOptionsData(serviceId, optionsData);
-          } else {
-            handleSaveSuccess(serviceResponse, "service-only");
-          }
-        } else {
-          handleSaveError(
-            serviceResponse.data.message || "Failed to save service"
-          );
-        }
+        console.log("Service save response:", response);
+        handleServiceSaveSuccess(response);
       },
       error: function (xhr, status, error) {
         console.error("Service save error:", error);
-        handleSaveError("Error saving service: " + error);
+        handleServiceSaveError("Error saving service: " + error);
       },
     });
   }
 
-  // Save options data
-  function saveOptionsData(serviceId, optionsData) {
-    console.log("Saving options for service ID:", serviceId);
+  // Validate service form
+  function validateServiceForm() {
+    let isValid = true;
+    clearErrors();
 
-    $.ajax({
-      url: getAjaxUrl(),
-      type: "POST",
-      data: {
-        action: "mobooking_debug_options_save",
-        service_nonce: getNonce(),
-        service_id: serviceId,
-        options: optionsData,
-      },
-      success: function (optionsResponse) {
-        console.log("Options save response:", optionsResponse);
+    const name = $("#service-name").val().trim();
+    const price = parseFloat($("#service-price").val());
+    const duration = parseInt($("#service-duration").val());
 
-        if (optionsResponse.success) {
-          handleSaveSuccess(optionsResponse, "with-options");
-        } else {
-          handleSaveError(
-            "Options failed to save: " + optionsResponse.data.message
-          );
-        }
-      },
-      error: function (xhr, status, error) {
-        console.error("Options save error:", error);
-        console.log("Response text:", xhr.responseText);
+    if (!name) {
+      showError($("#service-name"), "Service name is required");
+      isValid = false;
+    }
 
-        // Try direct save as last resort
-        directSaveOptions(serviceId, optionsData);
-      },
-    });
+    if (isNaN(price) || price <= 0) {
+      showError($("#service-price"), "Price must be greater than zero");
+      isValid = false;
+    }
+
+    if (isNaN(duration) || duration < 15) {
+      showError($("#service-duration"), "Duration must be at least 15 minutes");
+      isValid = false;
+    }
+
+    return isValid;
   }
 
-  // Direct save options (last resort)
-  function directSaveOptions(serviceId, optionsData) {
-    console.log("Attempting direct options save...");
-
-    $.ajax({
-      url: getAjaxUrl(),
-      type: "POST",
-      data: {
-        action: "mobooking_direct_save_service_options",
-        service_nonce: getNonce(),
-        id: serviceId,
-        options: JSON.stringify(optionsData),
-      },
-      success: function (response) {
-        console.log("Direct save response:", response);
-
-        if (response.success) {
-          handleSaveSuccess(response, "direct");
-        } else {
-          handleSaveError("All save methods failed: " + response.data.message);
-        }
-      },
-      error: function (xhr, status, error) {
-        console.error("Direct save error:", error);
-        handleSaveError(
-          "All save methods failed. Please check your database configuration."
-        );
-      },
-    });
-  }
-
-  // Handle successful save
-  function handleSaveSuccess(response, method) {
-    console.log("Save successful using method:", method);
-
+  // Handle successful service save
+  function handleServiceSaveSuccess(response) {
     state.isSubmitting = false;
-    hideLoading(elements.saveButton);
+    hideLoading($("#save-service-button"));
 
-    showNotification("Service and options saved successfully!", "success");
+    if (response.success) {
+      showNotification("Service saved successfully!", "success");
 
-    // Redirect or reload
-    setTimeout(function () {
-      const serviceId = response.data.id || $("#service-id").val();
-      if (!$("#service-id").val() && serviceId) {
-        // New service - redirect to edit page
-        window.location.href =
-          window.location.pathname + "?view=edit&service_id=" + serviceId;
-      } else {
-        // Existing service - reload page
-        window.location.reload();
+      // Update service ID if this was a new service
+      if (response.data.id && !state.currentServiceId) {
+        state.currentServiceId = response.data.id;
+        $("#service-id").val(response.data.id);
+        $("#option-service-id").val(response.data.id);
+
+        // Update URL and switch to options tab
+        const newUrl =
+          window.location.pathname +
+          "?view=edit&service_id=" +
+          response.data.id +
+          "&active_tab=options";
+        window.history.pushState({}, "", newUrl);
+        switchTab("options");
+
+        // Show add option button since we can now add options
+        elements.addOptionBtn.show();
       }
-    }, 1500);
+    } else {
+      handleServiceSaveError(
+        response.data?.message || "Failed to save service"
+      );
+    }
   }
 
-  // Handle save error
-  function handleSaveError(message) {
-    console.error("Save error:", message);
-
+  // Handle service save error
+  function handleServiceSaveError(message) {
     state.isSubmitting = false;
-    hideLoading(elements.saveButton);
+    hideLoading($("#save-service-button"));
     showNotification("Error: " + message, "error");
   }
 
-  // Collect service data from form
-  function collectServiceData() {
-    return {
-      service_nonce: getNonce(),
-      id: $("#service-id").val(),
-      service_id: $("#service-id").val(), // For backward compatibility
-      name: elements.serviceName.val(),
-      description: $("#service-description").val(),
-      price: elements.servicePrice.val(),
-      duration: elements.serviceDuration.val(),
-      icon: elements.iconSelect.val(),
-      category: $("#service-category").val(),
-      image_url: $("#service-image").val(),
-      status: $("#service-status").val(),
-    };
+  // Load service options
+  function loadServiceOptions(serviceId) {
+    if (!serviceId) {
+      return;
+    }
+
+    console.log("Loading options for service:", serviceId);
+
+    $.ajax({
+      url: getAjaxUrl(),
+      type: "POST",
+      data: {
+        action: "mobooking_get_service_options",
+        service_id: serviceId,
+        nonce: getNonce(),
+      },
+      success: function (response) {
+        console.log("Options loaded:", response);
+
+        if (response.success && response.data.options) {
+          displayOptions(response.data.options);
+        } else {
+          showNoOptionsMessage();
+        }
+      },
+      error: function (xhr, status, error) {
+        console.error("Error loading options:", error);
+        showNoOptionsMessage();
+      },
+    });
   }
 
-  // Collect options data from form
-  function collectOptionsData() {
-    const options = [];
+  // Display options in the container
+  function displayOptions(options) {
+    elements.optionsContainer.empty();
 
-    elements.optionsContainer.find(".option-card").each(function (index) {
-      const card = $(this);
-      const type = card.find('select[name$="[type]"]').val() || "checkbox";
+    if (!options || options.length === 0) {
+      showNoOptionsMessage();
+      return;
+    }
 
-      const option = {
-        name: card.find('input[name$="[name]"]').val(),
-        description: card.find('input[name$="[description]"]').val() || "",
-        type: type,
-        is_required: card.find('select[name$="[is_required]"]').val() || "0",
-        price_type: card.find('select[name$="[price_type]"]').val() || "fixed",
-        price_impact: card.find('input[name$="[price_impact]"]').val() || "0",
-        display_order: index,
-      };
-
-      // Add type-specific fields
-      switch (type) {
-        case "checkbox":
-          option.default_value =
-            card.find('select[name$="[default_value]"]').val() || "0";
-          option.option_label =
-            card.find('input[name$="[option_label]"]').val() || "";
-          break;
-
-        case "select":
-        case "radio":
-          option.options = formatChoicesAsString(card.find(".choices-list"));
-          option.default_value =
-            card.find('input[name$="[default_value]"]').val() || "";
-          break;
-
-        case "number":
-        case "quantity":
-          option.min_value =
-            card.find('input[name$="[min_value]"]').val() || "";
-          option.max_value =
-            card.find('input[name$="[max_value]"]').val() || "";
-          option.default_value =
-            card.find('input[name$="[default_value]"]').val() || "";
-          option.step = card.find('input[name$="[step]"]').val() || "1";
-          option.unit = card.find('input[name$="[unit]"]').val() || "";
-          break;
-
-        case "text":
-          option.default_value =
-            card.find('input[name$="[default_value]"]').val() || "";
-          option.placeholder =
-            card.find('input[name$="[placeholder]"]').val() || "";
-          option.min_length =
-            card.find('input[name$="[min_length]"]').val() || "";
-          option.max_length =
-            card.find('input[name$="[max_length]"]').val() || "";
-          break;
-
-        case "textarea":
-          option.default_value =
-            card.find('textarea[name$="[default_value]"]').val() || "";
-          option.placeholder =
-            card.find('input[name$="[placeholder]"]').val() || "";
-          option.rows = card.find('input[name$="[rows]"]').val() || "3";
-          option.max_length =
-            card.find('input[name$="[max_length]"]').val() || "";
-          break;
-      }
-
-      if (option.name && option.name.trim()) {
-        options.push(option);
-      }
+    options.forEach(function (option) {
+      const optionCard = createOptionCard(option);
+      elements.optionsContainer.append(optionCard);
     });
 
-    return options;
+    // Update sortable
+    if (elements.optionsContainer.hasClass("ui-sortable")) {
+      elements.optionsContainer.sortable("refresh");
+    }
   }
 
-  // Format choices as string for storage
-  function formatChoicesAsString(choicesList) {
+  // Create option card HTML
+  function createOptionCard(option) {
+    const optionTypeLabel = optionTypes[option.type] || option.type;
+    const requiredBadge =
+      option.is_required == 1
+        ? '<span class="option-required">Required</span>'
+        : "";
+
+    return $(`
+      <div class="option-card" data-option-id="${option.id}">
+        <div class="option-card-header">
+          <div class="option-drag-handle">
+            <span class="dashicons dashicons-menu"></span>
+          </div>
+          <div class="option-title">
+            <span class="option-name">${escapeHtml(option.name)}</span>
+            <span class="option-type">${escapeHtml(optionTypeLabel)}</span>
+            ${requiredBadge}
+          </div>
+          <div class="option-actions">
+            <button type="button" class="button button-small edit-option-btn">
+              <span class="dashicons dashicons-edit"></span>
+            </button>
+            <button type="button" class="button button-small delete-option-btn" data-option-id="${
+              option.id
+            }">
+              <span class="dashicons dashicons-trash"></span>
+            </button>
+          </div>
+        </div>
+      </div>
+    `);
+  }
+
+  // Show no options message
+  function showNoOptionsMessage() {
+    elements.optionsContainer.html(`
+      <div class="no-options-message">
+        <span class="dashicons dashicons-admin-generic"></span>
+        <p>No options configured yet. Add your first option to customize this service.</p>
+      </div>
+    `);
+  }
+
+  // Show add option modal
+  function showAddOptionModal() {
+    if (!state.currentServiceId) {
+      showNotification(
+        "Please save the service first before adding options",
+        "warning"
+      );
+      return;
+    }
+
+    state.currentOptionId = null;
+    resetOptionForm();
+    $("#option-modal-title").text("Add New Option");
+    $("#delete-option-btn").hide();
+    updateDynamicFields("checkbox");
+    updatePriceImpactVisibility("fixed");
+    elements.optionModal.show();
+  }
+
+  // Edit option
+  function editOption(optionId) {
+    if (!optionId) {
+      return;
+    }
+
+    state.currentOptionId = optionId;
+
+    $.ajax({
+      url: getAjaxUrl(),
+      type: "POST",
+      data: {
+        action: "mobooking_get_service_option",
+        id: optionId,
+        nonce: getNonce(),
+      },
+      success: function (response) {
+        console.log("Option loaded:", response);
+
+        if (response.success && response.data.option) {
+          populateOptionForm(response.data.option);
+          $("#option-modal-title").text("Edit Option");
+          $("#delete-option-btn").show();
+          elements.optionModal.show();
+        } else {
+          showNotification("Error loading option", "error");
+        }
+      },
+      error: function (xhr, status, error) {
+        console.error("Error loading option:", error);
+        showNotification("Error loading option", "error");
+      },
+    });
+  }
+
+  // Reset option form
+  function resetOptionForm() {
+    elements.optionForm[0].reset();
+    $("#option-id").val("");
+    $("#option-service-id").val(state.currentServiceId);
+    $("#option-dynamic-fields").empty();
+  }
+
+  // Populate option form with data
+  function populateOptionForm(option) {
+    $("#option-id").val(option.id);
+    $("#option-service-id").val(option.service_id);
+    $("#option-name").val(option.name);
+    $("#option-description").val(option.description || "");
+    $("#option-type").val(option.type);
+    $("#option-required").val(option.is_required || "0");
+    $("#option-price-type").val(option.price_type || "fixed");
+    $("#option-price-impact").val(option.price_impact || "0");
+
+    updateDynamicFields(option.type, option);
+    updatePriceImpactVisibility(option.price_type || "fixed");
+  }
+
+  // Update dynamic fields based on option type
+  function updateDynamicFields(type, optionData = {}) {
+    const container = $("#option-dynamic-fields");
+    container.empty();
+
+    let fieldsHtml = "";
+
+    switch (type) {
+      case "checkbox":
+        fieldsHtml = `
+          <div class="form-row">
+            <div class="form-group half">
+              <label for="option-default-value">Default Value</label>
+              <select id="option-default-value" name="default_value">
+                <option value="0" ${
+                  optionData.default_value != "1" ? "selected" : ""
+                }>Unchecked</option>
+                <option value="1" ${
+                  optionData.default_value == "1" ? "selected" : ""
+                }>Checked</option>
+              </select>
+            </div>
+            <div class="form-group half">
+              <label for="option-label">Option Label</label>
+              <input type="text" id="option-label" name="option_label" value="${escapeHtml(
+                optionData.option_label || ""
+              )}" placeholder="Check this box to add...">
+            </div>
+          </div>
+        `;
+        break;
+
+      case "select":
+      case "radio":
+        const choices = parseChoices(optionData.options || "");
+        fieldsHtml = `
+          <div class="form-group">
+            <label>Choices</label>
+            <div class="choices-container">
+              <div class="choices-list" id="choices-list">
+                ${choices
+                  .map((choice, index) =>
+                    createChoiceRow(choice.value, choice.label, choice.price)
+                  )
+                  .join("")}
+              </div>
+              <button type="button" class="button button-secondary" id="add-choice-btn">Add Choice</button>
+            </div>
+          </div>
+          <div class="form-group">
+            <label for="option-default-value">Default Value</label>
+            <input type="text" id="option-default-value" name="default_value" value="${escapeHtml(
+              optionData.default_value || ""
+            )}" placeholder="Enter the value of the default choice">
+          </div>
+        `;
+        break;
+
+      case "number":
+      case "quantity":
+        fieldsHtml = `
+          <div class="form-row">
+            <div class="form-group half">
+              <label for="option-min-value">Minimum Value</label>
+              <input type="number" id="option-min-value" name="min_value" value="${
+                optionData.min_value !== null ? optionData.min_value : ""
+              }" step="any">
+            </div>
+            <div class="form-group half">
+              <label for="option-max-value">Maximum Value</label>
+              <input type="number" id="option-max-value" name="max_value" value="${
+                optionData.max_value !== null ? optionData.max_value : ""
+              }" step="any">
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group half">
+              <label for="option-default-value">Default Value</label>
+              <input type="number" id="option-default-value" name="default_value" value="${
+                optionData.default_value || ""
+              }" step="any">
+            </div>
+            <div class="form-group half">
+              <label for="option-step">Step</label>
+              <input type="number" id="option-step" name="step" value="${
+                optionData.step || "1"
+              }" step="any">
+            </div>
+          </div>
+          <div class="form-group">
+            <label for="option-unit">Unit Label</label>
+            <input type="text" id="option-unit" name="unit" value="${escapeHtml(
+              optionData.unit || ""
+            )}" placeholder="e.g., hours, sq ft">
+          </div>
+        `;
+        break;
+
+      case "text":
+        fieldsHtml = `
+          <div class="form-row">
+            <div class="form-group half">
+              <label for="option-default-value">Default Value</label>
+              <input type="text" id="option-default-value" name="default_value" value="${escapeHtml(
+                optionData.default_value || ""
+              )}">
+            </div>
+            <div class="form-group half">
+              <label for="option-placeholder">Placeholder</label>
+              <input type="text" id="option-placeholder" name="placeholder" value="${escapeHtml(
+                optionData.placeholder || ""
+              )}">
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group half">
+              <label for="option-min-length">Minimum Length</label>
+              <input type="number" id="option-min-length" name="min_length" value="${
+                optionData.min_length !== null ? optionData.min_length : ""
+              }" min="0">
+            </div>
+            <div class="form-group half">
+              <label for="option-max-length">Maximum Length</label>
+              <input type="number" id="option-max-length" name="max_length" value="${
+                optionData.max_length !== null ? optionData.max_length : ""
+              }" min="0">
+            </div>
+          </div>
+        `;
+        break;
+
+      case "textarea":
+        fieldsHtml = `
+          <div class="form-group">
+            <label for="option-default-value">Default Value</label>
+            <textarea id="option-default-value" name="default_value" rows="3">${escapeHtml(
+              optionData.default_value || ""
+            )}</textarea>
+          </div>
+          <div class="form-row">
+            <div class="form-group half">
+              <label for="option-placeholder">Placeholder</label>
+              <input type="text" id="option-placeholder" name="placeholder" value="${escapeHtml(
+                optionData.placeholder || ""
+              )}">
+            </div>
+            <div class="form-group half">
+              <label for="option-rows">Rows</label>
+              <input type="number" id="option-rows" name="rows" value="${
+                optionData.rows || "3"
+              }" min="2">
+            </div>
+          </div>
+          <div class="form-group">
+            <label for="option-max-length">Maximum Length</label>
+            <input type="number" id="option-max-length" name="max_length" value="${
+              optionData.max_length !== null ? optionData.max_length : ""
+            }" min="0">
+          </div>
+        `;
+        break;
+    }
+
+    container.html(fieldsHtml);
+
+    // Attach events for choices if needed
+    if (type === "select" || type === "radio") {
+      attachChoiceEvents();
+    }
+  }
+
+  // Parse choices from options string
+  function parseChoices(optionsString) {
+    if (!optionsString) {
+      return [{ value: "", label: "", price: 0 }];
+    }
+
+    const choices = [];
+    const lines = optionsString.split("\n");
+
+    lines.forEach(function (line) {
+      line = line.trim();
+      if (!line) return;
+
+      const parts = line.split("|");
+      const value = parts[0]?.trim() || "";
+
+      let label = value;
+      let price = 0;
+
+      if (parts[1]) {
+        const labelPriceParts = parts[1].split(":");
+        label = labelPriceParts[0]?.trim() || value;
+        price = parseFloat(labelPriceParts[1]) || 0;
+      }
+
+      choices.push({ value, label, price });
+    });
+
+    return choices.length > 0 ? choices : [{ value: "", label: "", price: 0 }];
+  }
+
+  // Create choice row HTML
+  function createChoiceRow(value = "", label = "", price = 0) {
+    return `
+      <div class="choice-row">
+        <div class="choice-value">
+          <input type="text" placeholder="Value" value="${escapeHtml(value)}">
+        </div>
+        <div class="choice-label">
+          <input type="text" placeholder="Label" value="${escapeHtml(label)}">
+        </div>
+        <div class="choice-price">
+          <input type="number" placeholder="0.00" value="${price}" step="0.01">
+        </div>
+        <div class="choice-actions">
+          <button type="button" class="remove-choice-btn">
+            <span class="dashicons dashicons-trash"></span>
+          </button>
+        </div>
+      </div>
+    `;
+  }
+
+  // Attach events for choices management
+  function attachChoiceEvents() {
+    $("#add-choice-btn").on("click", function () {
+      $("#choices-list").append(createChoiceRow());
+    });
+
+    $(document).on("click", ".remove-choice-btn", function () {
+      const choicesCount = $("#choices-list .choice-row").length;
+      if (choicesCount <= 1) {
+        showNotification("You must have at least one choice", "warning");
+        return;
+      }
+      $(this).closest(".choice-row").remove();
+    });
+  }
+
+  // Update price impact visibility
+  function updatePriceImpactVisibility(priceType) {
+    const group = $("#price-impact-group");
+    if (priceType === "none") {
+      group.hide();
+    } else {
+      group.show();
+    }
+  }
+
+  // Handle option form submission
+  function handleOptionSubmit(e) {
+    e.preventDefault();
+
+    if (!validateOptionForm()) {
+      return;
+    }
+
+    console.log("=== OPTION SUBMISSION STARTED ===");
+
+    showLoading(elements.optionForm.find('button[type="submit"]'));
+
+    const formData = new FormData(elements.optionForm[0]);
+    formData.append("action", "mobooking_save_service_option");
+
+    // Process choices for select/radio types
+    const optionType = $("#option-type").val();
+    if (optionType === "select" || optionType === "radio") {
+      const choices = collectChoices();
+      formData.append("options", choices);
+    }
+
+    $.ajax({
+      url: getAjaxUrl(),
+      type: "POST",
+      data: formData,
+      processData: false,
+      contentType: false,
+      success: function (response) {
+        console.log("Option save response:", response);
+        handleOptionSaveSuccess(response);
+      },
+      error: function (xhr, status, error) {
+        console.error("Option save error:", error);
+        handleOptionSaveError("Error saving option: " + error);
+      },
+    });
+  }
+
+  // Validate option form
+  function validateOptionForm() {
+    let isValid = true;
+    clearErrors();
+
+    const name = $("#option-name").val().trim();
+    if (!name) {
+      showError($("#option-name"), "Option name is required");
+      isValid = false;
+    }
+
+    const optionType = $("#option-type").val();
+    if (optionType === "select" || optionType === "radio") {
+      const choices = collectChoices();
+      if (!choices || choices.trim() === "") {
+        showNotification(
+          "At least one choice with a value is required",
+          "error"
+        );
+        isValid = false;
+      }
+    }
+
+    return isValid;
+  }
+
+  // Collect choices data
+  function collectChoices() {
     const choices = [];
 
-    choicesList.find(".choice-row").each(function () {
+    $("#choices-list .choice-row").each(function () {
       const value = $(this).find("input").eq(0).val().trim();
       const label = $(this).find("input").eq(1).val().trim();
       const price = parseFloat($(this).find("input").eq(2).val()) || 0;
@@ -599,311 +813,59 @@
     return choices.join("\n");
   }
 
-  // Add new option
-  function addNewOption() {
-    console.log("Adding new option...");
+  // Handle successful option save
+  function handleOptionSaveSuccess(response) {
+    hideLoading(elements.optionForm.find('button[type="submit"]'));
 
-    const optionIndex = state.nextOptionIndex++;
-    const optionHtml = createOptionCardHtml(optionIndex);
-
-    elements.optionsContainer.append(optionHtml);
-
-    // Initialize the new option
-    const newCard = elements.optionsContainer.find(".option-card").last();
-    initChoicesSortable(newCard.find(".choices-list"));
-
-    // Show the details by default for new options
-    newCard.find(".option-card-details").show();
-
-    // Scroll to the new option
-    $("html, body").animate(
-      {
-        scrollTop: newCard.offset().top - 100,
-      },
-      500
-    );
-  }
-
-  // Create option card HTML
-  function createOptionCardHtml(index) {
-    return `
-            <div class="option-card" data-option-index="${index}">
-                <div class="option-card-header">
-                    <div class="option-drag-handle">
-                        <span class="dashicons dashicons-menu"></span>
-                    </div>
-                    <div class="option-title">
-                        <span class="option-name">New Option</span>
-                        <span class="option-type">Checkbox</span>
-                    </div>
-                    <div class="option-actions">
-                        <button type="button" class="button button-small edit-option-btn">
-                            <span class="dashicons dashicons-edit"></span>
-                        </button>
-                        <button type="button" class="button button-small remove-option-btn">
-                            <span class="dashicons dashicons-trash"></span>
-                        </button>
-                    </div>
-                </div>
-                <div class="option-card-details" style="display: none;">
-                    <div class="option-form">
-                        <div class="form-row">
-                            <div class="form-group half">
-                                <label>Option Name <span class="required">*</span></label>
-                                <input type="text" name="options[${index}][name]" value="New Option" required>
-                            </div>
-                            <div class="form-group half">
-                                <label>Option Type</label>
-                                <select name="options[${index}][type]" class="option-type-select">
-                                    ${Object.keys(optionTypes)
-                                      .map(
-                                        (key) =>
-                                          `<option value="${key}">${optionTypes[key]}</option>`
-                                      )
-                                      .join("")}
-                                </select>
-                            </div>
-                        </div>
-                        
-                        <div class="form-row">
-                            <div class="form-group half">
-                                <label>Required?</label>
-                                <select name="options[${index}][is_required]">
-                                    <option value="0">Optional</option>
-                                    <option value="1">Required</option>
-                                </select>
-                            </div>
-                            <div class="form-group half">
-                                <label>Description</label>
-                                <input type="text" name="options[${index}][description]" value="">
-                            </div>
-                        </div>
-                        
-                        <div class="option-type-fields">
-                            <!-- Default checkbox fields -->
-                            <div class="form-row">
-                                <div class="form-group half">
-                                    <label>Default Value</label>
-                                    <select name="options[${index}][default_value]">
-                                        <option value="0">Unchecked</option>
-                                        <option value="1">Checked</option>
-                                    </select>
-                                </div>
-                                <div class="form-group half">
-                                    <label>Option Label</label>
-                                    <input type="text" name="options[${index}][option_label]" value="">
-                                </div>
-                            </div>
-                        </div>
-                        
-                        <div class="form-row price-impact-section">
-                            <div class="form-group half">
-                                <label>Price Impact Type</label>
-                                <select name="options[${index}][price_type]" class="price-type-select">
-                                    <option value="fixed">Fixed Amount</option>
-                                    <option value="percentage">Percentage</option>
-                                    <option value="multiply">Multiply by Value</option>
-                                    <option value="none">No Price Impact</option>
-                                </select>
-                            </div>
-                            <div class="form-group half price-impact-value">
-                                <label>Price Impact Value</label>
-                                <input type="number" name="options[${index}][price_impact]" value="0" step="0.01">
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        `;
-  }
-
-  // Toggle option details
-  function toggleOptionDetails(optionCard) {
-    const details = optionCard.find(".option-card-details");
-
-    if (details.is(":visible")) {
-      details.slideUp(200);
+    if (response.success) {
+      showNotification("Option saved successfully!", "success");
+      hideModals();
+      loadServiceOptions(state.currentServiceId);
     } else {
-      // Close other open details
-      $(".option-card-details").not(details).slideUp(200);
-      details.slideDown(200);
+      handleOptionSaveError(response.data?.message || "Failed to save option");
     }
   }
 
-  // Remove option
-  function removeOption(optionCard) {
-    const optionId = optionCard.find('input[name$="[id]"]').val();
-
-    if (optionId) {
-      showDeleteConfirmation("option", optionId, optionCard);
-    } else {
-      // Just remove new options
-      optionCard.fadeOut(300, function () {
-        $(this).remove();
-        updateAllOptionIndices();
-      });
-    }
+  // Handle option save error
+  function handleOptionSaveError(message) {
+    hideLoading(elements.optionForm.find('button[type="submit"]'));
+    showNotification("Error: " + message, "error");
   }
 
-  // Update option type fields
-  function updateOptionTypeFields(optionCard, type) {
-    const fieldsContainer = optionCard.find(".option-type-fields");
-    const optionIndex = optionCard.data("option-index");
+  // Update options order
+  function updateOptionsOrder() {
+    const orderData = [];
 
-    // Update type display in header
-    optionCard.find(".option-type").text(optionTypes[type] || type);
-
-    // Clear current fields
-    fieldsContainer.empty();
-
-    // Add type-specific fields
-    let fieldsHtml = "";
-
-    switch (type) {
-      case "checkbox":
-        fieldsHtml = `
-                    <div class="form-row">
-                        <div class="form-group half">
-                            <label>Default Value</label>
-                            <select name="options[${optionIndex}][default_value]">
-                                <option value="0">Unchecked</option>
-                                <option value="1">Checked</option>
-                            </select>
-                        </div>
-                        <div class="form-group half">
-                            <label>Option Label</label>
-                            <input type="text" name="options[${optionIndex}][option_label]" value="">
-                        </div>
-                    </div>
-                `;
-        break;
-
-      case "select":
-      case "radio":
-        fieldsHtml = `
-                    <div class="form-group">
-                        <label>Choices</label>
-                        <div class="choices-container">
-                            <div class="choices-list"></div>
-                            <button type="button" class="add-choice-btn button-secondary">Add Choice</button>
-                        </div>
-                    </div>
-                    <div class="form-group">
-                        <label>Default Value</label>
-                        <input type="text" name="options[${optionIndex}][default_value]" value="" 
-                               placeholder="Enter the value of the default choice">
-                    </div>
-                `;
-        break;
-
-      // Add other types as needed...
-    }
-
-    fieldsContainer.html(fieldsHtml);
-
-    // Initialize choices for select/radio
-    if (type === "select" || type === "radio") {
-      const choicesList = fieldsContainer.find(".choices-list");
-      addChoiceRow(choicesList); // Add initial choice
-      initChoicesSortable(choicesList);
-    }
-  }
-
-  // Add choice row
-  function addChoiceRow(choicesList) {
-    const choiceIndex = choicesList.find(".choice-row").length;
-
-    const choiceHtml = `
-            <div class="choice-row">
-                <div class="choice-drag-handle">
-                    <span class="dashicons dashicons-menu"></span>
-                </div>
-                <div class="choice-value">
-                    <input type="text" placeholder="Value" value="">
-                </div>
-                <div class="choice-label">
-                    <input type="text" placeholder="Label" value="">
-                </div>
-                <div class="choice-price">
-                    <input type="number" placeholder="0.00" value="0" step="0.01">
-                </div>
-                <div class="choice-actions">
-                    <button type="button" class="remove-choice-btn">
-                        <span class="dashicons dashicons-trash"></span>
-                    </button>
-                </div>
-            </div>
-        `;
-
-    choicesList.append(choiceHtml);
-  }
-
-  // Remove choice row
-  function removeChoiceRow(button) {
-    const choiceRow = button.closest(".choice-row");
-    const choicesList = choiceRow.parent();
-
-    if (choicesList.find(".choice-row").length <= 1) {
-      showNotification("You must have at least one choice", "warning");
-      return;
-    }
-
-    choiceRow.remove();
-  }
-
-  // Initialize choices sortable
-  function initChoicesSortable(choicesList) {
-    if ($.fn.sortable && choicesList.length) {
-      choicesList.sortable({
-        handle: ".choice-drag-handle",
-        items: ".choice-row",
-        placeholder: "choice-row-placeholder",
-        axis: "y",
-        opacity: 0.8,
-      });
-    }
-  }
-
-  // Update price fields
-  function updatePriceFields(optionCard, priceType) {
-    const valueContainer = optionCard.find(".price-impact-value");
-
-    if (priceType === "none") {
-      valueContainer.hide();
-    } else {
-      valueContainer.show();
-    }
-  }
-
-  // Update all option indices
-  function updateAllOptionIndices() {
     elements.optionsContainer.find(".option-card").each(function (index) {
-      const card = $(this);
-      card.attr("data-option-index", index);
-
-      // Update all input names
-      card.find("input, select, textarea").each(function () {
-        const input = $(this);
-        const name = input.attr("name");
-
-        if (name && name.includes("options[")) {
-          const newName = name.replace(
-            /options\[\d+\]/,
-            "options[" + index + "]"
-          );
-          input.attr("name", newName);
-        }
+      orderData.push({
+        id: $(this).data("option-id"),
+        order: index,
       });
     });
 
-    state.nextOptionIndex =
-      elements.optionsContainer.find(".option-card").length;
+    $.ajax({
+      url: getAjaxUrl(),
+      type: "POST",
+      data: {
+        action: "mobooking_update_options_order",
+        service_id: state.currentServiceId,
+        order_data: JSON.stringify(orderData),
+        nonce: getNonce(),
+      },
+      success: function (response) {
+        if (response.success) {
+          console.log("Options order updated");
+        }
+      },
+      error: function (xhr, status, error) {
+        console.error("Error updating options order:", error);
+      },
+    });
   }
 
   // Show/hide loading state
   function showLoading(button) {
     button.prop("disabled", true);
-
     const normalState = button.find(".normal-state");
     const loadingState = button.find(".loading-state");
 
@@ -918,7 +880,6 @@
 
   function hideLoading(button) {
     button.prop("disabled", false);
-
     const normalState = button.find(".normal-state");
     const loadingState = button.find(".loading-state");
 
@@ -933,11 +894,7 @@
   // Show error
   function showError(element, message) {
     element.addClass("has-error");
-
-    // Remove existing error
     element.next(".field-error").remove();
-
-    // Add error message
     element.after('<div class="field-error">' + message + "</div>");
   }
 
@@ -959,20 +916,20 @@
     };
 
     const notification = $(`
-            <div id="mobooking-notification" style="
-                position: fixed; 
-                top: 20px; 
-                right: 20px; 
-                background: ${colors[type]}; 
-                color: white; 
-                padding: 15px 20px; 
-                border-radius: 5px; 
-                z-index: 9999;
-                box-shadow: 0 2px 10px rgba(0,0,0,0.2);
-                max-width: 300px;
-                font-weight: 500;
-            ">${message}</div>
-        `);
+      <div id="mobooking-notification" style="
+        position: fixed; 
+        top: 20px; 
+        right: 20px; 
+        background: ${colors[type]}; 
+        color: white; 
+        padding: 15px 20px; 
+        border-radius: 5px; 
+        z-index: 9999;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+        max-width: 300px;
+        font-weight: 500;
+      ">${message}</div>
+    `);
 
     $("body").append(notification);
 
@@ -984,26 +941,23 @@
   }
 
   // Delete confirmation
-  function showDeleteConfirmation(type, id, element) {
+  function showDeleteConfirmation(type, id) {
     state.deleteType = type;
     state.deleteTarget = id;
-    state.deleteElement = element;
-
     elements.confirmationModal.show();
   }
 
-  function hideConfirmationModal() {
-    elements.confirmationModal.hide();
+  function hideModals() {
+    $(".mobooking-modal").hide();
     state.deleteType = null;
     state.deleteTarget = null;
-    state.deleteElement = null;
   }
 
   function handleDeleteConfirmation() {
     if (state.deleteType === "service") {
       deleteService(state.deleteTarget);
     } else if (state.deleteType === "option") {
-      deleteOption(state.deleteTarget, state.deleteElement);
+      deleteOption(state.deleteTarget);
     }
   }
 
@@ -1025,40 +979,54 @@
         } else {
           showNotification("Error deleting service", "error");
         }
-        hideConfirmationModal();
+        hideModals();
       },
       error: function () {
         showNotification("Error deleting service", "error");
-        hideConfirmationModal();
+        hideModals();
       },
     });
   }
 
-  function deleteOption(optionId, optionElement) {
-    if (optionElement) {
-      optionElement.fadeOut(300, function () {
-        $(this).remove();
-        updateAllOptionIndices();
-      });
-    }
-    hideConfirmationModal();
+  function deleteOption(optionId) {
+    $.ajax({
+      url: getAjaxUrl(),
+      type: "POST",
+      data: {
+        action: "mobooking_delete_service_option",
+        id: optionId,
+        nonce: getNonce(),
+      },
+      success: function (response) {
+        if (response.success) {
+          showNotification("Option deleted successfully", "success");
+          loadServiceOptions(state.currentServiceId);
+        } else {
+          showNotification("Error deleting option", "error");
+        }
+        hideModals();
+      },
+      error: function () {
+        showNotification("Error deleting option", "error");
+        hideModals();
+      },
+    });
   }
 
   // Utility functions
   function getAjaxUrl() {
-    return (
-      (typeof mobookingData !== "undefined" && mobookingData.ajaxUrl) ||
-      (typeof mobooking_data !== "undefined" && mobooking_data.ajax_url) ||
-      "/wp-admin/admin-ajax.php"
-    );
+    return mobookingServices?.ajaxUrl || "/wp-admin/admin-ajax.php";
   }
 
   function getNonce() {
-    return (
-      (typeof mobookingData !== "undefined" && mobookingData.serviceNonce) ||
-      (typeof mobooking_data !== "undefined" && mobooking_data.nonce) ||
-      ""
-    );
+    return mobookingServices?.serviceNonce || "";
+  }
+
+  function escapeHtml(text) {
+    if (!text) return "";
+    const div = document.createElement("div");
+    div.textContent = text;
+    return div.innerHTML;
   }
 
   // Initialize when document is ready

@@ -470,12 +470,7 @@ add_action('wp_ajax_mobooking_debug_save_options', function() {
         'count' => $success_count
     ]);
 });
-// Add this code temporarily to your theme's functions.php, then load any page once:
-add_action('init', function() {
-    $migration = new MoBooking\Database\ServicesTableMigration();
-    $result = $migration->run();
-    error_log('Migration result: ' . ($result ? 'Success' : 'Failed'));
-});
+
 
 
 
