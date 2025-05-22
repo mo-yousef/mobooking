@@ -27,7 +27,7 @@ class Loader {
         // Initialize core modules
         new \MoBooking\Auth\Manager();
         new \MoBooking\Dashboard\Manager();
-        // new \MoBooking\Services\ServiceManager(); // Updated to use ServiceManager directly
+        new \MoBooking\Services\ServiceManager(); // Uncomment this line
         new \MoBooking\Bookings\Manager();
         new \MoBooking\Discounts\Manager();
         new \MoBooking\Geography\Manager();

@@ -124,9 +124,6 @@ body {
 }
 
 /* Sidebar Styles */
-.admin-bar .mobooking-dashboard-sidebar {
-  margin-top: 32px;
-}
 
 .mobooking-dashboard-sidebar {
   width: var(--sidebar-width);
@@ -385,7 +382,8 @@ body {
   border-bottom: none;
 }
 
-.booking-row {}
+.booking-row {
+}
 
 .booking-row:hover {
   background-color: rgba(0, 0, 0, 0.02);

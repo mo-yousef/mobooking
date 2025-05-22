@@ -782,3 +782,21 @@ function mobooking_fix_tables() {
         'message' => $exists ? 'Service options table created successfully!' : 'Failed to create table'
     ));
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

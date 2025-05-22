@@ -9,60 +9,30 @@ class ServiceManager {
      * Constructor
      */
     public function __construct() {
-        // Register AJAX handlers
+        // Register AJAX handlers for services
         add_action('wp_ajax_mobooking_save_service', array($this, 'ajax_save_service'));
         add_action('wp_ajax_mobooking_delete_service', array($this, 'ajax_delete_service'));
         add_action('wp_ajax_mobooking_get_services', array($this, 'ajax_get_services'));
-        add_action('wp_ajax_mobooking_get_service', array($this, 'ajax_get_service'));
         
-        // Add shortcodes
-        add_shortcode('mobooking_service_list', array($this, 'service_list_shortcode'));
+        // Register AJAX handlers for service options
+        add_action('wp_ajax_mobooking_save_service_option', array($this, 'ajax_save_service_option'));
+        add_action('wp_ajax_mobooking_delete_service_option', array($this, 'ajax_delete_service_option'));
+        add_action('wp_ajax_mobooking_get_service_options', array($this, 'ajax_get_service_options'));
+        add_action('wp_ajax_mobooking_get_service_option', array($this, 'ajax_get_service_option'));
+        add_action('wp_ajax_mobooking_update_options_order', array($this, 'ajax_update_options_order'));
     }
     
     /**
      * Get services for a user
      */
-    public function get_user_services($user_id, $args = array()) {
+    public function get_user_services($user_id) {
         global $wpdb;
         $table_name = $wpdb->prefix . 'mobooking_services';
         
-        $defaults = array(
-            'status' => '',
-            'category' => '',
-            'limit' => -1,
-            'offset' => 0,
-            'order' => 'ASC',
-            'orderby' => 'name'
-        );
-        
-        $args = wp_parse_args($args, $defaults);
-        
-        $sql = "SELECT * FROM $table_name WHERE user_id = %d";
-        $params = array($user_id);
-        
-        // Filter by status
-        if (!empty($args['status'])) {
-            $sql .= " AND status = %s";
-            $params[] = $args['status'];
-        }
-        
-        // Filter by category
-        if (!empty($args['category'])) {
-            $sql .= " AND category = %s";
-            $params[] = $args['category'];
-        }
-        
-        // Order the results
-        $sql .= " ORDER BY " . sanitize_sql_orderby($args['orderby'] . ' ' . $args['order']);
-        
-        // Limit the results
-        if ($args['limit'] > 0) {
-            $sql .= " LIMIT %d, %d";
-            $params[] = $args['offset'];
-            $params[] = $args['limit'];
-        }
-        
-        return $wpdb->get_results($wpdb->prepare($sql, $params));
+        return $wpdb->get_results($wpdb->prepare(
+            "SELECT * FROM $table_name WHERE user_id = %d ORDER BY name ASC",
+            $user_id
+        ));
     }
     
     /**
@@ -73,7 +43,6 @@ class ServiceManager {
         $table_name = $wpdb->prefix . 'mobooking_services';
         
         if ($user_id) {
-            // Get service only if it belongs to the user
             return $wpdb->get_row($wpdb->prepare(
                 "SELECT * FROM $table_name WHERE id = %d AND user_id = %d",
                 $service_id, $user_id
@@ -83,6 +52,67 @@ class ServiceManager {
         return $wpdb->get_row($wpdb->prepare(
             "SELECT * FROM $table_name WHERE id = %d",
             $service_id
+        ));
+    }
+    
+    /**
+     * Get user categories
+     */
+    public function get_user_categories($user_id) {
+        global $wpdb;
+        $table_name = $wpdb->prefix . 'mobooking_services';
+        
+        $categories = $wpdb->get_col($wpdb->prepare(
+            "SELECT DISTINCT category FROM $table_name WHERE user_id = %d AND category IS NOT NULL AND category != '' ORDER BY category ASC",
+            $user_id
+        ));
+        
+        // Add default categories if none exist
+        if (empty($categories)) {
+            return array('residential', 'commercial', 'special');
+        }
+        
+        return $categories;
+    }
+    
+    /**
+     * Count services for a user
+     */
+    public function count_user_services($user_id, $status = '') {
+        global $wpdb;
+        $table_name = $wpdb->prefix . 'mobooking_services';
+        
+        $sql = "SELECT COUNT(*) FROM $table_name WHERE user_id = %d";
+        $params = array($user_id);
+        
+        if (!empty($status)) {
+            $sql .= " AND status = %s";
+            $params[] = $status;
+        }
+        
+        return $wpdb->get_var($wpdb->prepare($sql, $params));
+    }
+    
+    /**
+     * Get services with options count
+     */
+    public function get_services_with_options_count($user_id) {
+        global $wpdb;
+        $services_table = $wpdb->prefix . 'mobooking_services';
+        $options_table = $wpdb->prefix . 'mobooking_service_options';
+        
+        return $wpdb->get_results($wpdb->prepare(
+            "SELECT s.*, 
+                    COALESCE(o.options_count, 0) as options_count
+             FROM $services_table s
+             LEFT JOIN (
+                 SELECT service_id, COUNT(*) as options_count 
+                 FROM $options_table 
+                 GROUP BY service_id
+             ) o ON s.id = o.service_id
+             WHERE s.user_id = %d
+             ORDER BY s.name ASC",
+            $user_id
         ));
     }
     
@@ -97,19 +127,19 @@ class ServiceManager {
         $service_data = array(
             'user_id' => absint($data['user_id']),
             'name' => sanitize_text_field($data['name']),
-            'description' => sanitize_textarea_field($data['description']),
+            'description' => wp_kses_post($data['description']),
             'price' => floatval($data['price']),
             'duration' => absint($data['duration']),
             'icon' => sanitize_text_field($data['icon']),
             'image_url' => esc_url_raw($data['image_url']),
             'category' => sanitize_text_field($data['category']),
-            'status' => isset($data['status']) ? sanitize_text_field($data['status']) : 'active'
+            'status' => in_array($data['status'], array('active', 'inactive')) ? $data['status'] : 'active'
         );
         
         // Check if we're updating or creating
         if (!empty($data['id'])) {
             // Update existing service
-            $result = $wpdb->update(
+            $wpdb->update(
                 $table_name,
                 $service_data,
                 array('id' => absint($data['id'])),
@@ -117,23 +147,17 @@ class ServiceManager {
                 array('%d')
             );
             
-            if ($result !== false) {
-                return absint($data['id']);
-            }
+            return absint($data['id']);
         } else {
             // Create new service
-            $result = $wpdb->insert(
+            $wpdb->insert(
                 $table_name,
                 $service_data,
                 array('%d', '%s', '%s', '%f', '%d', '%s', '%s', '%s', '%s')
             );
             
-            if ($result !== false) {
-                return $wpdb->insert_id;
-            }
+            return $wpdb->insert_id;
         }
-        
-        return false;
     }
     
     /**
@@ -163,36 +187,127 @@ class ServiceManager {
     }
     
     /**
-     * Get service categories for a user
+     * Get service options
      */
-    public function get_user_categories($user_id) {
+    public function get_service_options($service_id) {
         global $wpdb;
-        $table_name = $wpdb->prefix . 'mobooking_services';
+        $table_name = $wpdb->prefix . 'mobooking_service_options';
         
-        $categories = $wpdb->get_col($wpdb->prepare(
-            "SELECT DISTINCT category FROM $table_name WHERE user_id = %d AND category != '' ORDER BY category",
-            $user_id
+        return $wpdb->get_results($wpdb->prepare(
+            "SELECT * FROM $table_name WHERE service_id = %d ORDER BY display_order ASC",
+            $service_id
         ));
-        
-        return array_filter($categories);
     }
     
     /**
-     * Count services for a user
+     * Get a specific service option
      */
-    public function count_user_services($user_id, $status = '') {
+    public function get_service_option($option_id) {
         global $wpdb;
-        $table_name = $wpdb->prefix . 'mobooking_services';
+        $table_name = $wpdb->prefix . 'mobooking_service_options';
         
-        $sql = "SELECT COUNT(*) FROM $table_name WHERE user_id = %d";
-        $params = array($user_id);
+        return $wpdb->get_row($wpdb->prepare(
+            "SELECT * FROM $table_name WHERE id = %d",
+            $option_id
+        ));
+    }
+    
+    /**
+     * Save a service option
+     */
+    public function save_service_option($data) {
+        global $wpdb;
+        $table_name = $wpdb->prefix . 'mobooking_service_options';
         
-        if (!empty($status)) {
-            $sql .= " AND status = %s";
-            $params[] = $status;
+        // Sanitize data
+        $option_data = array(
+            'service_id' => absint($data['service_id']),
+            'name' => sanitize_text_field($data['name']),
+            'description' => wp_kses_post($data['description']),
+            'type' => sanitize_text_field($data['type']),
+            'is_required' => isset($data['is_required']) ? absint($data['is_required']) : 0,
+            'default_value' => isset($data['default_value']) ? sanitize_textarea_field($data['default_value']) : '',
+            'placeholder' => isset($data['placeholder']) ? sanitize_text_field($data['placeholder']) : '',
+            'min_value' => isset($data['min_value']) && $data['min_value'] !== '' ? floatval($data['min_value']) : null,
+            'max_value' => isset($data['max_value']) && $data['max_value'] !== '' ? floatval($data['max_value']) : null,
+            'price_impact' => isset($data['price_impact']) ? floatval($data['price_impact']) : 0,
+            'price_type' => isset($data['price_type']) ? sanitize_text_field($data['price_type']) : 'fixed',
+            'options' => isset($data['options']) ? sanitize_textarea_field($data['options']) : '',
+            'option_label' => isset($data['option_label']) ? sanitize_text_field($data['option_label']) : '',
+            'step' => isset($data['step']) ? sanitize_text_field($data['step']) : '',
+            'unit' => isset($data['unit']) ? sanitize_text_field($data['unit']) : '',
+            'min_length' => isset($data['min_length']) && $data['min_length'] !== '' ? absint($data['min_length']) : null,
+            'max_length' => isset($data['max_length']) && $data['max_length'] !== '' ? absint($data['max_length']) : null,
+            'rows' => isset($data['rows']) ? absint($data['rows']) : null,
+            'display_order' => isset($data['display_order']) ? absint($data['display_order']) : 0
+        );
+        
+        // Check if we're updating or creating
+        if (!empty($data['id'])) {
+            // Update existing option
+            $wpdb->update(
+                $table_name,
+                $option_data,
+                array('id' => absint($data['id'])),
+                array('%d', '%s', '%s', '%s', '%d', '%s', '%s', '%f', '%f', '%f', '%s', '%s', '%s', '%s', '%s', '%d', '%d', '%d', '%d'),
+                array('%d')
+            );
+            
+            return absint($data['id']);
+        } else {
+            // Get next display order
+            $max_order = $wpdb->get_var($wpdb->prepare(
+                "SELECT MAX(display_order) FROM $table_name WHERE service_id = %d",
+                $option_data['service_id']
+            ));
+            $option_data['display_order'] = ($max_order !== null) ? $max_order + 1 : 0;
+            
+            // Create new option
+            $wpdb->insert(
+                $table_name,
+                $option_data,
+                array('%d', '%s', '%s', '%s', '%d', '%s', '%s', '%f', '%f', '%f', '%s', '%s', '%s', '%s', '%s', '%d', '%d', '%d', '%d')
+            );
+            
+            return $wpdb->insert_id;
+        }
+    }
+    
+    /**
+     * Delete a service option
+     */
+    public function delete_service_option($option_id) {
+        global $wpdb;
+        $table_name = $wpdb->prefix . 'mobooking_service_options';
+        
+        return $wpdb->delete(
+            $table_name,
+            array('id' => $option_id),
+            array('%d')
+        );
+    }
+    
+    /**
+     * Update options order
+     */
+    public function update_options_order($service_id, $order_data) {
+        global $wpdb;
+        $table_name = $wpdb->prefix . 'mobooking_service_options';
+        
+        foreach ($order_data as $item) {
+            $wpdb->update(
+                $table_name,
+                array('display_order' => absint($item['order'])),
+                array(
+                    'id' => absint($item['id']),
+                    'service_id' => absint($service_id)
+                ),
+                array('%d'),
+                array('%d', '%d')
+            );
         }
         
-        return $wpdb->get_var($wpdb->prepare($sql, $params));
+        return true;
     }
     
     /**
@@ -227,7 +342,7 @@ class ServiceManager {
         
         // Add ID if editing
         if (isset($_POST['id']) && !empty($_POST['id'])) {
-            $service_data['id'] = absint($_POST['id']);
+            $service_data['id'] = $_POST['id'];
             
             // Verify ownership
             $service = $this->get_service($service_data['id']);
@@ -241,8 +356,8 @@ class ServiceManager {
             wp_send_json_error(__('Service name is required.', 'mobooking'));
         }
         
-        if ($service_data['price'] < 0) {
-            wp_send_json_error(__('Price cannot be negative.', 'mobooking'));
+        if ($service_data['price'] <= 0) {
+            wp_send_json_error(__('Price must be greater than zero.', 'mobooking'));
         }
         
         if ($service_data['duration'] < 15) {
@@ -317,28 +432,17 @@ class ServiceManager {
         }
         
         $user_id = get_current_user_id();
-        
-        // Parse args
-        $args = array(
-            'status' => isset($_POST['status']) ? sanitize_text_field($_POST['status']) : '',
-            'category' => isset($_POST['category']) ? sanitize_text_field($_POST['category']) : '',
-            'limit' => isset($_POST['limit']) ? absint($_POST['limit']) : -1,
-            'offset' => isset($_POST['offset']) ? absint($_POST['offset']) : 0
-        );
-        
-        $services = $this->get_user_services($user_id, $args);
-        $total = $this->count_user_services($user_id, $args['status']);
+        $services = $this->get_user_services($user_id);
         
         wp_send_json_success(array(
-            'services' => $services,
-            'total' => $total
+            'services' => $services
         ));
     }
     
     /**
-     * AJAX handler to get single service
+     * AJAX handler to save service option
      */
-    public function ajax_get_service() {
+    public function ajax_save_service_option() {
         // Check nonce
         if (!isset($_POST['nonce']) || !wp_verify_nonce($_POST['nonce'], 'mobooking-service-nonce')) {
             wp_send_json_error(__('Security verification failed.', 'mobooking'));
@@ -349,99 +453,217 @@ class ServiceManager {
             wp_send_json_error(__('You do not have permission to do this.', 'mobooking'));
         }
         
-        // Check service ID
-        if (!isset($_POST['id']) || empty($_POST['id'])) {
-            wp_send_json_error(__('No service specified.', 'mobooking'));
-        }
-        
-        $service_id = absint($_POST['id']);
         $user_id = get_current_user_id();
         
-        $service = $this->get_service($service_id, $user_id);
+        // Prepare data
+        $option_data = array(
+            'service_id' => isset($_POST['service_id']) ? absint($_POST['service_id']) : 0,
+            'name' => isset($_POST['name']) ? $_POST['name'] : '',
+            'description' => isset($_POST['description']) ? $_POST['description'] : '',
+            'type' => isset($_POST['type']) ? $_POST['type'] : 'checkbox',
+            'is_required' => isset($_POST['is_required']) ? $_POST['is_required'] : 0,
+            'default_value' => isset($_POST['default_value']) ? $_POST['default_value'] : '',
+            'placeholder' => isset($_POST['placeholder']) ? $_POST['placeholder'] : '',
+            'min_value' => isset($_POST['min_value']) ? $_POST['min_value'] : '',
+            'max_value' => isset($_POST['max_value']) ? $_POST['max_value'] : '',
+            'price_impact' => isset($_POST['price_impact']) ? $_POST['price_impact'] : 0,
+            'price_type' => isset($_POST['price_type']) ? $_POST['price_type'] : 'fixed',
+            'options' => isset($_POST['options']) ? $_POST['options'] : '',
+            'option_label' => isset($_POST['option_label']) ? $_POST['option_label'] : '',
+            'step' => isset($_POST['step']) ? $_POST['step'] : '',
+            'unit' => isset($_POST['unit']) ? $_POST['unit'] : '',
+            'min_length' => isset($_POST['min_length']) ? $_POST['min_length'] : '',
+            'max_length' => isset($_POST['max_length']) ? $_POST['max_length'] : '',
+            'rows' => isset($_POST['rows']) ? $_POST['rows'] : ''
+        );
         
-        if (!$service) {
-            wp_send_json_error(__('Service not found.', 'mobooking'));
+        // Add ID if editing
+        if (isset($_POST['id']) && !empty($_POST['id'])) {
+            $option_data['id'] = $_POST['id'];
+        }
+        
+        // Validate service ownership
+        if ($option_data['service_id']) {
+            $service = $this->get_service($option_data['service_id']);
+            if (!$service || $service->user_id != $user_id) {
+                wp_send_json_error(__('You do not have permission to modify this service.', 'mobooking'));
+            }
+        }
+        
+        // Validate data
+        if (empty($option_data['name'])) {
+            wp_send_json_error(__('Option name is required.', 'mobooking'));
+        }
+        
+        if (empty($option_data['service_id'])) {
+            wp_send_json_error(__('Service ID is required.', 'mobooking'));
+        }
+        
+        // Save option
+        $option_id = $this->save_service_option($option_data);
+        
+        if (!$option_id) {
+            wp_send_json_error(__('Failed to save option.', 'mobooking'));
         }
         
         wp_send_json_success(array(
-            'service' => $service
+            'id' => $option_id,
+            'message' => __('Option saved successfully.', 'mobooking')
         ));
     }
     
     /**
-     * Service list shortcode
+     * AJAX handler to delete service option
      */
-    public function service_list_shortcode($atts) {
-        // Parse attributes
-        $atts = shortcode_atts(array(
-            'user_id' => 0,
-            'category' => '',
-            'limit' => -1,
-            'show_pricing' => true,
-            'show_description' => true
-        ), $atts);
-        
-        $user_id = $atts['user_id'] ? absint($atts['user_id']) : get_current_user_id();
-        
-        // If no user ID specified, return nothing
-        if (!$user_id) {
-            return '';
+    public function ajax_delete_service_option() {
+        // Check nonce
+        if (!isset($_POST['nonce']) || !wp_verify_nonce($_POST['nonce'], 'mobooking-service-nonce')) {
+            wp_send_json_error(__('Security verification failed.', 'mobooking'));
         }
         
-        // Get services
-        $args = array(
-            'status' => 'active',
-            'category' => $atts['category'],
-            'limit' => $atts['limit']
-        );
-        
-        $services = $this->get_user_services($user_id, $args);
-        
-        if (empty($services)) {
-            return '<p>' . __('No services available.', 'mobooking') . '</p>';
+        // Check permissions
+        if (!current_user_can('mobooking_business_owner') && !current_user_can('administrator')) {
+            wp_send_json_error(__('You do not have permission to do this.', 'mobooking'));
         }
         
-        ob_start();
-        ?>
-        <div class="mobooking-service-list">
-            <?php foreach ($services as $service) : ?>
-                <div class="service-item">
-                    <?php if (!empty($service->image_url)) : ?>
-                        <div class="service-image">
-                            <img src="<?php echo esc_url($service->image_url); ?>" alt="<?php echo esc_attr($service->name); ?>">
-                        </div>
-                    <?php elseif (!empty($service->icon)) : ?>
-                        <div class="service-icon">
-                            <span class="dashicons <?php echo esc_attr($service->icon); ?>"></span>
-                        </div>
-                    <?php endif; ?>
-                    
-                    <div class="service-content">
-                        <h3 class="service-name"><?php echo esc_html($service->name); ?></h3>
-                        
-                        <?php if ($atts['show_description'] && !empty($service->description)) : ?>
-                            <div class="service-description">
-                                <?php echo wpautop(esc_html($service->description)); ?>
-                            </div>
-                        <?php endif; ?>
-                        
-                        <div class="service-meta">
-                            <span class="service-duration">
-                                <span class="dashicons dashicons-clock"></span>
-                                <?php echo sprintf(_n('%d minute', '%d minutes', $service->duration, 'mobooking'), $service->duration); ?>
-                            </span>
-                            
-                            <?php if ($atts['show_pricing']) : ?>
-                                <span class="service-price">
-                                    <?php echo wc_price($service->price); ?>
-                                </span>
-                            <?php endif; ?>
-                        </div>
-                    </div>
-                </div>
-            <?php endforeach; ?>
-        </div>
-        <?php
-        return ob_get_clean();
+        // Check option ID
+        if (!isset($_POST['id']) || empty($_POST['id'])) {
+            wp_send_json_error(__('No option specified.', 'mobooking'));
+        }
+        
+        $option_id = absint($_POST['id']);
+        $user_id = get_current_user_id();
+        
+        // Get option and verify service ownership
+        $option = $this->get_service_option($option_id);
+        if (!$option) {
+            wp_send_json_error(__('Option not found.', 'mobooking'));
+        }
+        
+        $service = $this->get_service($option->service_id);
+        if (!$service || $service->user_id != $user_id) {
+            wp_send_json_error(__('You do not have permission to delete this option.', 'mobooking'));
+        }
+        
+        // Delete option
+        $result = $this->delete_service_option($option_id);
+        
+        if (!$result) {
+            wp_send_json_error(__('Failed to delete option.', 'mobooking'));
+        }
+        
+        wp_send_json_success(array(
+            'message' => __('Option deleted successfully.', 'mobooking')
+        ));
+    }
+    
+    /**
+     * AJAX handler to get service options
+     */
+    public function ajax_get_service_options() {
+        // Check nonce
+        if (!isset($_POST['nonce']) || !wp_verify_nonce($_POST['nonce'], 'mobooking-service-nonce')) {
+            wp_send_json_error(__('Security verification failed.', 'mobooking'));
+        }
+        
+        // Check permissions
+        if (!current_user_can('mobooking_business_owner') && !current_user_can('administrator')) {
+            wp_send_json_error(__('You do not have permission to do this.', 'mobooking'));
+        }
+        
+        if (!isset($_POST['service_id']) || empty($_POST['service_id'])) {
+            wp_send_json_error(__('Service ID is required.', 'mobooking'));
+        }
+        
+        $service_id = absint($_POST['service_id']);
+        $user_id = get_current_user_id();
+        
+        // Verify service ownership
+        $service = $this->get_service($service_id);
+        if (!$service || $service->user_id != $user_id) {
+            wp_send_json_error(__('You do not have permission to view these options.', 'mobooking'));
+        }
+        
+        $options = $this->get_service_options($service_id);
+        
+        wp_send_json_success(array(
+            'options' => $options
+        ));
+    }
+    
+    /**
+     * AJAX handler to get single service option
+     */
+    public function ajax_get_service_option() {
+        // Check nonce
+        if (!isset($_POST['nonce']) || !wp_verify_nonce($_POST['nonce'], 'mobooking-service-nonce')) {
+            wp_send_json_error(__('Security verification failed.', 'mobooking'));
+        }
+        
+        // Check permissions
+        if (!current_user_can('mobooking_business_owner') && !current_user_can('administrator')) {
+            wp_send_json_error(__('You do not have permission to do this.', 'mobooking'));
+        }
+        
+        if (!isset($_POST['id']) || empty($_POST['id'])) {
+            wp_send_json_error(__('Option ID is required.', 'mobooking'));
+        }
+        
+        $option_id = absint($_POST['id']);
+        $user_id = get_current_user_id();
+        
+        $option = $this->get_service_option($option_id);
+        if (!$option) {
+            wp_send_json_error(__('Option not found.', 'mobooking'));
+        }
+        
+        // Verify service ownership
+        $service = $this->get_service($option->service_id);
+        if (!$service || $service->user_id != $user_id) {
+            wp_send_json_error(__('You do not have permission to view this option.', 'mobooking'));
+        }
+        
+        wp_send_json_success(array(
+            'option' => $option
+        ));
+    }
+    
+    /**
+     * AJAX handler to update options order
+     */
+    public function ajax_update_options_order() {
+        // Check nonce
+        if (!isset($_POST['nonce']) || !wp_verify_nonce($_POST['nonce'], 'mobooking-service-nonce')) {
+            wp_send_json_error(__('Security verification failed.', 'mobooking'));
+        }
+        
+        // Check permissions
+        if (!current_user_can('mobooking_business_owner') && !current_user_can('administrator')) {
+            wp_send_json_error(__('You do not have permission to do this.', 'mobooking'));
+        }
+        
+        if (!isset($_POST['service_id']) || !isset($_POST['order_data'])) {
+            wp_send_json_error(__('Missing required data.', 'mobooking'));
+        }
+        
+        $service_id = absint($_POST['service_id']);
+        $order_data = json_decode(stripslashes($_POST['order_data']), true);
+        $user_id = get_current_user_id();
+        
+        // Verify service ownership
+        $service = $this->get_service($service_id);
+        if (!$service || $service->user_id != $user_id) {
+            wp_send_json_error(__('You do not have permission to modify this service.', 'mobooking'));
+        }
+        
+        $result = $this->update_options_order($service_id, $order_data);
+        
+        if (!$result) {
+            wp_send_json_error(__('Failed to update options order.', 'mobooking'));
+        }
+        
+        wp_send_json_success(array(
+            'message' => __('Options order updated successfully.', 'mobooking')
+        ));
     }
 }
