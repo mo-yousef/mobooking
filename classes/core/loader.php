@@ -27,7 +27,11 @@ class Loader {
         // Initialize core modules
         new \MoBooking\Auth\Manager();
         new \MoBooking\Dashboard\Manager();
-        new \MoBooking\Services\ServiceManager(); // Uncomment this line
+        
+        // Initialize services managers separately to avoid conflicts
+        new \MoBooking\Services\ServiceManager();
+        new \MoBooking\Services\ServiceOptionsManager();
+        
         new \MoBooking\Bookings\Manager();
         new \MoBooking\Discounts\Manager();
         new \MoBooking\Geography\Manager();
@@ -68,14 +72,5 @@ class Loader {
     public function enqueue_scripts() {
         // Enqueue main stylesheet
         wp_enqueue_style('mobooking-style', get_stylesheet_uri(), array(), MOBOOKING_VERSION);
-        
-        // Enqueue main JavaScript
-        // wp_enqueue_script('mobooking-main', MOBOOKING_URL . '/assets/js/main.js', array('jquery'), MOBOOKING_VERSION, true);
-        
-        // Localize script
-        wp_localize_script('mobooking-main', 'mobooking_vars', array(
-            'ajax_url' => admin_url('admin-ajax.php'),
-            'nonce' => wp_create_nonce('mobooking-nonce'),
-        ));
     }
 }
