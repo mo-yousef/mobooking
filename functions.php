@@ -125,6 +125,16 @@ function mobooking_enqueue_dashboard_scripts() {
         true
     );
 
+// Add this to the mobooking_enqueue_assets function
+if (is_dashboard_page()) {
+    wp_enqueue_style(
+        'mobooking-services-section',
+        MOBOOKING_URL . '/assets/css/services-section.css',
+        array('mobooking-dashboard'),
+        MOBOOKING_VERSION
+    );
+}
+
     // Localize dashboard scripts
     $dashboard_data = array(
         'ajaxUrl' => admin_url('admin-ajax.php'),
