@@ -1,53 +1,26 @@
 /**
- * MoBooking Dashboard JavaScript - Fixed Duplicate Issues
- * Version: 2.1.0
+ * MoBooking Dashboard JavaScript - Cleaned Version
+ * Version: 2.0.0
  */
 
 (function ($) {
-  ("use strict");
+  "use strict";
 
   const MoBookingDashboard = {
     // Configuration
     config: {
-      ajaxUrl:
-        (typeof mobookingServices !== "undefined"
-          ? mobookingServices.ajaxUrl
-          : null) ||
-        (typeof mobookingDashboard !== "undefined"
-          ? mobookingDashboard.ajaxUrl
-          : null) ||
-        "/wp-admin/admin-ajax.php",
-      serviceNonce:
-        (typeof mobookingServices !== "undefined"
-          ? mobookingServices.serviceNonce
-          : null) ||
-        (typeof mobookingDashboard !== "undefined"
-          ? mobookingDashboard.nonces?.service
-          : null) ||
-        "",
-      currentServiceId:
-        (typeof mobookingServices !== "undefined"
-          ? mobookingServices.currentServiceId
-          : null) || null,
-      currentView:
-        (typeof mobookingServices !== "undefined"
-          ? mobookingServices.currentView
-          : null) || "list",
-      endpoints:
-        (typeof mobookingServices !== "undefined"
-          ? mobookingServices.endpoints
-          : null) || {},
+      ajaxUrl: mobookingDashboard?.ajaxUrl || "/wp-admin/admin-ajax.php",
+      serviceNonce: mobookingDashboard?.nonces?.service || "",
+      currentServiceId: mobookingDashboard?.currentServiceId || null,
+      currentView: mobookingDashboard?.currentView || "list",
     },
 
     // State
     state: {
       currentOptionId: null,
       isSubmitting: false,
-      isOptionSubmitting: false, // Add separate flag for options
       deleteTarget: null,
       deleteType: null,
-      lastSubmitTime: 0, // Prevent rapid double-clicks
-      optionProcessingFlags: {}, // Track processing flags
     },
 
     // Initialize
@@ -96,7 +69,7 @@
     attachEventListeners: function () {
       const self = this;
 
-      // Service form submission - prevent multiple submissions
+      // Service form submission
       this.elements.serviceForm.on("submit", function (e) {
         e.preventDefault();
         if (!self.state.isSubmitting) {
@@ -115,26 +88,15 @@
         self.showAddOptionModal();
       });
 
-      // Option form submission - FIXED to prevent duplicates
+      // Option form submission
       this.elements.optionForm.on("submit", function (e) {
         e.preventDefault();
-
-        // Prevent rapid double-clicks
-        const now = Date.now();
-        if (now - self.state.lastSubmitTime < 1000) {
-          console.log("⚠️ Preventing rapid double-click");
-          return;
-        }
-
-        if (!self.state.isOptionSubmitting) {
-          self.state.lastSubmitTime = now;
+        if (!self.state.isSubmitting) {
           self.handleOptionSubmit();
-        } else {
-          console.log("⚠️ Option submission already in progress");
         }
       });
 
-      // Edit option - ensure we pass the correct ID
+      // Edit option
       $(document).on("click", ".edit-option-btn", function () {
         const optionCard = $(this).closest(".option-card");
         const optionId = optionCard.data("option-id");
@@ -188,12 +150,7 @@
       });
     },
 
-    /**
-     * Code to add sortable functionality to service options
-     * Add this to your dashboard.js file
-     */
-
-    // Add this to the initializeComponents function
+    // Initialize components
     initializeComponents: function () {
       if (this.config.currentView === "edit" && this.config.currentServiceId) {
         this.loadServiceOptions(this.config.currentServiceId);
@@ -210,15 +167,14 @@
         this.config.currentServiceId = parseInt(serviceId);
       }
 
-      // Initialize sortable - this makes options draggable
+      // Initialize sortable for options
       this.initSortableOptions();
     },
 
-    // Add this new method to the MoBookingDashboard object
+    // Initialize sortable options
     initSortableOptions: function () {
       const self = this;
 
-      // Wait for options to be loaded before initializing sortable
       setTimeout(() => {
         if (this.elements.optionsContainer.children().length > 1) {
           this.elements.optionsContainer.sortable({
@@ -231,21 +187,16 @@
               self.updateOptionsOrder();
             },
           });
-
           console.log("✅ Sortable initialized for options");
-        } else {
-          console.log("⚠️ Not enough options to make sortable yet");
         }
       }, 500);
     },
 
-    // Also add this method to update the order in the database
+    // Update options order
     updateOptionsOrder: function () {
       if (!this.config.currentServiceId) return;
 
       const orderData = [];
-
-      // Get the order of options
       this.elements.optionsContainer
         .find(".option-card")
         .each(function (index) {
@@ -255,8 +206,7 @@
           });
         });
 
-      // Save the new order
-      if (orderData.length < 2) return; // Don't bother if there's only one item
+      if (orderData.length < 2) return;
 
       const data = {
         action: "mobooking_update_options_order",
@@ -275,56 +225,6 @@
         })
         .fail(() => {
           this.showNotification("Error updating options order", "error");
-        });
-    },
-
-    // Add this to the displayOptions method to re-initialize sortable after loading options
-    displayOptions: function (options) {
-      this.elements.optionsContainer.empty();
-
-      if (!options || options.length === 0) {
-        this.showNoOptionsMessage();
-        return;
-      }
-
-      options.forEach((option) => {
-        const optionCard = this.createOptionCard(option);
-        this.elements.optionsContainer.append(optionCard);
-      });
-
-      // Re-initialize sortable after loading options
-      if (options.length > 1) {
-        this.initSortableOptions();
-      }
-    },
-
-    // Also modify the loadServiceOptions method to ensure we have the latest order
-    loadServiceOptions: function (serviceId) {
-      if (!serviceId) return;
-
-      console.log("🔄 Loading options for service:", serviceId);
-
-      // Disable sorting while loading
-      if (this.elements.optionsContainer.hasClass("ui-sortable")) {
-        this.elements.optionsContainer.sortable("destroy");
-      }
-
-      const data = {
-        action: "mobooking_get_service_options",
-        service_id: serviceId,
-        nonce: this.config.serviceNonce,
-      };
-
-      this.makeAjaxRequest(data)
-        .done((response) => {
-          if (response.success && response.data.options) {
-            this.displayOptions(response.data.options);
-          } else {
-            this.showNoOptionsMessage();
-          }
-        })
-        .fail(() => {
-          this.showNoOptionsMessage();
         });
     },
 
@@ -365,7 +265,7 @@
             );
           }
         })
-        .fail((xhr) => {
+        .fail(() => {
           this.showNotification("Error saving service", "error");
         })
         .always(() => {
@@ -376,17 +276,10 @@
         });
     },
 
-    // Handle option form submission - COMPLETELY FIXED
+    // Handle option form submission
     handleOptionSubmit: function () {
-      console.log("🔄 Option submit started");
+      if (this.state.isSubmitting) return;
 
-      // IMPROVED DUPLICATE PREVENTION
-      if (this.state.isOptionSubmitting) {
-        console.log("⚠️ Option submission already in progress");
-        return;
-      }
-
-      // Get the service ID from various possible sources - FIXED: single declaration
       const serviceId =
         this.elements.optionServiceId.val() ||
         this.config.currentServiceId ||
@@ -397,54 +290,25 @@
         return;
       }
 
-      // Record the submission attempt in sessionStorage to prevent duplicates across page reloads
-      const optionName = this.elements.optionName.val().trim();
-      const submissionKey = `option_submission_${serviceId}_${optionName}`;
-      const lastSubmission = sessionStorage.getItem(submissionKey);
-
-      // Prevent submission if the same option was submitted in the last 5 seconds
-      if (lastSubmission && Date.now() - parseInt(lastSubmission) < 5000) {
-        console.log("⚠️ Preventing duplicate submission of the same option");
-        this.showNotification(
-          "Please wait before submitting the same option again",
-          "warning"
-        );
-        return;
-      }
-
-      // Store the submission timestamp
-      sessionStorage.setItem(submissionKey, Date.now().toString());
-
       if (!this.validateOptionForm()) {
         return;
       }
 
-      this.state.isOptionSubmitting = true;
+      this.state.isSubmitting = true;
       this.showLoading(this.elements.saveOptionBtn);
 
       // Get form data
       const formData = new FormData(this.elements.optionForm[0]);
-
-      // Set the service ID and action
       formData.set("service_id", serviceId);
       formData.set("action", "mobooking_save_service_option");
       formData.set("nonce", this.config.serviceNonce);
-
-      // Add a unique request ID to help identify duplicates on server
-      const requestId = `${Date.now()}-${Math.random()
-        .toString(36)
-        .substr(2, 9)}`;
-      formData.set("request_id", requestId);
 
       // Handle option ID for updates vs creates
       const optionId = this.elements.optionId.val();
       if (optionId && optionId !== "") {
         formData.set("id", optionId);
-        console.log("🔄 Updating option ID:", optionId);
       } else {
-        // Remove any ID field to ensure we create new
         formData.delete("id");
-        console.log("🔄 Creating new option");
       }
 
       // Process choices for select/radio types
@@ -454,25 +318,14 @@
         formData.set("options", choices);
       }
 
-      console.log("📤 Submitting option with service ID:", serviceId);
-
-      // Use a flag in localStorage to track processing status
-      const processingKey = `processing_option_${serviceId}_${optionName}_${requestId}`;
-      localStorage.setItem(processingKey, "true");
-
-      // Store this flag in our state object too
-      this.state.optionProcessingFlags[processingKey] = true;
-
       this.makeAjaxRequest(formData)
         .done((response) => {
-          console.log("✅ Option save response:", response);
           if (response.success) {
             this.showNotification(
               response.data.message || "Option saved successfully!",
               "success"
             );
             this.hideModals();
-            // Reload options to show the update
             this.loadServiceOptions(serviceId);
           } else {
             this.showNotification(
@@ -481,16 +334,12 @@
             );
           }
         })
-        .fail((xhr) => {
-          console.error("❌ Option save failed:", xhr);
+        .fail(() => {
           this.showNotification("Error saving option", "error");
         })
         .always(() => {
-          this.state.isOptionSubmitting = false;
+          this.state.isSubmitting = false;
           this.hideLoading(this.elements.saveOptionBtn);
-          // Remove the processing flag from both localStorage and our state
-          localStorage.removeItem(processingKey);
-          delete this.state.optionProcessingFlags[processingKey];
         });
     },
 
@@ -557,8 +406,6 @@
     loadServiceOptions: function (serviceId) {
       if (!serviceId) return;
 
-      console.log("🔄 Loading options for service:", serviceId);
-
       const data = {
         action: "mobooking_get_service_options",
         service_id: serviceId,
@@ -591,9 +438,14 @@
         const optionCard = this.createOptionCard(option);
         this.elements.optionsContainer.append(optionCard);
       });
+
+      // Re-initialize sortable after loading options
+      if (options.length > 1) {
+        this.initSortableOptions();
+      }
     },
 
-    // Create option card - IMPROVED DESIGN
+    // Create option card
     createOptionCard: function (option) {
       const typeLabels = {
         checkbox: "Checkbox",
@@ -648,18 +500,18 @@
             </div>
             <div class="option-actions">
               <button type="button" class="btn-icon edit-option-btn" title="Edit Option">
-                
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M11 3.99998H4C3.46957 3.99998 2.96086 4.2107 2.58579 4.58577C2.21071 4.96084 2 5.46955 2 5.99998V20C2 20.5304 2.21071 21.0391 2.58579 21.4142C2.96086 21.7893 3.46957 22 4 22H18C18.5304 22 19.0391 21.7893 19.4142 21.4142C19.7893 21.0391 20 20.5304 20 20V13M18.5 2.49998C18.8978 2.10216 19.4374 1.87866 20 1.87866C20.5626 1.87866 21.1022 2.10216 21.5 2.49998C21.8978 2.89781 22.1213 3.43737 22.1213 3.99998C22.1213 4.56259 21.8978 5.10216 21.5 5.49998L12 15L8 16L9 12L18.5 2.49998Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-              </svg>
-
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                  <path d="m18.5 2.5-9.5 9.5L4 15l1-4 9.5-9.5 3 3Z"></path>
+                </svg>
               </button>
               <button type="button" class="btn-icon delete-option-btn" data-option-id="${
                 option.id
               }" title="Delete Option">
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                            <path d="M3 6H5M5 6H21M5 6V20C5 20.5304 5.21071 21.0391 5.58579 21.4142C5.96086 21.7893 6.46957 22 7 22H17C17.5304 22 18.0391 21.7893 18.4142 21.4142C18.7893 21.0391 19 20.5304 19 20V6H5ZM8 6V4C8 3.46957 8.21071 2.96086 8.58579 2.58579C8.96086 2.21071 9.46957 2 10 2H14C14.5304 2 15.0391 2.21071 15.4142 2.58579C15.7893 2.96086 16 3.46957 16 4V6M10 11V17M14 11V17" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                            </svg>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="m3 6 3 18h12l3-18"></path>
+                  <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path>
+                </svg>
               </button>
             </div>
           </div>
@@ -667,7 +519,7 @@
       `);
     },
 
-    // Show add option modal - FIXED
+    // Show add option modal
     showAddOptionModal: function () {
       const serviceId =
         this.config.currentServiceId ||
@@ -679,15 +531,13 @@
         return;
       }
 
-      console.log("📝 Opening add option modal for service:", serviceId);
-
       // Reset state
       this.state.currentOptionId = null;
 
       // Reset form completely
       this.elements.optionForm[0].reset();
-      this.elements.optionId.val(""); // Clear the ID field
-      this.elements.optionServiceId.val(serviceId); // Set service ID
+      this.elements.optionId.val("");
+      this.elements.optionServiceId.val(serviceId);
 
       // Clear dynamic fields
       this.elements.optionDynamicFields.empty();
@@ -705,11 +555,10 @@
       this.showModal(this.elements.optionModal);
     },
 
-    // Edit option - FIXED
+    // Edit option
     editOption: function (optionId) {
       if (!optionId) return;
 
-      console.log("✏️ Editing option:", optionId);
       this.state.currentOptionId = optionId;
 
       const data = {
@@ -736,8 +585,6 @@
 
     // Populate option form
     populateOptionForm: function (option) {
-      console.log("📝 Populating form with option:", option);
-
       // Set form values
       this.elements.optionId.val(option.id);
       this.elements.optionServiceId.val(option.service_id);
@@ -837,7 +684,7 @@
             <div class="choices-list" id="choices-list">
               ${choicesHtml}
             </div>
-            <button type="button" class="btn-add-choice" id="add-choice-btn">
+            <button type="button" id="add-choice-btn">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <path d="M12 5v14M5 12h14"></path>
               </svg>
@@ -859,7 +706,7 @@
             label
           )}" class="choice-label">
           <input type="number" placeholder="0.00" value="${price}" step="0.01" class="choice-price">
-          <button type="button" class="btn-remove-choice">
+          <button type="button" class="remove-choice-btn">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <path d="M18 6 6 18M6 6l12 12"></path>
             </svg>
@@ -975,8 +822,8 @@
 
       // Remove choice
       $(document)
-        .off("click", ".btn-remove-choice")
-        .on("click", ".btn-remove-choice", function () {
+        .off("click", ".remove-choice-btn")
+        .on("click", ".remove-choice-btn", function () {
           const choicesCount = $("#choices-list .choice-row").length;
           if (choicesCount <= 1) {
             self.showNotification("At least one choice is required", "warning");
@@ -1039,12 +886,10 @@
     // Show no options message
     showNoOptionsMessage: function () {
       this.elements.optionsContainer.html(`
-        <div class="no-options-state">
-          <div class="no-options-icon">
-            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1">
-              <path d="M12.5 8.5 16 12l-3.5 3.5M16 12H8m0 0a8 8 0 1 1 8-8 8 8 0 0 1-8 8Z"></path>
-            </svg>
-          </div>
+        <div class="no-options-message">
+          <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1">
+            <path d="M12.5 8.5 16 12l-3.5 3.5M16 12H8m0 0a8 8 0 1 1 8-8 8 8 0 0 1-8 8Z"></path>
+          </svg>
           <h3>No options yet</h3>
           <p>Add your first option to let customers customize this service</p>
         </div>
@@ -1055,9 +900,9 @@
     updatePriceImpactVisibility: function (priceType) {
       const group = $("#price-impact-group");
       if (priceType === "none") {
-        group.hide();
+        group.addClass("hidden");
       } else {
-        group.show();
+        group.removeClass("hidden");
       }
     },
 
@@ -1196,13 +1041,6 @@
         info: "#3b82f6",
       };
 
-      const icons = {
-        success: `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22C17.5228 22 22 17.5228 22 12C22 6.47715 17.5228 2 12 2C6.47715 2 2 6.47715 2 12C2 17.5228 6.47715 22 12 22Z"></path><path d="m9 12 2 2 4-4"></path></svg>`,
-        error: `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><path d="m15 9-6 6M9 9l6 6"></path></svg>`,
-        warning: `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"></path><path d="M12 9v4M12 17h.01"></path></svg>`,
-        info: `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><path d="m9 12 2 2 4-4"></path></svg>`,
-      };
-
       const notification = $(`
         <div class="notification notification-${type}" style="
           position: fixed; top: 24px; right: 24px; z-index: 1000;
@@ -1213,7 +1051,6 @@
           font-weight: 500; max-width: 400px;
           animation: slideIn 0.3s ease;
         ">
-          ${icons[type]}
           ${message}
         </div>
       `);

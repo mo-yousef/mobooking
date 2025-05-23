@@ -10,7 +10,7 @@ $service_id = isset($_GET['service_id']) ? absint($_GET['service_id']) : 0;
 $active_tab = isset($_GET['active_tab']) ? sanitize_text_field($_GET['active_tab']) : 'basic-info';
 
 // Initialize managers
-$service_manager = new \MoBooking\Services\ServiceManager();
+$service_manager = new \MoBooking\Services\ServicesManager();
 $options_manager = new \MoBooking\Services\ServiceOptionsManager();
 
 // Handle service editing

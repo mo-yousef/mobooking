@@ -2,7 +2,7 @@
 namespace MoBooking\Core;
 
 /**
- * Main loader class that initializes all theme components
+ * Main loader class that initializes all theme components - Cleaned Version
  */
 class Loader {
     /**
@@ -16,8 +16,7 @@ class Loader {
         $this->register_hooks();
         
         // Initialize database tables
-        $db_manager = new \MoBooking\Database\Manager();
-        $db_manager->create_tables();
+        $this->init_database();
     }
     
     /**
@@ -28,15 +27,20 @@ class Loader {
         new \MoBooking\Auth\Manager();
         new \MoBooking\Dashboard\Manager();
         
-        // Initialize services managers separately to avoid conflicts
-        new \MoBooking\Services\ServiceManager();
-        new \MoBooking\Services\ServiceOptionsManager();
+        // Initialize unified services manager (replaces separate managers)
+        new \MoBooking\Services\ServicesManager();
         
+        // Initialize other managers
         new \MoBooking\Bookings\Manager();
         new \MoBooking\Discounts\Manager();
         new \MoBooking\Geography\Manager();
         new \MoBooking\Notifications\Manager();
         new \MoBooking\Payments\Manager();
+        
+        // Initialize admin components if in admin
+        if (is_admin()) {
+            new \MoBooking\Payments\AdminManager();
+        }
     }
     
     /**
@@ -46,8 +50,16 @@ class Loader {
         // Theme setup
         add_action('after_setup_theme', array($this, 'theme_setup'));
         
-        // Enqueue scripts and styles
-        add_action('wp_enqueue_scripts', array($this, 'enqueue_scripts'));
+        // Custom post types and taxonomies
+        add_action('init', array($this, 'register_post_types'));
+    }
+    
+    /**
+     * Initialize database tables
+     */
+    private function init_database() {
+        $db_manager = new \MoBooking\Database\Manager();
+        $db_manager->create_tables();
     }
     
     /**
@@ -67,10 +79,10 @@ class Loader {
     }
     
     /**
-     * Enqueue scripts and styles
+     * Register custom post types if needed
      */
-    public function enqueue_scripts() {
-        // Enqueue main stylesheet
-        wp_enqueue_style('mobooking-style', get_stylesheet_uri(), array(), MOBOOKING_VERSION);
+    public function register_post_types() {
+        // Register any custom post types here if needed
+        // Currently using custom tables instead of post types
     }
 }
