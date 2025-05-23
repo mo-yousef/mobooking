@@ -314,6 +314,7 @@ div#footer {
 }
 
 .tab-button.active {
+  background: #fff;
   color: var(--primary-color);
 }
 
@@ -325,6 +326,17 @@ div#footer {
   right: 0;
   height: 2px;
   background-color: var(--primary-color);
+}
+
+.tab-navigation {
+  background-color: hsl(var(--accent));
+  border-radius: 5px;
+  display: inline-flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: flex-start;
+  padding: 10px;
+  border: 1px solid hsl(var(--border));
 }
 
 .tab-content {

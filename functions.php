@@ -19,6 +19,27 @@ define('MOBOOKING_VERSION', '1.0.0');
 define('MOBOOKING_PATH', get_template_directory());
 define('MOBOOKING_URL', get_template_directory_uri());
 
+
+
+function enqueue_custom_styles() {
+    // Enqueue the default style.css with the defined version
+    wp_enqueue_style(
+        'theme-stylesheet', // Handle for the default stylesheet
+        get_stylesheet_uri(), // Retrieves the URL of style.css
+        array(), // No dependencies
+        MOBOOKING_VERSION // Use the defined version constant
+    );
+
+    // Enqueue platforms-pages.css
+    wp_enqueue_style(
+        'dashboard-css-styles',
+        get_template_directory_uri() . '/assets/css/dashboard.css',
+        array(),
+        MOBOOKING_VERSION
+    );
+}
+add_action('wp_enqueue_scripts', 'enqueue_custom_styles');
+
 /**
  * Enhanced autoloader for MoBooking classes
  */
@@ -160,13 +181,13 @@ function mobooking_enqueue_dashboard_scripts()
         return;
     }
 
-    // Dashboard styles
-    wp_enqueue_style(
-        'mobooking-dashboard',
-        MOBOOKING_URL . '/assets/css/dashboard.css',
-        array('dashicons'),
-        MOBOOKING_VERSION
-    );
+    // // Dashboard styles
+    // wp_enqueue_style(
+    //     'mobooking-dashboard',
+    //     MOBOOKING_URL . '/assets/css/dashboard.css',
+    //     array('dashicons'),
+    //     MOBOOKING_VERSION
+    // );
 
     // // Service options styles
     // wp_enqueue_style(

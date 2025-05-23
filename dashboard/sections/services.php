@@ -395,10 +395,11 @@ $available_icons = array(
                 <div class="form-actions">
                     <?php if ($current_view === 'edit') : ?>
                         <button type="button" class="button button-danger delete-service-btn" data-id="<?php echo esc_attr($service_data->id); ?>">
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <path d="m3 6 3 18h12l3-18"></path>
-                                <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path>
+                            
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M3 6H5M5 6H21M5 6V20C5 20.5304 5.21071 21.0391 5.58579 21.4142C5.96086 21.7893 6.46957 22 7 22H17C17.5304 22 18.0391 21.7893 18.4142 21.4142C18.7893 21.0391 19 20.5304 19 20V6H5ZM8 6V4C8 3.46957 8.21071 2.96086 8.58579 2.58579C8.96086 2.21071 9.46957 2 10 2H14C14.5304 2 15.0391 2.21071 15.4142 2.58579C15.7893 2.96086 16 3.46957 16 4V6M10 11V17M14 11V17" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
                             </svg>
+
                             <?php _e('Delete Service', 'mobooking'); ?>
                         </button>
                     <?php endif; ?>
@@ -406,11 +407,11 @@ $available_icons = array(
                     <div class="spacer"></div>
                     
                     <button type="submit" id="save-service-button" class="button button-primary">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
-                            <polyline points="17,21 17,13 7,13 7,21"/>
-                            <polyline points="7,3 7,8 15,8"/>
+                                                
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M17 21V13H7V21M7 3V8H15M19 21H5C4.46957 21 3.96086 20.7893 3.58579 20.4142C3.21071 20.0391 3 19.5304 3 19V5C3 4.46957 3.21071 3.96086 3.58579 3.58579C3.96086 3.21071 4.46957 3 5 3H16L21 8V19C21 19.5304 20.7893 20.0391 20.4142 20.4142C20.0391 20.7893 19.5304 21 19 21Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
                         </svg>
+
                         <span class="normal-state">
                             <?php echo $current_view === 'edit' ? __('Update Service', 'mobooking') : __('Create Service', 'mobooking'); ?>
                         </span>
@@ -446,18 +447,441 @@ $available_icons = array(
                     <input type="text" id="option-name" name="name" class="form-control" 
                            placeholder="<?php _e('e.g., Extra cleaning supplies', 'mobooking'); ?>" required>
                 </div>
-                <div class="form-group">
-                    <label for="option-type"><?php _e('Option Type', 'mobooking'); ?></label>
-                    <select id="option-type" name="type" class="form-control">
-                        <option value="checkbox"><?php _e('Checkbox', 'mobooking'); ?></option>
-                        <option value="text"><?php _e('Text Input', 'mobooking'); ?></option>
-                        <option value="number"><?php _e('Number Input', 'mobooking'); ?></option>
-                        <option value="select"><?php _e('Dropdown Select', 'mobooking'); ?></option>
-                        <option value="radio"><?php _e('Radio Buttons', 'mobooking'); ?></option>
-                        <option value="textarea"><?php _e('Text Area', 'mobooking'); ?></option>
-                        <option value="quantity"><?php _e('Quantity Selector', 'mobooking'); ?></option>
+
+
+<?php
+// Replace the existing option type dropdown in dashboard/sections/services.php
+// Find the section around line 400-500 in the option modal form
+
+// Replace this existing code:
+/*
+<div class="form-group">
+    <label for="option-type"><?php _e('Option Type', 'mobooking'); ?></label>
+    <select id="option-type" name="type" class="form-control">
+        <option value="checkbox"><?php _e('Checkbox', 'mobooking'); ?></option>
+        <option value="text"><?php _e('Text Input', 'mobooking'); ?></option>
+        <option value="number"><?php _e('Number Input', 'mobooking'); ?></option>
+        <option value="select"><?php _e('Dropdown Select', 'mobooking'); ?></option>
+        <option value="radio"><?php _e('Radio Buttons', 'mobooking'); ?></option>
+        <option value="textarea"><?php _e('Text Area', 'mobooking'); ?></option>
+        <option value="quantity"><?php _e('Quantity Selector', 'mobooking'); ?></option>
+    </select>
+</div>
+*/
+
+// With this enhanced version:
+?>
+
+<div class="form-group">
+    <label class="option-type-label"><?php _e('Option Type', 'mobooking'); ?></label>
+    <p class="option-type-description"><?php _e('Choose how customers will interact with this option', 'mobooking'); ?></p>
+    
+    <!-- Hidden input to store the selected type -->
+    <input type="hidden" id="option-type" name="type" value="checkbox">
+    
+    <!-- Visual option type selection cards -->
+    <div class="option-type-selector">
+        
+        <!-- Checkbox Option -->
+        <div class="option-type-card active" data-type="checkbox">
+            <div class="option-type-icon">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M9 12l2 2 4-4M21 12c0 4.97-4.03 9-9 9s-9-4.03-9-9 4.03-9 9-9 9 4.03 9 9z"/>
+                </svg>
+            </div>
+            <div class="option-type-content">
+                <h4 class="option-type-title"><?php _e('Checkbox', 'mobooking'); ?></h4>
+                <p class="option-type-desc"><?php _e('Yes/No choice - great for add-ons', 'mobooking'); ?></p>
+                <div class="option-type-example">
+                    <label class="example-checkbox">
+                        <input type="checkbox" disabled> <?php _e('Add eco-friendly products', 'mobooking'); ?>
+                    </label>
+                </div>
+            </div>
+        </div>
+
+        <!-- Text Input Option -->
+        <div class="option-type-card" data-type="text">
+            <div class="option-type-icon">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                    <polyline points="14,2 14,8 20,8"/>
+                    <line x1="16" y1="13" x2="8" y2="13"/>
+                    <line x1="16" y1="17" x2="8" y2="17"/>
+                    <polyline points="10,9 9,9 8,9"/>
+                </svg>
+            </div>
+            <div class="option-type-content">
+                <h4 class="option-type-title"><?php _e('Text Input', 'mobooking'); ?></h4>
+                <p class="option-type-desc"><?php _e('Single line text - names, addresses', 'mobooking'); ?></p>
+                <div class="option-type-example">
+                    <input type="text" class="example-input" placeholder="<?php _e('Enter special instructions', 'mobooking'); ?>" disabled>
+                </div>
+            </div>
+        </div>
+
+        <!-- Number Input Option -->
+        <div class="option-type-card" data-type="number">
+            <div class="option-type-icon">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+                    <path d="M9 9h6v6H9z"/>
+                    <path d="M9 1v4M15 1v4M9 19v4M15 19v4M1 9h4M1 15h4M19 9h4M19 15h4"/>
+                </svg>
+            </div>
+            <div class="option-type-content">
+                <h4 class="option-type-title"><?php _e('Number Input', 'mobooking'); ?></h4>
+                <p class="option-type-desc"><?php _e('Numeric values with min/max limits', 'mobooking'); ?></p>
+                <div class="option-type-example">
+                    <input type="number" class="example-input" placeholder="0" min="1" max="10" disabled>
+                </div>
+            </div>
+        </div>
+
+        <!-- Dropdown Select Option -->
+        <div class="option-type-card" data-type="select">
+            <div class="option-type-icon">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M6 9l6 6 6-6"/>
+                    <rect x="3" y="4" width="18" height="2" rx="1"/>
+                    <rect x="3" y="18" width="18" height="2" rx="1"/>
+                </svg>
+            </div>
+            <div class="option-type-content">
+                <h4 class="option-type-title"><?php _e('Dropdown Select', 'mobooking'); ?></h4>
+                <p class="option-type-desc"><?php _e('Choose one from multiple options', 'mobooking'); ?></p>
+                <div class="option-type-example">
+                    <select class="example-select" disabled>
+                        <option><?php _e('Select frequency...', 'mobooking'); ?></option>
+                        <option><?php _e('Weekly', 'mobooking'); ?></option>
+                        <option><?php _e('Bi-weekly', 'mobooking'); ?></option>
                     </select>
                 </div>
+            </div>
+        </div>
+
+        <!-- Radio Buttons Option -->
+        <div class="option-type-card" data-type="radio">
+            <div class="option-type-icon">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="12" cy="12" r="10"/>
+                    <circle cx="12" cy="12" r="3"/>
+                </svg>
+            </div>
+            <div class="option-type-content">
+                <h4 class="option-type-title"><?php _e('Radio Buttons', 'mobooking'); ?></h4>
+                <p class="option-type-desc"><?php _e('Choose one option, clearly visible', 'mobooking'); ?></p>
+                <div class="option-type-example">
+                    <label class="example-radio">
+                        <input type="radio" name="example" disabled> <?php _e('Morning (8-12)', 'mobooking'); ?>
+                    </label>
+                    <label class="example-radio">
+                        <input type="radio" name="example" disabled> <?php _e('Afternoon (1-5)', 'mobooking'); ?>
+                    </label>
+                </div>
+            </div>
+        </div>
+
+        <!-- Text Area Option -->
+        <div class="option-type-card" data-type="textarea">
+            <div class="option-type-icon">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                    <polyline points="14,2 14,8 20,8"/>
+                    <line x1="16" y1="13" x2="8" y2="13"/>
+                    <line x1="16" y1="17" x2="8" y2="17"/>
+                    <line x1="10" y1="9" x2="8" y2="9"/>
+                </svg>
+            </div>
+            <div class="option-type-content">
+                <h4 class="option-type-title"><?php _e('Text Area', 'mobooking'); ?></h4>
+                <p class="option-type-desc"><?php _e('Multi-line text for longer responses', 'mobooking'); ?></p>
+                <div class="option-type-example">
+                    <textarea class="example-textarea" placeholder="<?php _e('Describe your cleaning needs...', 'mobooking'); ?>" rows="2" disabled></textarea>
+                </div>
+            </div>
+        </div>
+
+        <!-- Quantity Selector Option -->
+        <div class="option-type-card" data-type="quantity">
+            <div class="option-type-icon">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+                    <line x1="12" y1="8" x2="12" y2="16"/>
+                    <line x1="8" y1="12" x2="16" y2="12"/>
+                </svg>
+            </div>
+            <div class="option-type-content">
+                <h4 class="option-type-title"><?php _e('Quantity Selector', 'mobooking'); ?></h4>
+                <p class="option-type-desc"><?php _e('Number input with +/- buttons', 'mobooking'); ?></p>
+                <div class="option-type-example">
+                    <div class="example-quantity">
+                        <button type="button" class="qty-btn" disabled>-</button>
+                        <input type="number" value="1" class="qty-input" disabled>
+                        <button type="button" class="qty-btn" disabled>+</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<style>
+/* Enhanced Option Type Selector Styles */
+.option-type-label {
+    font-weight: 600;
+    font-size: 1rem;
+    color: hsl(var(--foreground));
+    margin-bottom: 0.5rem;
+    display: block;
+}
+
+.option-type-description {
+    color: hsl(var(--muted-foreground));
+    font-size: 0.875rem;
+    margin-bottom: 1.5rem;
+    line-height: 1.5;
+}
+
+.option-type-selector {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+}
+
+.option-type-card {
+    border: 2px solid hsl(var(--border));
+    border-radius: var(--radius);
+    padding: 1.25rem;
+    cursor: pointer;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    background-color: hsl(var(--card));
+    position: relative;
+    overflow: hidden;
+}
+
+.option-type-card::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: linear-gradient(135deg, hsl(var(--primary)), hsl(var(--primary) / 0.6));
+    transform: scaleX(0);
+    transform-origin: left;
+    transition: transform 0.3s ease-in-out;
+}
+
+.option-type-card:hover {
+    border-color: hsl(var(--primary) / 0.5);
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-lg);
+}
+
+.option-type-card:hover::before {
+    transform: scaleX(1);
+}
+
+.option-type-card.active {
+    border-color: hsl(var(--primary));
+    background-color: hsl(var(--primary) / 0.05);
+    box-shadow: var(--shadow-md);
+}
+
+.option-type-card.active::before {
+    transform: scaleX(1);
+    background: linear-gradient(135deg, hsl(var(--primary)), hsl(var(--primary) / 0.8));
+}
+
+.option-type-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 3rem;
+    height: 3rem;
+    border-radius: calc(var(--radius) + 2px);
+    background: linear-gradient(135deg, hsl(var(--muted)), hsl(var(--muted) / 0.8));
+    color: hsl(var(--muted-foreground));
+    margin-bottom: 1rem;
+    transition: all 0.3s ease-in-out;
+}
+
+.option-type-card.active .option-type-icon {
+    background: linear-gradient(135deg, hsl(var(--primary)), hsl(var(--primary) / 0.8));
+    color: hsl(var(--primary-foreground));
+    transform: scale(1.05);
+}
+
+.option-type-content {
+    flex: 1;
+}
+
+.option-type-title {
+    font-size: 1rem;
+    font-weight: 600;
+    color: hsl(var(--foreground));
+    margin: 0 0 0.5rem 0;
+    line-height: 1.25;
+}
+
+.option-type-desc {
+    font-size: 0.8125rem;
+    color: hsl(var(--muted-foreground));
+    margin: 0 0 1rem 0;
+    line-height: 1.4;
+}
+
+.option-type-example {
+    margin-top: 1rem;
+    padding: 0.75rem;
+    background-color: hsl(var(--muted) / 0.3);
+    border-radius: calc(var(--radius) - 2px);
+    border: 1px solid hsl(var(--border));
+}
+
+/* Example input styles */
+.example-input,
+.example-select,
+.example-textarea {
+    width: 100%;
+    padding: 0.5rem;
+    border: 1px solid hsl(var(--border));
+    border-radius: calc(var(--radius) - 2px);
+    font-size: 0.8125rem;
+    background-color: hsl(var(--background));
+    color: hsl(var(--muted-foreground));
+    opacity: 0.8;
+}
+
+.example-checkbox,
+.example-radio {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.8125rem;
+    color: hsl(var(--muted-foreground));
+    margin-bottom: 0.25rem;
+    cursor: default;
+}
+
+.example-checkbox input,
+.example-radio input {
+    opacity: 0.6;
+}
+
+.example-quantity {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    justify-content: center;
+}
+
+.qty-btn {
+    width: 2rem;
+    height: 2rem;
+    border: 1px solid hsl(var(--border));
+    background-color: hsl(var(--background));
+    color: hsl(var(--muted-foreground));
+    border-radius: calc(var(--radius) - 2px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.875rem;
+    font-weight: 600;
+    opacity: 0.6;
+}
+
+.qty-input {
+    width: 3rem;
+    text-align: center;
+    padding: 0.375rem;
+    border: 1px solid hsl(var(--border));
+    border-radius: calc(var(--radius) - 2px);
+    font-size: 0.8125rem;
+    background-color: hsl(var(--background));
+    color: hsl(var(--muted-foreground));
+    opacity: 0.8;
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+    .option-type-selector {
+        grid-template-columns: 1fr;
+        gap: 0.75rem;
+    }
+    
+    .option-type-card {
+        padding: 1rem;
+    }
+    
+    .option-type-icon {
+        width: 2.5rem;
+        height: 2.5rem;
+        margin-bottom: 0.75rem;
+    }
+}
+
+/* Animation for selection */
+@keyframes selectOption {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.02); }
+    100% { transform: scale(1); }
+}
+
+.option-type-card.selecting {
+    animation: selectOption 0.3s ease-in-out;
+}
+</style>
+
+<script>
+// JavaScript to handle option type selection
+jQuery(document).ready(function($) {
+    // Handle option type card selection
+    $(document).on('click', '.option-type-card', function() {
+        const $card = $(this);
+        const type = $card.data('type');
+        
+        // Remove active class from all cards
+        $('.option-type-card').removeClass('active');
+        
+        // Add active class to clicked card with animation
+        $card.addClass('active selecting');
+        setTimeout(() => {
+            $card.removeClass('selecting');
+        }, 300);
+        
+        // Update hidden input
+        $('#option-type').val(type);
+        
+        // Trigger change event to update dynamic fields
+        $('#option-type').trigger('change');
+        
+        // Optional: Add haptic feedback on mobile
+        if (navigator.vibrate) {
+            navigator.vibrate(50);
+        }
+    });
+    
+    // Set initial selection when modal opens
+    $(document).on('mobooking:option-modal-opened', function(e, optionData) {
+        const currentType = optionData ? optionData.type : 'checkbox';
+        
+        // Update visual selection
+        $('.option-type-card').removeClass('active');
+        $(`.option-type-card[data-type="${currentType}"]`).addClass('active');
+        
+        // Update hidden input
+        $('#option-type').val(currentType);
+    });
+});
+</script>
+
+
+
+
             </div>
             
             <div class="form-group">
