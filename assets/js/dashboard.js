@@ -47,6 +47,7 @@
       deleteTarget: null,
       deleteType: null,
       lastSubmitTime: 0, // Prevent rapid double-clicks
+      optionProcessingFlags: {}, // Track processing flags
     },
 
     // Initialize
@@ -187,7 +188,12 @@
       });
     },
 
-    // Initialize components
+    /**
+     * Code to add sortable functionality to service options
+     * Add this to your dashboard.js file
+     */
+
+    // Add this to the initializeComponents function
     initializeComponents: function () {
       if (this.config.currentView === "edit" && this.config.currentServiceId) {
         this.loadServiceOptions(this.config.currentServiceId);
@@ -203,6 +209,123 @@
         this.elements.optionServiceId.val(serviceId);
         this.config.currentServiceId = parseInt(serviceId);
       }
+
+      // Initialize sortable - this makes options draggable
+      this.initSortableOptions();
+    },
+
+    // Add this new method to the MoBookingDashboard object
+    initSortableOptions: function () {
+      const self = this;
+
+      // Wait for options to be loaded before initializing sortable
+      setTimeout(() => {
+        if (this.elements.optionsContainer.children().length > 1) {
+          this.elements.optionsContainer.sortable({
+            handle: ".option-drag-handle",
+            placeholder: "option-card-placeholder",
+            opacity: 0.7,
+            cursor: "grabbing",
+            tolerance: "pointer",
+            update: function (event, ui) {
+              self.updateOptionsOrder();
+            },
+          });
+
+          console.log("✅ Sortable initialized for options");
+        } else {
+          console.log("⚠️ Not enough options to make sortable yet");
+        }
+      }, 500);
+    },
+
+    // Also add this method to update the order in the database
+    updateOptionsOrder: function () {
+      if (!this.config.currentServiceId) return;
+
+      const orderData = [];
+
+      // Get the order of options
+      this.elements.optionsContainer
+        .find(".option-card")
+        .each(function (index) {
+          orderData.push({
+            id: $(this).data("option-id"),
+            order: index + 1,
+          });
+        });
+
+      // Save the new order
+      if (orderData.length < 2) return; // Don't bother if there's only one item
+
+      const data = {
+        action: "mobooking_update_options_order",
+        service_id: this.config.currentServiceId,
+        order_data: JSON.stringify(orderData),
+        nonce: this.config.serviceNonce,
+      };
+
+      this.makeAjaxRequest(data)
+        .done((response) => {
+          if (response.success) {
+            this.showNotification("Options order updated", "success");
+          } else {
+            this.showNotification("Failed to update options order", "error");
+          }
+        })
+        .fail(() => {
+          this.showNotification("Error updating options order", "error");
+        });
+    },
+
+    // Add this to the displayOptions method to re-initialize sortable after loading options
+    displayOptions: function (options) {
+      this.elements.optionsContainer.empty();
+
+      if (!options || options.length === 0) {
+        this.showNoOptionsMessage();
+        return;
+      }
+
+      options.forEach((option) => {
+        const optionCard = this.createOptionCard(option);
+        this.elements.optionsContainer.append(optionCard);
+      });
+
+      // Re-initialize sortable after loading options
+      if (options.length > 1) {
+        this.initSortableOptions();
+      }
+    },
+
+    // Also modify the loadServiceOptions method to ensure we have the latest order
+    loadServiceOptions: function (serviceId) {
+      if (!serviceId) return;
+
+      console.log("🔄 Loading options for service:", serviceId);
+
+      // Disable sorting while loading
+      if (this.elements.optionsContainer.hasClass("ui-sortable")) {
+        this.elements.optionsContainer.sortable("destroy");
+      }
+
+      const data = {
+        action: "mobooking_get_service_options",
+        service_id: serviceId,
+        nonce: this.config.serviceNonce,
+      };
+
+      this.makeAjaxRequest(data)
+        .done((response) => {
+          if (response.success && response.data.options) {
+            this.displayOptions(response.data.options);
+          } else {
+            this.showNoOptionsMessage();
+          }
+        })
+        .fail(() => {
+          this.showNoOptionsMessage();
+        });
     },
 
     // Handle service form submission
@@ -253,14 +376,44 @@
         });
     },
 
-    // Handle option form submission - FIXED
+    // Handle option form submission - COMPLETELY FIXED
     handleOptionSubmit: function () {
       console.log("🔄 Option submit started");
 
+      // IMPROVED DUPLICATE PREVENTION
       if (this.state.isOptionSubmitting) {
         console.log("⚠️ Option submission already in progress");
         return;
       }
+
+      // Get the service ID from various possible sources - FIXED: single declaration
+      const serviceId =
+        this.elements.optionServiceId.val() ||
+        this.config.currentServiceId ||
+        new URLSearchParams(window.location.search).get("service_id");
+
+      if (!serviceId) {
+        this.showNotification("Service ID is missing", "error");
+        return;
+      }
+
+      // Record the submission attempt in sessionStorage to prevent duplicates across page reloads
+      const optionName = this.elements.optionName.val().trim();
+      const submissionKey = `option_submission_${serviceId}_${optionName}`;
+      const lastSubmission = sessionStorage.getItem(submissionKey);
+
+      // Prevent submission if the same option was submitted in the last 5 seconds
+      if (lastSubmission && Date.now() - parseInt(lastSubmission) < 5000) {
+        console.log("⚠️ Preventing duplicate submission of the same option");
+        this.showNotification(
+          "Please wait before submitting the same option again",
+          "warning"
+        );
+        return;
+      }
+
+      // Store the submission timestamp
+      sessionStorage.setItem(submissionKey, Date.now().toString());
 
       if (!this.validateOptionForm()) {
         return;
@@ -272,23 +425,16 @@
       // Get form data
       const formData = new FormData(this.elements.optionForm[0]);
 
-      // Ensure we have the correct service ID
-      const serviceId =
-        this.config.currentServiceId ||
-        this.elements.optionServiceId.val() ||
-        new URLSearchParams(window.location.search).get("service_id");
-
-      if (!serviceId) {
-        this.showNotification("Service ID is missing", "error");
-        this.state.isOptionSubmitting = false;
-        this.hideLoading(this.elements.saveOptionBtn);
-        return;
-      }
-
-      // Set the service ID
+      // Set the service ID and action
       formData.set("service_id", serviceId);
       formData.set("action", "mobooking_save_service_option");
       formData.set("nonce", this.config.serviceNonce);
+
+      // Add a unique request ID to help identify duplicates on server
+      const requestId = `${Date.now()}-${Math.random()
+        .toString(36)
+        .substr(2, 9)}`;
+      formData.set("request_id", requestId);
 
       // Handle option ID for updates vs creates
       const optionId = this.elements.optionId.val();
@@ -309,6 +455,13 @@
       }
 
       console.log("📤 Submitting option with service ID:", serviceId);
+
+      // Use a flag in localStorage to track processing status
+      const processingKey = `processing_option_${serviceId}_${optionName}_${requestId}`;
+      localStorage.setItem(processingKey, "true");
+
+      // Store this flag in our state object too
+      this.state.optionProcessingFlags[processingKey] = true;
 
       this.makeAjaxRequest(formData)
         .done((response) => {
@@ -335,6 +488,9 @@
         .always(() => {
           this.state.isOptionSubmitting = false;
           this.hideLoading(this.elements.saveOptionBtn);
+          // Remove the processing flag from both localStorage and our state
+          localStorage.removeItem(processingKey);
+          delete this.state.optionProcessingFlags[processingKey];
         });
     },
 

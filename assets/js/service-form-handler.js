@@ -8,8 +8,16 @@
   "use strict";
 
   const ServiceFormHandler = {
+    // In service-form-handler.js
     init: function () {
-      this.bindEvents();
+      // Only initialize form handlers if we're the primary handler
+      if (
+        typeof mobookingConfig !== "undefined" &&
+        mobookingConfig.primaryHandler === "service-handler"
+      ) {
+        this.bindEvents();
+      }
+      // Always initialize non-form functionality
       this.initializeFilters();
     },
 

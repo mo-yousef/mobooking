@@ -236,6 +236,9 @@ function mobooking_enqueue_dashboard_scripts()
 
     wp_localize_script('mobooking-dashboard', 'mobookingDashboard', $dashboard_data);
     wp_localize_script('mobooking-services-handler', 'mobookingServices', $dashboard_data);
+wp_localize_script('mobooking-dashboard', 'mobookingConfig', array(
+    'primaryHandler' => 'dashboard' // or 'service-handler'
+));
 }
 add_action('wp_enqueue_scripts', 'mobooking_enqueue_dashboard_scripts', 15);
 
