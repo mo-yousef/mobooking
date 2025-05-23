@@ -60,13 +60,13 @@ a:hover {
 /* Buttons */
 button {
   font: inherit;
-  padding: 0.5rem 1rem;
+  padding: 0.5rem;
   background-color: var(--primary-color);
-  color: #fff;
   border: none;
   border-radius: var(--radius);
   cursor: pointer;
-  box-shadow: var(--shadow);
+  /* box-shadow: var(--shadow); */
+  border: 1px solid #e3e8f0;
 }
 
 button:hover {

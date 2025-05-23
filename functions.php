@@ -168,13 +168,13 @@ function mobooking_enqueue_dashboard_scripts()
         MOBOOKING_VERSION
     );
 
-    // Service options styles
-    wp_enqueue_style(
-        'mobooking-service-options',
-        MOBOOKING_URL . '/assets/css/service-options.css',
-        array('mobooking-dashboard'),
-        MOBOOKING_VERSION
-    );
+    // // Service options styles
+    // wp_enqueue_style(
+    //     'mobooking-service-options',
+    //     MOBOOKING_URL . '/assets/css/service-options.css',
+    //     array('mobooking-dashboard'),
+    //     MOBOOKING_VERSION
+    // );
 
     // Dashboard JavaScript
     wp_enqueue_script(
