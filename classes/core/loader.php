@@ -2,7 +2,7 @@
 namespace MoBooking\Core;
 
 /**
- * Main loader class that initializes all theme components - Cleaned Version
+ * Main loader class that initializes all theme components - Fixed Version
  */
 class Loader {
     /**
@@ -20,15 +20,18 @@ class Loader {
     }
     
     /**
-     * Load all required dependencies
+     * Load all required dependencies - FIXED to prevent duplicate managers
      */
     private function load_dependencies() {
         // Initialize core modules
         new \MoBooking\Auth\Manager();
         new \MoBooking\Dashboard\Manager();
         
-        // Initialize unified services manager (replaces separate managers)
+        // Initialize services manager (handles services only)
         new \MoBooking\Services\ServicesManager();
+        
+        // Initialize service options manager (handles options only)
+        new \MoBooking\Services\ServiceOptionsManager();
         
         // Initialize other managers
         new \MoBooking\Bookings\Manager();

@@ -1,11 +1,6 @@
 <?php
 /**
- * MoBooking Theme Functions - Cleaned Version
- * 
- * Multi-tenant SaaS application for cleaning booking system
- * 
- * @package MoBooking
- * @version 1.0.0
+ * MoBooking Theme Functions - Fixed Duplicate Script Loading
  */
 
 // Prevent direct access
@@ -53,20 +48,17 @@ add_action('after_setup_theme', 'mobooking_init', 5);
  * Theme setup function
  */
 function mobooking_theme_setup() {
-    // Add theme support
     add_theme_support('title-tag');
     add_theme_support('post-thumbnails');
     add_theme_support('html5', array(
         'search-form', 'comment-form', 'comment-list', 'gallery', 'caption'
     ));
 
-    // Register navigation menus
     register_nav_menus(array(
         'primary' => __('Primary Menu', 'mobooking'),
         'footer' => __('Footer Menu', 'mobooking'),
     ));
 
-    // Set content width
     global $content_width;
     if (!isset($content_width)) {
         $content_width = 1200;
@@ -101,22 +93,28 @@ function mobooking_enqueue_assets() {
             array('mobooking-dashboard'),
             MOBOOKING_VERSION
         );
+        
+        wp_enqueue_style(
+            'mobooking-services-section',
+            MOBOOKING_URL . '/assets/css/services-section.css',
+            array('mobooking-dashboard'),
+            MOBOOKING_VERSION
+        );
     }
 
-    // Load dashicons on frontend
     wp_enqueue_style('dashicons');
 }
 add_action('wp_enqueue_scripts', 'mobooking_enqueue_assets');
 
 /**
- * Enqueue dashboard-specific scripts
+ * Enqueue dashboard-specific scripts - FIXED to prevent duplicates
  */
 function mobooking_enqueue_dashboard_scripts() {
     if (!is_dashboard_page() || !is_user_logged_in()) {
         return;
     }
 
-    // Dashboard JavaScript
+    // Load ONLY ONE JavaScript file to handle all dashboard functionality
     wp_enqueue_script(
         'mobooking-dashboard',
         MOBOOKING_URL . '/assets/js/dashboard.js',
@@ -125,15 +123,8 @@ function mobooking_enqueue_dashboard_scripts() {
         true
     );
 
-// Add this to the mobooking_enqueue_assets function
-if (is_dashboard_page()) {
-    wp_enqueue_style(
-        'mobooking-services-section',
-        MOBOOKING_URL . '/assets/css/services-section.css',
-        array('mobooking-dashboard'),
-        MOBOOKING_VERSION
-    );
-}
+    // DO NOT load service-form-handler.js as it conflicts with dashboard.js
+    // wp_enqueue_script('mobooking-service-form-handler', ...); // REMOVED
 
     // Localize dashboard scripts
     $dashboard_data = array(
@@ -274,7 +265,6 @@ function mobooking_admin_notices() {
         return;
     }
 
-    // Check for WooCommerce
     if (!class_exists('WooCommerce')) {
         echo '<div class="notice notice-warning"><p>';
         echo '<strong>MoBooking:</strong> ';
@@ -312,7 +302,6 @@ function mobooking_security_headers() {
 }
 add_action('send_headers', 'mobooking_security_headers');
 
-// Prevent file editing from WordPress admin
 if (!defined('DISALLOW_FILE_EDIT')) {
     define('DISALLOW_FILE_EDIT', true);
 }
