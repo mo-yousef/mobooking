@@ -414,14 +414,16 @@ class Manager {
             'total' => $total
         ));
     }
-    
+
+
     /**
-     * Booking form shortcode
+     * Enhanced Multi-Step Booking form shortcode
      */
     public function booking_form_shortcode($atts) {
         // Parse attributes
         $atts = shortcode_atts(array(
-            'user_id' => 0
+            'user_id' => 0,
+            'style' => 'modern' // modern, classic
         ), $atts);
         
         // If no user ID specified, return nothing
@@ -431,8 +433,14 @@ class Manager {
         
         $user_id = absint($atts['user_id']);
         
+        // Verify user exists and is a business owner
+        $user = get_userdata($user_id);
+        if (!$user || !in_array('mobooking_business_owner', $user->roles)) {
+            return '<p>' . __('Invalid service provider.', 'mobooking') . '</p>';
+        }
+        
         // Get user's services
-        $services_manager = new \MoBooking\Services\ServiceManager();
+        $services_manager = new \MoBooking\Services\ServicesManager();
         $services = $services_manager->get_user_services($user_id);
         
         if (empty($services)) {
@@ -443,185 +451,529 @@ class Manager {
         $settings_manager = new \MoBooking\Database\SettingsManager();
         $settings = $settings_manager->get_settings($user_id);
         
+        // Get service options for each service
+        $options_manager = new \MoBooking\Services\ServiceOptionsManager();
+        foreach ($services as $service) {
+            $service->options = $options_manager->get_service_options($service->id);
+        }
+        
         // Enqueue necessary scripts and styles
-        wp_enqueue_script('jquery-ui-datepicker');
-        wp_enqueue_style('jquery-ui-css', 'https://code.jquery.com/ui/1.12.1/themes/base/jquery-ui.css');
+        wp_enqueue_script('jquery');
+        wp_enqueue_style('mobooking-booking-form', MOBOOKING_URL . '/assets/css/booking-form.css', array(), MOBOOKING_VERSION);
+        wp_enqueue_script('mobooking-booking-form', MOBOOKING_URL . '/assets/js/booking-form.js', array('jquery'), MOBOOKING_VERSION, true);
+        
+        // Localize script
+        wp_localize_script('mobooking-booking-form', 'mobookingBooking', array(
+            'ajaxUrl' => admin_url('admin-ajax.php'),
+            'userId' => $user_id,
+            'nonces' => array(
+                'zip_check' => wp_create_nonce('mobooking-zip-nonce'),
+                'booking' => wp_create_nonce('mobooking-booking-nonce'),
+                'discount' => wp_create_nonce('mobooking-validate-discount-nonce')
+            ),
+            'strings' => array(
+                'loading' => __('Loading...', 'mobooking'),
+                'error' => __('An error occurred. Please try again.', 'mobooking'),
+                'selectService' => __('Please select at least one service.', 'mobooking'),
+                'fillRequired' => __('Please fill in all required fields.', 'mobooking'),
+                'invalidEmail' => __('Please enter a valid email address.', 'mobooking'),
+                'processingBooking' => __('Processing your booking...', 'mobooking'),
+                'bookingSuccess' => __('Booking successful!', 'mobooking')
+            ),
+            'currency' => array(
+                'symbol' => get_woocommerce_currency_symbol(),
+                'position' => get_option('woocommerce_currency_pos', 'left')
+            )
+        ));
         
         ob_start();
         ?>
-        <div class="mobooking-booking-form" data-user-id="<?php echo esc_attr($user_id); ?>">
-            <form id="mobooking-booking" method="post">
-                <!-- Step 1: Check ZIP code -->
+        <div class="mobooking-booking-form-container" data-user-id="<?php echo esc_attr($user_id); ?>" data-style="<?php echo esc_attr($atts['style']); ?>">
+            <!-- Progress Indicator -->
+            <div class="booking-progress">
+                <div class="progress-bar">
+                    <div class="progress-fill" style="width: 20%;"></div>
+                </div>
+                <div class="progress-steps">
+                    <div class="step active" data-step="1">
+                        <div class="step-number">1</div>
+                        <div class="step-label"><?php _e('Location', 'mobooking'); ?></div>
+                    </div>
+                    <div class="step" data-step="2">
+                        <div class="step-number">2</div>
+                        <div class="step-label"><?php _e('Services', 'mobooking'); ?></div>
+                    </div>
+                    <div class="step" data-step="3">
+                        <div class="step-number">3</div>
+                        <div class="step-label"><?php _e('Options', 'mobooking'); ?></div>
+                    </div>
+                    <div class="step" data-step="4">
+                        <div class="step-number">4</div>
+                        <div class="step-label"><?php _e('Details', 'mobooking'); ?></div>
+                    </div>
+                    <div class="step" data-step="5">
+                        <div class="step-number">5</div>
+                        <div class="step-label"><?php _e('Confirm', 'mobooking'); ?></div>
+                    </div>
+                </div>
+            </div>
+            
+            <form id="mobooking-booking-form" class="booking-form">
+                <!-- Step 1: ZIP Code Check -->
                 <div class="booking-step step-1 active">
-                    <h3><?php _e('Step 1: Check Availability', 'mobooking'); ?></h3>
-                    
-                    <div class="form-group">
-                        <label for="zip_code"><?php _e('Enter your ZIP code', 'mobooking'); ?></label>
-                        <input type="text" name="zip_code" id="zip_code" required>
-                        <button type="button" class="check-zip-button"><?php _e('Check Availability', 'mobooking'); ?></button>
+                    <div class="step-header">
+                        <h2><?php _e('Check Service Availability', 'mobooking'); ?></h2>
+                        <p><?php _e('Enter your ZIP code to see if we service your area', 'mobooking'); ?></p>
                     </div>
                     
-                    <div class="zip-message"></div>
-                </div>
-                
-                <!-- Step 2: Select services -->
-                <div class="booking-step step-2">
-                    <h3><?php _e('Step 2: Select Services', 'mobooking'); ?></h3>
-                    
-                    <div class="services-list">
-                        <?php foreach ($services as $service) : ?>
-                            <div class="service-item" data-id="<?php echo esc_attr($service->id); ?>" data-price="<?php echo esc_attr($service->price); ?>" data-duration="<?php echo esc_attr($service->duration); ?>">
-                                <div class="service-header">
-                                    <?php if (!empty($service->icon)) : ?>
-                                        <div class="service-icon">
-                                            <i class="<?php echo esc_attr($service->icon); ?>"></i>
-                                        </div>
-                                    <?php endif; ?>
-                                    
-                                    <div class="service-name"><?php echo esc_html($service->name); ?></div>
-                                    <div class="service-price"><?php echo wc_price($service->price); ?></div>
-                                </div>
-                                
-                                <div class="service-description">
-                                    <?php echo wpautop(esc_html($service->description)); ?>
-                                </div>
-                                
-                                <div class="service-select">
-                                    <label>
-                                        <input type="checkbox" name="selected_services[]" value="<?php echo esc_attr($service->id); ?>">
-                                        <?php _e('Select this service', 'mobooking'); ?>
-                                    </label>
-                                </div>
+                    <div class="step-content">
+                        <div class="zip-input-group">
+                            <label for="customer_zip_code"><?php _e('ZIP Code', 'mobooking'); ?></label>
+                            <div class="input-with-button">
+                                <input type="text" 
+                                    id="customer_zip_code" 
+                                    name="zip_code" 
+                                    class="zip-input" 
+                                    placeholder="<?php _e('Enter your ZIP code', 'mobooking'); ?>" 
+                                    required>
+                                <button type="button" class="check-zip-btn">
+                                    <span class="btn-text"><?php _e('Check Availability', 'mobooking'); ?></span>
+                                    <span class="btn-loading"><?php _e('Checking...', 'mobooking'); ?></span>
+                                </button>
                             </div>
-                        <?php endforeach; ?>
-                    </div>
-                    
-                    <div class="booking-buttons">
-                        <button type="button" class="prev-step" data-step="1"><?php _e('Back', 'mobooking'); ?></button>
-                        <button type="button" class="next-step" data-step="3"><?php _e('Next', 'mobooking'); ?></button>
+                        </div>
+                        
+                        <div class="zip-result" style="display: none;">
+                            <div class="result-message"></div>
+                        </div>
                     </div>
                 </div>
                 
-                <!-- Step 3: Choose date and time -->
+                <!-- Step 2: Service Selection -->
+                <div class="booking-step step-2">
+                    <div class="step-header">
+                        <h2><?php _e('Choose Your Services', 'mobooking'); ?></h2>
+                        <p><?php _e('Select the services you need', 'mobooking'); ?></p>
+                    </div>
+                    
+                    <div class="step-content">
+                        <div class="services-grid">
+                            <?php foreach ($services as $service) : ?>
+                                <div class="service-card" 
+                                    data-service-id="<?php echo esc_attr($service->id); ?>"
+                                    data-service-price="<?php echo esc_attr($service->price); ?>"
+                                    data-service-duration="<?php echo esc_attr($service->duration); ?>">
+                                    
+                                    <div class="service-header">
+                                        <div class="service-visual">
+                                            <?php if (!empty($service->image_url)) : ?>
+                                                <div class="service-image">
+                                                    <img src="<?php echo esc_url($service->image_url); ?>" alt="<?php echo esc_attr($service->name); ?>">
+                                                </div>
+                                            <?php elseif (!empty($service->icon)) : ?>
+                                                <div class="service-icon">
+                                                    <span class="dashicons <?php echo esc_attr($service->icon); ?>"></span>
+                                                </div>
+                                            <?php else : ?>
+                                                <div class="service-icon service-icon-default">
+                                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                                        <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/>
+                                                    </svg>
+                                                </div>
+                                            <?php endif; ?>
+                                            
+                                            <div class="service-selector">
+                                                <input type="checkbox" 
+                                                    id="service_<?php echo esc_attr($service->id); ?>" 
+                                                    name="selected_services[]" 
+                                                    value="<?php echo esc_attr($service->id); ?>"
+                                                    data-has-options="<?php echo !empty($service->options) ? '1' : '0'; ?>">
+                                                <label for="service_<?php echo esc_attr($service->id); ?>" class="service-checkbox"></label>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="service-content">
+                                        <h3 class="service-name"><?php echo esc_html($service->name); ?></h3>
+                                        
+                                        <?php if (!empty($service->description)) : ?>
+                                            <p class="service-description"><?php echo esc_html($service->description); ?></p>
+                                        <?php endif; ?>
+                                        
+                                        <div class="service-meta">
+                                            <div class="service-price">
+                                                <span class="price-amount"><?php echo wc_price($service->price); ?></span>
+                                            </div>
+                                            <div class="service-duration">
+                                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                                    <circle cx="12" cy="12" r="10"></circle>
+                                                    <polyline points="12,6 12,12 16,14"></polyline>
+                                                </svg>
+                                                <span><?php echo sprintf(_n('%d min', '%d mins', $service->duration, 'mobooking'), $service->duration); ?></span>
+                                            </div>
+                                        </div>
+                                        
+                                        <?php if (!empty($service->options)) : ?>
+                                            <div class="service-options-indicator">
+                                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                                    <circle cx="12" cy="12" r="3"/>
+                                                    <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1 1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+                                                </svg>
+                                                <?php printf(_n('%d option', '%d options', count($service->options), 'mobooking'), count($service->options)); ?>
+                                            </div>
+                                        <?php endif; ?>
+                                    </div>
+                                </div>
+                            <?php endforeach; ?>
+                        </div>
+                    </div>
+                    
+                    <div class="step-actions">
+                        <button type="button" class="btn-secondary prev-step"><?php _e('Back', 'mobooking'); ?></button>
+                        <button type="button" class="btn-primary next-step"><?php _e('Continue', 'mobooking'); ?></button>
+                    </div>
+                </div>
+                
+                <!-- Step 3: Service Options -->
                 <div class="booking-step step-3">
-                    <h3><?php _e('Step 3: Choose Date and Time', 'mobooking'); ?></h3>
-                    
-                    <div class="form-group">
-                        <label for="service_date"><?php _e('Select Date', 'mobooking'); ?></label>
-                        <input type="text" name="service_date" id="service_date" class="datepicker" required>
+                    <div class="step-header">
+                        <h2><?php _e('Customize Your Services', 'mobooking'); ?></h2>
+                        <p><?php _e('Configure options for your selected services', 'mobooking'); ?></p>
                     </div>
                     
-                    <div class="form-group time-slots" style="display: none;">
-                        <label><?php _e('Select Time', 'mobooking'); ?></label>
-                        <div class="time-slots-container"></div>
+                    <div class="step-content">
+                        <div class="service-options-container">
+                            <!-- Service options will be dynamically loaded here -->
+                        </div>
                     </div>
                     
-                    <div class="booking-buttons">
-                        <button type="button" class="prev-step" data-step="2"><?php _e('Back', 'mobooking'); ?></button>
-                        <button type="button" class="next-step" data-step="4"><?php _e('Next', 'mobooking'); ?></button>
+                    <div class="step-actions">
+                        <button type="button" class="btn-secondary prev-step"><?php _e('Back', 'mobooking'); ?></button>
+                        <button type="button" class="btn-primary next-step"><?php _e('Continue', 'mobooking'); ?></button>
                     </div>
                 </div>
                 
-                <!-- Step 4: Enter customer details -->
+                <!-- Step 4: Customer Information -->
                 <div class="booking-step step-4">
-                    <h3><?php _e('Step 4: Your Information', 'mobooking'); ?></h3>
-                    
-                    <div class="form-group">
-                        <label for="customer_name"><?php _e('Full Name', 'mobooking'); ?></label>
-                        <input type="text" name="customer_name" id="customer_name" required>
+                    <div class="step-header">
+                        <h2><?php _e('Your Information', 'mobooking'); ?></h2>
+                        <p><?php _e('Please provide your contact details', 'mobooking'); ?></p>
                     </div>
                     
-                    <div class="form-group">
-                        <label for="customer_email"><?php _e('Email', 'mobooking'); ?></label>
-                        <input type="email" name="customer_email" id="customer_email" required>
+                    <div class="step-content">
+                        <div class="form-grid">
+                            <div class="form-group">
+                                <label for="customer_name"><?php _e('Full Name', 'mobooking'); ?> *</label>
+                                <input type="text" id="customer_name" name="customer_name" required>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="customer_email"><?php _e('Email Address', 'mobooking'); ?> *</label>
+                                <input type="email" id="customer_email" name="customer_email" required>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="customer_phone"><?php _e('Phone Number', 'mobooking'); ?></label>
+                                <input type="tel" id="customer_phone" name="customer_phone">
+                            </div>
+                            
+                            <div class="form-group full-width">
+                                <label for="customer_address"><?php _e('Service Address', 'mobooking'); ?> *</label>
+                                <textarea id="customer_address" name="customer_address" rows="3" required placeholder="<?php _e('Enter the full address where service will be provided', 'mobooking'); ?>"></textarea>
+                            </div>
+                            
+                            <div class="form-group full-width">
+                                <label for="service_date"><?php _e('Preferred Date & Time', 'mobooking'); ?> *</label>
+                                <input type="datetime-local" id="service_date" name="service_date" required min="<?php echo date('Y-m-d\TH:i', strtotime('+1 day')); ?>">
+                            </div>
+                            
+                            <div class="form-group full-width">
+                                <label for="booking_notes"><?php _e('Additional Notes', 'mobooking'); ?></label>
+                                <textarea id="booking_notes" name="notes" rows="3" placeholder="<?php _e('Any special instructions or requirements...', 'mobooking'); ?>"></textarea>
+                            </div>
+                        </div>
                     </div>
                     
-                    <div class="form-group">
-                        <label for="customer_phone"><?php _e('Phone', 'mobooking'); ?></label>
-                        <input type="tel" name="customer_phone" id="customer_phone">
-                    </div>
-                    
-                    <div class="form-group">
-                        <label for="customer_address"><?php _e('Address', 'mobooking'); ?></label>
-                        <textarea name="customer_address" id="customer_address" required></textarea>
-                    </div>
-                    
-                    <div class="form-group">
-                        <label for="notes"><?php _e('Additional Notes', 'mobooking'); ?></label>
-                        <textarea name="notes" id="notes"></textarea>
-                    </div>
-                    
-                    <div class="booking-buttons">
-                        <button type="button" class="prev-step" data-step="3"><?php _e('Back', 'mobooking'); ?></button>
-                        <button type="button" class="next-step" data-step="5"><?php _e('Next', 'mobooking'); ?></button>
+                    <div class="step-actions">
+                        <button type="button" class="btn-secondary prev-step"><?php _e('Back', 'mobooking'); ?></button>
+                        <button type="button" class="btn-primary next-step"><?php _e('Review Order', 'mobooking'); ?></button>
                     </div>
                 </div>
                 
-                <!-- Step 5: Review and confirm -->
+                <!-- Step 5: Review & Confirm -->
                 <div class="booking-step step-5">
-                    <h3><?php _e('Step 5: Review and Confirm', 'mobooking'); ?></h3>
+                    <div class="step-header">
+                        <h2><?php _e('Review Your Booking', 'mobooking'); ?></h2>
+                        <p><?php _e('Please review your order details before confirming', 'mobooking'); ?></p>
+                    </div>
                     
-                    <div class="booking-summary">
-                        <h4><?php _e('Selected Services', 'mobooking'); ?></h4>
-                        <div class="selected-services-summary"></div>
+                    <div class="step-content">
+                        <div class="booking-summary">
+                            <div class="summary-section">
+                                <h3><?php _e('Service Details', 'mobooking'); ?></h3>
+                                <div class="service-address"></div>
+                                <div class="service-datetime"></div>
+                            </div>
+                            
+                            <div class="summary-section">
+                                <h3><?php _e('Selected Services', 'mobooking'); ?></h3>
+                                <div class="selected-services-list"></div>
+                            </div>
+                            
+                            <div class="summary-section">
+                                <h3><?php _e('Customer Information', 'mobooking'); ?></h3>
+                                <div class="customer-info"></div>
+                            </div>
+                            
+                            <div class="summary-section discount-section" style="display: none;">
+                                <h3><?php _e('Discount Code', 'mobooking'); ?></h3>
+                                <div class="discount-input-group">
+                                    <input type="text" id="discount_code" name="discount_code" placeholder="<?php _e('Enter discount code', 'mobooking'); ?>">
+                                    <button type="button" class="apply-discount-btn"><?php _e('Apply', 'mobooking'); ?></button>
+                                </div>
+                                <div class="discount-message"></div>
+                            </div>
+                        </div>
                         
-                        <h4><?php _e('Date and Time', 'mobooking'); ?></h4>
-                        <div class="selected-datetime-summary"></div>
-                        
-                        <h4><?php _e('Your Information', 'mobooking'); ?></h4>
-                        <div class="customer-info-summary"></div>
-                    </div>
-                    
-                    <div class="discount-section">
-                        <div class="form-group">
-                            <label for="discount_code"><?php _e('Discount Code', 'mobooking'); ?></label>
-                            <input type="text" name="discount_code" id="discount_code">
-                            <button type="button" class="apply-discount-button"><?php _e('Apply', 'mobooking'); ?></button>
-                        </div>
-                        <div class="discount-message"></div>
-                    </div>
-                    
-                    <div class="booking-total">
-                        <div class="subtotal">
-                            <span class="label"><?php _e('Subtotal', 'mobooking'); ?>:</span>
-                            <span class="amount"></span>
-                        </div>
-                        <div class="discount" style="display: none;">
-                            <span class="label"><?php _e('Discount', 'mobooking'); ?>:</span>
-                            <span class="amount"></span>
-                        </div>
-                        <div class="total">
-                            <span class="label"><?php _e('Total', 'mobooking'); ?>:</span>
-                            <span class="amount"></span>
+                        <div class="pricing-summary">
+                            <div class="pricing-line subtotal">
+                                <span class="label"><?php _e('Subtotal', 'mobooking'); ?></span>
+                                <span class="amount">$0.00</span>
+                            </div>
+                            <div class="pricing-line discount" style="display: none;">
+                                <span class="label"><?php _e('Discount', 'mobooking'); ?></span>
+                                <span class="amount">-$0.00</span>
+                            </div>
+                            <div class="pricing-line total">
+                                <span class="label"><?php _e('Total', 'mobooking'); ?></span>
+                                <span class="amount">$0.00</span>
+                            </div>
                         </div>
                     </div>
                     
-                    <div class="booking-buttons">
-                        <button type="button" class="prev-step" data-step="4"><?php _e('Back', 'mobooking'); ?></button>
-                        <button type="submit" class="confirm-booking-button"><?php _e('Confirm Booking', 'mobooking'); ?></button>
+                    <div class="step-actions">
+                        <button type="button" class="btn-secondary prev-step"><?php _e('Back', 'mobooking'); ?></button>
+                        <button type="submit" class="btn-primary confirm-booking-btn">
+                            <span class="btn-text"><?php _e('Confirm Booking', 'mobooking'); ?></span>
+                            <span class="btn-loading"><?php _e('Processing...', 'mobooking'); ?></span>
+                        </button>
                     </div>
                 </div>
                 
-                <!-- Success message after booking -->
+                <!-- Success Step -->
                 <div class="booking-step step-success">
-                    <div class="success-message">
-                        <h3><?php _e('Booking Successful!', 'mobooking'); ?></h3>
-                        <p><?php echo esc_html($settings->booking_confirmation_message); ?></p>
-                        <div class="booking-reference"></div>
+                    <div class="success-content">
+                        <div class="success-icon">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2ZM8 12l2 2 4-4"/>
+                            </svg>
+                        </div>
+                        <h2><?php _e('Booking Confirmed!', 'mobooking'); ?></h2>
+                        <p class="success-message"><?php echo esc_html($settings->booking_confirmation_message); ?></p>
+                        <div class="booking-reference">
+                            <strong><?php _e('Booking Reference:', 'mobooking'); ?></strong>
+                            <span class="reference-number"></span>
+                        </div>
+                        <div class="next-steps">
+                            <p><?php _e('What happens next:', 'mobooking'); ?></p>
+                            <ul>
+                                <li><?php _e('You will receive a confirmation email shortly', 'mobooking'); ?></li>
+                                <li><?php _e('We will contact you to confirm the appointment', 'mobooking'); ?></li>
+                                <li><?php _e('Our team will arrive at the scheduled time', 'mobooking'); ?></li>
+                            </ul>
+                        </div>
                     </div>
                 </div>
                 
-                <?php wp_nonce_field('mobooking-booking-nonce', 'mobooking_booking_nonce'); ?>
-                <input type="hidden" name="action" value="mobooking_save_booking">
+                <!-- Hidden fields -->
                 <input type="hidden" name="user_id" value="<?php echo esc_attr($user_id); ?>">
                 <input type="hidden" name="total_price" id="total_price" value="0">
                 <input type="hidden" name="discount_amount" id="discount_amount" value="0">
+                <input type="hidden" name="service_options_data" id="service_options_data" value="">
+                
+                <?php wp_nonce_field('mobooking-booking-nonce', 'booking_nonce'); ?>
             </form>
+            
+            <!-- Service Options Template (Hidden) -->
+            <div id="service-options-template" style="display: none;">
+                <?php foreach ($services as $service) : ?>
+                    <?php if (!empty($service->options)) : ?>
+                        <div class="service-options-section" data-service-id="<?php echo esc_attr($service->id); ?>">
+                            <h3 class="service-options-title"><?php echo esc_html($service->name); ?></h3>
+                            
+                            <?php foreach ($service->options as $option) : ?>
+                                <div class="option-field" data-option-id="<?php echo esc_attr($option->id); ?>" data-price-type="<?php echo esc_attr($option->price_type); ?>" data-price-impact="<?php echo esc_attr($option->price_impact); ?>">
+                                    <label class="option-label">
+                                        <?php echo esc_html($option->name); ?>
+                                        <?php if ($option->is_required) : ?>
+                                            <span class="required">*</span>
+                                        <?php endif; ?>
+                                        <?php if ($option->price_impact > 0) : ?>
+                                            <span class="price-impact">(+<?php echo wc_price($option->price_impact); ?>)</span>
+                                        <?php endif; ?>
+                                    </label>
+                                    
+                                    <?php if (!empty($option->description)) : ?>
+                                        <p class="option-description"><?php echo esc_html($option->description); ?></p>
+                                    <?php endif; ?>
+                                    
+                                    <div class="option-input">
+                                        <?php
+                                        $field_name = "option_{$option->id}";
+                                        $field_id = "option_{$option->id}_{$service->id}";
+                                        
+                                        switch ($option->type) :
+                                            case 'checkbox':
+                                        ?>
+                                                <input type="checkbox" 
+                                                    id="<?php echo esc_attr($field_id); ?>" 
+                                                    name="<?php echo esc_attr($field_name); ?>" 
+                                                    value="1"
+                                                    <?php echo $option->is_required ? 'data-required="true"' : ''; ?>
+                                                    <?php echo $option->default_value == '1' ? 'checked' : ''; ?>>
+                                                <label for="<?php echo esc_attr($field_id); ?>" class="checkbox-label">
+                                                    <?php echo !empty($option->option_label) ? esc_html($option->option_label) : __('Yes', 'mobooking'); ?>
+                                                </label>
+                                        <?php
+                                                break;
+                                            case 'text':
+                                        ?>
+                                                <input type="text" 
+                                                    id="<?php echo esc_attr($field_id); ?>" 
+                                                    name="<?php echo esc_attr($field_name); ?>" 
+                                                    placeholder="<?php echo esc_attr($option->placeholder); ?>"
+                                                    value="<?php echo esc_attr($option->default_value); ?>"
+                                                    <?php echo $option->is_required ? 'required' : ''; ?>
+                                                    <?php echo $option->min_length ? 'minlength="' . esc_attr($option->min_length) . '"' : ''; ?>
+                                                    <?php echo $option->max_length ? 'maxlength="' . esc_attr($option->max_length) . '"' : ''; ?>>
+                                        <?php
+                                                break;
+                                            case 'number':
+                                            case 'quantity':
+                                        ?>
+                                                <input type="number" 
+                                                    id="<?php echo esc_attr($field_id); ?>" 
+                                                    name="<?php echo esc_attr($field_name); ?>" 
+                                                    value="<?php echo esc_attr($option->default_value); ?>"
+                                                    <?php echo $option->is_required ? 'required' : ''; ?>
+                                                    <?php echo $option->min_value !== null ? 'min="' . esc_attr($option->min_value) . '"' : ''; ?>
+                                                    <?php echo $option->max_value !== null ? 'max="' . esc_attr($option->max_value) . '"' : ''; ?>
+                                                    step="<?php echo esc_attr($option->step); ?>">
+                                        <?php
+                                                break;
+                                            case 'textarea':
+                                        ?>
+                                                <textarea id="<?php echo esc_attr($field_id); ?>" 
+                                                        name="<?php echo esc_attr($field_name); ?>" 
+                                                        rows="<?php echo esc_attr($option->rows); ?>"
+                                                        placeholder="<?php echo esc_attr($option->placeholder); ?>"
+                                                        <?php echo $option->is_required ? 'required' : ''; ?>
+                                                        <?php echo $option->min_length ? 'minlength="' . esc_attr($option->min_length) . '"' : ''; ?>
+                                                        <?php echo $option->max_length ? 'maxlength="' . esc_attr($option->max_length) . '"' : ''; ?>><?php echo esc_textarea($option->default_value); ?></textarea>
+                                        <?php
+                                                break;
+                                            case 'select':
+                                                $choices = $this->parse_option_choices($option->options);
+                                        ?>
+                                                <select id="<?php echo esc_attr($field_id); ?>" 
+                                                        name="<?php echo esc_attr($field_name); ?>" 
+                                                        <?php echo $option->is_required ? 'required' : ''; ?>>
+                                                    <?php if (!$option->is_required) : ?>
+                                                        <option value=""><?php _e('-- Select --', 'mobooking'); ?></option>
+                                                    <?php endif; ?>
+                                                    <?php foreach ($choices as $choice) : ?>
+                                                        <option value="<?php echo esc_attr($choice['value']); ?>" 
+                                                                data-price="<?php echo esc_attr($choice['price']); ?>"
+                                                                <?php echo $choice['value'] == $option->default_value ? 'selected' : ''; ?>>
+                                                            <?php echo esc_html($choice['label']); ?>
+                                                            <?php if ($choice['price'] > 0) : ?>
+                                                                (+<?php echo wc_price($choice['price']); ?>)
+                                                            <?php endif; ?>
+                                                        </option>
+                                                    <?php endforeach; ?>
+                                                </select>
+                                        <?php
+                                                break;
+                                            case 'radio':
+                                                $choices = $this->parse_option_choices($option->options);
+                                        ?>
+                                                <div class="radio-group">
+                                                    <?php foreach ($choices as $index => $choice) : ?>
+                                                        <label class="radio-label">
+                                                            <input type="radio" 
+                                                                name="<?php echo esc_attr($field_name); ?>" 
+                                                                value="<?php echo esc_attr($choice['value']); ?>"
+                                                                data-price="<?php echo esc_attr($choice['price']); ?>"
+                                                                <?php echo $choice['value'] == $option->default_value ? 'checked' : ''; ?>
+                                                                <?php echo $option->is_required && $index === 0 ? 'required' : ''; ?>>
+                                                            <?php echo esc_html($choice['label']); ?>
+                                                            <?php if ($choice['price'] > 0) : ?>
+                                                                <span class="choice-price">(+<?php echo wc_price($choice['price']); ?>)</span>
+                                                            <?php endif; ?>
+                                                        </label>
+                                                    <?php endforeach; ?>
+                                                </div>
+                                        <?php
+                                                break;
+                                        endswitch;
+                                        ?>
+                                    </div>
+                                </div>
+                            <?php endforeach; ?>
+                        </div>
+                    <?php endif; ?>
+                <?php endforeach; ?>
+            </div>
         </div>
         <?php
         return ob_get_clean();
     }
-    
+
+    /**
+     * Parse option choices from string format
+     */
+    private function parse_option_choices($options_string) {
+        if (empty($options_string)) {
+            return array();
+        }
+        
+        $choices = array();
+        $lines = explode("\n", $options_string);
+        
+        foreach ($lines as $line) {
+            $line = trim($line);
+            if (empty($line)) {
+                continue;
+            }
+            
+            $parts = explode('|', $line);
+            $value = trim($parts[0]);
+            
+            if (empty($value)) {
+                continue;
+            }
+            
+            $label = $value;
+            $price = 0;
+            
+            if (isset($parts[1])) {
+                $label_price = explode(':', $parts[1]);
+                $label = trim($label_price[0]);
+                if (isset($label_price[1])) {
+                    $price = floatval($label_price[1]);
+                }
+            }
+            
+            $choices[] = array(
+                'value' => $value,
+                'label' => $label,
+                'price' => $price
+            );
+        }
+        
+        return $choices;
+    }
+        
     /**
      * Booking list shortcode
      */
