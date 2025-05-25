@@ -9,211 +9,277 @@ class Manager {
      * Constructor
      */
     public function __construct() {
-        // Register hooks
-        add_action('init', array($this, 'check_woocommerce'));
-        add_action('woocommerce_payment_complete', array($this, 'handle_payment_complete'));
-        add_action('woocommerce_subscription_status_active', array($this, 'handle_subscription_active'), 10, 2);
-        add_action('woocommerce_subscription_status_cancelled', array($this, 'handle_subscription_cancelled'), 10, 2);
+        // Register hooks for payment processing
+        add_action('wp_ajax_mobooking_process_payment', array($this, 'ajax_process_payment'));
+        add_action('wp_ajax_nopriv_mobooking_process_payment', array($this, 'ajax_process_payment'));
         
-        // Add shortcodes
-        add_shortcode('mobooking_subscription_plans', array($this, 'subscription_plans_shortcode'));
+        // WooCommerce integration hooks
+        add_action('woocommerce_checkout_create_order', array($this, 'create_order_from_booking'));
+        add_action('woocommerce_payment_complete', array($this, 'handle_payment_complete'));
     }
     
     /**
-     * Check if WooCommerce is active
+     * Process payment for a booking
      */
-    public function check_woocommerce() {
-        if (!class_exists('WooCommerce')) {
-            add_action('admin_notices', function() {
-                ?>
-                <div class="notice notice-error">
-                    <p><?php _e('MoBooking requires WooCommerce to be installed and activated.', 'mobooking'); ?></p>
-                </div>
-                <?php
-            });
+    public function process_payment($booking_id, $payment_method = 'stripe') {
+        $bookings_manager = new \MoBooking\Bookings\Manager();
+        $booking = $bookings_manager->get_booking($booking_id);
+        
+        if (!$booking) {
+            return array('success' => false, 'message' => __('Booking not found.', 'mobooking'));
+        }
+        
+        // For now, we'll integrate with WooCommerce
+        if (class_exists('WooCommerce')) {
+            return $this->process_woocommerce_payment($booking);
+        }
+        
+        // Fallback to direct Stripe integration (if needed)
+        if ($payment_method === 'stripe') {
+            return $this->process_stripe_payment($booking);
+        }
+        
+        return array('success' => false, 'message' => __('No payment method available.', 'mobooking'));
+    }
+    
+    /**
+     * Process payment through WooCommerce
+     */
+    private function process_woocommerce_payment($booking) {
+        try {
+            // Create a WooCommerce order from the booking
+            $order = $this->create_wc_order_from_booking($booking);
+            
+            if (!$order) {
+                return array('success' => false, 'message' => __('Failed to create order.', 'mobooking'));
+            }
+            
+            // Return checkout URL
+            return array(
+                'success' => true,
+                'checkout_url' => $order->get_checkout_payment_url(),
+                'order_id' => $order->get_id()
+            );
+            
+        } catch (Exception $e) {
+            return array(
+                'success' => false,
+                'message' => __('Payment processing failed: ', 'mobooking') . $e->getMessage()
+            );
         }
     }
     
     /**
-     * Handle payment complete
+     * Create WooCommerce order from booking
+     */
+    private function create_wc_order_from_booking($booking) {
+        if (!class_exists('WooCommerce')) {
+            return false;
+        }
+        
+        // Create new order
+        $order = wc_create_order();
+        
+        if (!$order) {
+            return false;
+        }
+        
+        // Set customer information
+        $order->set_billing_first_name($booking->customer_name);
+        $order->set_billing_email($booking->customer_email);
+        $order->set_billing_phone($booking->customer_phone);
+        $order->set_billing_address_1($booking->customer_address);
+        $order->set_billing_postcode($booking->zip_code);
+        
+        // Add services as order items
+        $services = json_decode($booking->services, true);
+        if (is_array($services)) {
+            foreach ($services as $service) {
+                $item = new \WC_Order_Item_Product();
+                $item->set_name($service['name']);
+                $item->set_quantity(1);
+                $item->set_subtotal($service['price']);
+                $item->set_total($service['price']);
+                $order->add_item($item);
+            }
+        }
+        
+        // Apply discount if any
+        if ($booking->discount_amount > 0) {
+            $discount = new \WC_Order_Item_Coupon();
+            $discount->set_name($booking->discount_code);
+            $discount->set_discount($booking->discount_amount);
+            $order->add_item($discount);
+        }
+        
+        // Set order total
+        $order->set_total($booking->total_price);
+        
+        // Add booking reference
+        $order->add_meta_data('mobooking_booking_id', $booking->id);
+        $order->add_meta_data('mobooking_service_date', $booking->service_date);
+        
+        // Set status
+        $order->set_status('pending');
+        
+        // Save order
+        $order->save();
+        
+        return $order;
+    }
+    
+    /**
+     * Process Stripe payment directly (fallback)
+     */
+    private function process_stripe_payment($booking) {
+        // This would integrate with Stripe directly
+        // For now, return a placeholder response
+        return array(
+            'success' => false,
+            'message' => __('Direct Stripe integration not yet implemented. Please use WooCommerce.', 'mobooking')
+        );
+    }
+    
+    /**
+     * Handle WooCommerce payment completion
      */
     public function handle_payment_complete($order_id) {
         $order = wc_get_order($order_id);
-        $user_id = $order->get_user_id();
         
-        // Check if order contains a subscription product
-        $is_subscription = false;
-        
-        foreach ($order->get_items() as $item) {
-            $product_id = $item->get_product_id();
-            $product = wc_get_product($product_id);
-            
-            if ($product && $product->get_meta('_mobooking_subscription')) {
-                $is_subscription = true;
-                $subscription_type = $product->get_meta('_mobooking_subscription_type');
-                
-                // Update user meta with subscription info
-                update_user_meta($user_id, 'mobooking_has_subscription', true);
-                update_user_meta($user_id, 'mobooking_subscription_type', $subscription_type);
-                update_user_meta($user_id, 'mobooking_subscription_expiry', '');
-                
-                // Create default services for the user
-                $this->create_default_services($user_id);
-                
-                break;
-            }
+        if (!$order) {
+            return;
         }
         
-        // If not a subscription, might be a one-time purchase
-        if (!$is_subscription) {
-            // Handle one-time purchases if needed
+        // Get booking ID from order meta
+        $booking_id = $order->get_meta('mobooking_booking_id');
+        
+        if (!$booking_id) {
+            return;
+        }
+        
+        // Update booking status
+        $bookings_manager = new \MoBooking\Bookings\Manager();
+        $booking = $bookings_manager->get_booking($booking_id);
+        
+        if ($booking) {
+            // Update booking status to confirmed
+            $bookings_manager->update_booking_status($booking_id, 'confirmed', $booking->user_id);
+            
+            // Send confirmation notifications
+            $notifications_manager = new \MoBooking\Notifications\Manager();
+            $notifications_manager->send_status_update($booking_id);
         }
     }
     
     /**
-     * Handle subscription active
+     * Get payment methods available
      */
-    public function handle_subscription_active($subscription, $subscription_id) {
-        $user_id = $subscription->get_user_id();
+    public function get_available_payment_methods() {
+        $methods = array();
         
-        // Update user meta
+        // Check if WooCommerce is available
+        if (class_exists('WooCommerce')) {
+            $methods['woocommerce'] = array(
+                'name' => __('WooCommerce Checkout', 'mobooking'),
+                'description' => __('Process payments through WooCommerce with all available payment gateways.', 'mobooking'),
+                'enabled' => true
+            );
+        }
+        
+        // Check for Stripe (placeholder)
+        $methods['stripe'] = array(
+            'name' => __('Stripe', 'mobooking'),
+            'description' => __('Direct Stripe integration (coming soon).', 'mobooking'),
+            'enabled' => false
+        );
+        
+        return $methods;
+    }
+    
+    /**
+     * AJAX handler for payment processing
+     */
+    public function ajax_process_payment() {
+        // Check nonce
+        if (!isset($_POST['nonce']) || !wp_verify_nonce($_POST['nonce'], 'mobooking-payment-nonce')) {
+            wp_send_json_error(__('Security verification failed.', 'mobooking'));
+        }
+        
+        // Get booking ID
+        $booking_id = isset($_POST['booking_id']) ? absint($_POST['booking_id']) : 0;
+        
+        if (!$booking_id) {
+            wp_send_json_error(__('Invalid booking ID.', 'mobooking'));
+        }
+        
+        // Get payment method
+        $payment_method = isset($_POST['payment_method']) ? sanitize_text_field($_POST['payment_method']) : 'woocommerce';
+        
+        // Process payment
+        $result = $this->process_payment($booking_id, $payment_method);
+        
+        if ($result['success']) {
+            wp_send_json_success($result);
+        } else {
+            wp_send_json_error($result['message']);
+        }
+    }
+    
+    /**
+     * Create subscription for business owner
+     */
+    public function create_subscription($user_id, $plan_type = 'basic') {
+        // This would handle subscription creation
+        // For now, just update user meta
         update_user_meta($user_id, 'mobooking_has_subscription', true);
+        update_user_meta($user_id, 'mobooking_subscription_type', $plan_type);
+        update_user_meta($user_id, 'mobooking_subscription_start', current_time('mysql'));
         
-        // Find the subscription product
-        foreach ($subscription->get_items() as $item) {
-            $product_id = $item->get_product_id();
-            $product = wc_get_product($product_id);
-            
-            if ($product && $product->get_meta('_mobooking_subscription')) {
-                $subscription_type = $product->get_meta('_mobooking_subscription_type');
-                update_user_meta($user_id, 'mobooking_subscription_type', $subscription_type);
-                break;
-            }
-        }
-    }
-    
-    /**
-     * Handle subscription cancelled
-     */
-    public function handle_subscription_cancelled($subscription, $subscription_id) {
-        $user_id = $subscription->get_user_id();
-        
-        // Update user meta
-        update_user_meta($user_id, 'mobooking_has_subscription', false);
-        
-        // Calculate grace period (e.g., 7 days)
-        $expiry_date = date('Y-m-d H:i:s', strtotime('+7 days'));
+        // Set expiry date (1 year from now)
+        $expiry_date = date('Y-m-d H:i:s', strtotime('+1 year'));
         update_user_meta($user_id, 'mobooking_subscription_expiry', $expiry_date);
+        
+        return true;
     }
     
     /**
-     * Create default services for new subscribers
+     * Cancel subscription
      */
-    private function create_default_services($user_id) {
-        $services_manager = new \MoBooking\Services\ServiceManager();
+    public function cancel_subscription($user_id) {
+        update_user_meta($user_id, 'mobooking_has_subscription', false);
+        update_user_meta($user_id, 'mobooking_subscription_cancelled', current_time('mysql'));
         
-        // Add some default services
-        $default_services = array(
-            array(
-                'name' => 'Regular Cleaning',
-                'description' => 'Standard cleaning service for your home or office.',
-                'price' => 99.99,
-                'duration' => 120,
-                'icon' => 'broom',
-                'category' => 'residential'
-            ),
-            array(
-                'name' => 'Deep Cleaning',
-                'description' => 'Thorough cleaning of all areas including hard-to-reach spots.',
-                'price' => 199.99,
-                'duration' => 240,
-                'icon' => 'spray-bottle',
-                'category' => 'residential'
-            ),
-            array(
-                'name' => 'Move-in/Move-out Cleaning',
-                'description' => 'Complete cleaning service for when you move in or out of a property.',
-                'price' => 249.99,
-                'duration' => 300,
-                'icon' => 'house',
-                'category' => 'residential'
-            )
+        return true;
+    }
+    
+    /**
+     * Check if subscription is active
+     */
+    public function is_subscription_active($user_id) {
+        $has_subscription = get_user_meta($user_id, 'mobooking_has_subscription', true);
+        $expiry_date = get_user_meta($user_id, 'mobooking_subscription_expiry', true);
+        
+        if (!$has_subscription) {
+            return false;
+        }
+        
+        if ($expiry_date && strtotime($expiry_date) < time()) {
+            return false;
+        }
+        
+        return true;
+    }
+    
+    /**
+     * Get subscription info
+     */
+    public function get_subscription_info($user_id) {
+        return array(
+            'has_subscription' => get_user_meta($user_id, 'mobooking_has_subscription', true),
+            'type' => get_user_meta($user_id, 'mobooking_subscription_type', true),
+            'start_date' => get_user_meta($user_id, 'mobooking_subscription_start', true),
+            'expiry_date' => get_user_meta($user_id, 'mobooking_subscription_expiry', true),
+            'is_active' => $this->is_subscription_active($user_id)
         );
-        
-        foreach ($default_services as $service) {
-            $services_manager->save_service(array_merge($service, array('user_id' => $user_id)));
-        }
-    }
-    
-    /**
-     * Subscription plans shortcode
-     */
-    public function subscription_plans_shortcode() {
-        // Get subscription products
-        $products = $this->get_subscription_products();
-        
-        if (empty($products)) {
-            return '<p>' . __('No subscription plans available.', 'mobooking') . '</p>';
-        }
-        
-        ob_start();
-        ?>
-        <div class="mobooking-subscription-plans">
-            <div class="plans-container">
-                <?php foreach ($products as $product) : ?>
-                    <div class="plan">
-                        <div class="plan-header">
-                            <h3><?php echo esc_html($product->get_name()); ?></h3>
-                            <div class="price">
-                                <?php echo $product->get_price_html(); ?>
-                            </div>
-                        </div>
-                        
-                        <div class="plan-features">
-                            <?php echo wpautop($product->get_description()); ?>
-                        </div>
-                        
-                        <div class="plan-footer">
-                            <a href="<?php echo esc_url($product->add_to_cart_url()); ?>" class="button button-primary"><?php _e('Select Plan', 'mobooking'); ?></a>
-                        </div>
-                    </div>
-                <?php endforeach; ?>
-            </div>
-        </div>
-        <?php
-        return ob_get_clean();
-    }
-    
-    /**
-     * Get subscription products
-     */
-    private function get_subscription_products() {
-        $args = array(
-            'post_type' => 'product',
-            'posts_per_page' => -1,
-            'meta_query' => array(
-                array(
-                    'key' => '_mobooking_subscription',
-                    'value' => '1',
-                    'compare' => '='
-                )
-            )
-        );
-        
-        $products = array();
-        $query = new \WP_Query($args);
-        
-        if ($query->have_posts()) {
-            while ($query->have_posts()) {
-                $query->the_post();
-                $product = wc_get_product(get_the_ID());
-                if ($product) {
-                    $products[] = $product;
-                }
-            }
-            wp_reset_postdata();
-        }
-        
-        return $products;
     }
 }

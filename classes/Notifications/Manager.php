@@ -9,620 +9,349 @@ class Manager {
      * Constructor
      */
     public function __construct() {
-        // Nothing to do here for now
+        // Register hooks for notifications
+        add_action('wp_ajax_mobooking_send_test_email', array($this, 'ajax_send_test_email'));
     }
-
+    
     /**
      * Send booking confirmation email to customer
      */
     public function send_booking_confirmation($booking_id) {
-        $booking = $this->get_booking_data($booking_id);
+        $bookings_manager = new \MoBooking\Bookings\Manager();
+        $booking = $bookings_manager->get_booking($booking_id);
         
         if (!$booking) {
             return false;
         }
         
-        $to = $booking['customer_email'];
-        $subject = sprintf(__('Booking Confirmation - %s', 'mobooking'), $booking['company_name']);
-        $message = $this->get_booking_confirmation_template($booking);
-        $headers = $this->get_email_headers($booking['user_id']);
+        // Get business owner settings
+        $settings_manager = new \MoBooking\Database\SettingsManager();
+        $settings = $settings_manager->get_settings($booking->user_id);
+        
+        // Email details
+        $to = $booking->customer_email;
+        $subject = sprintf(__('Booking Confirmation - %s', 'mobooking'), $settings->company_name);
+        
+        // Build email content
+        $message = $this->build_confirmation_email($booking, $settings);
+        
+        // Send email
+        $headers = array(
+            'Content-Type: text/html; charset=UTF-8',
+            'From: ' . $settings->company_name . ' <noreply@' . $_SERVER['HTTP_HOST'] . '>'
+        );
         
         return wp_mail($to, $subject, $message, $headers);
     }
     
     /**
-     * Send booking notification to business owner
+     * Send admin notification about new booking
      */
     public function send_admin_notification($booking_id) {
-        $booking = $this->get_booking_data($booking_id);
+        $bookings_manager = new \MoBooking\Bookings\Manager();
+        $booking = $bookings_manager->get_booking($booking_id);
         
         if (!$booking) {
             return false;
         }
         
-        $user = get_userdata($booking['user_id']);
-        if (!$user) {
-            return false;
-        }
+        // Get business owner info
+        $user = get_userdata($booking->user_id);
+        $settings_manager = new \MoBooking\Database\SettingsManager();
+        $settings = $settings_manager->get_settings($booking->user_id);
         
+        // Email details
         $to = $user->user_email;
-        $subject = sprintf(__('New Booking - %s', 'mobooking'), $booking['customer_name']);
-        $message = $this->get_admin_notification_template($booking);
-        $headers = $this->get_email_headers($booking['user_id']);
+        $subject = sprintf(__('New Booking Received - #%d', 'mobooking'), $booking->id);
+        
+        // Build email content
+        $message = $this->build_admin_notification_email($booking, $settings);
+        
+        // Send email
+        $headers = array(
+            'Content-Type: text/html; charset=UTF-8',
+            'From: MoBooking <noreply@' . $_SERVER['HTTP_HOST'] . '>'
+        );
         
         return wp_mail($to, $subject, $message, $headers);
     }
     
     /**
-     * Send booking status update to customer
+     * Send status update notification
      */
     public function send_status_update($booking_id) {
-        $booking = $this->get_booking_data($booking_id);
+        $bookings_manager = new \MoBooking\Bookings\Manager();
+        $booking = $bookings_manager->get_booking($booking_id);
         
         if (!$booking) {
             return false;
         }
         
-        $to = $booking['customer_email'];
+        // Get business owner settings
+        $settings_manager = new \MoBooking\Database\SettingsManager();
+        $settings = $settings_manager->get_settings($booking->user_id);
         
-        if ($booking['status'] == 'confirmed') {
-            $subject = sprintf(__('Booking Confirmed - %s', 'mobooking'), $booking['company_name']);
-            $message = $this->get_booking_confirmed_template($booking);
-        } elseif ($booking['status'] == 'cancelled') {
-            $subject = sprintf(__('Booking Cancelled - %s', 'mobooking'), $booking['company_name']);
-            $message = $this->get_booking_cancelled_template($booking);
-        } else {
-            $subject = sprintf(__('Booking Update - %s', 'mobooking'), $booking['company_name']);
-            $message = $this->get_booking_status_update_template($booking);
-        }
+        // Email details
+        $to = $booking->customer_email;
+        $subject = sprintf(__('Booking Update - #%d', 'mobooking'), $booking->id);
         
-        $headers = $this->get_email_headers($booking['user_id']);
+        // Build email content
+        $message = $this->build_status_update_email($booking, $settings);
+        
+        // Send email
+        $headers = array(
+            'Content-Type: text/html; charset=UTF-8',
+            'From: ' . $settings->company_name . ' <noreply@' . $_SERVER['HTTP_HOST'] . '>'
+        );
         
         return wp_mail($to, $subject, $message, $headers);
     }
     
     /**
-     * Get booking data for email templates
+     * Build booking confirmation email
      */
-    private function get_booking_data($booking_id) {
-        global $wpdb;
-        $bookings_table = $wpdb->prefix . 'mobooking_bookings';
-        $settings_table = $wpdb->prefix . 'mobooking_settings';
+    private function build_confirmation_email($booking, $settings) {
+        $services = json_decode($booking->services, true);
         
-        $booking = $wpdb->get_row($wpdb->prepare(
-            "SELECT b.*, s.company_name, s.primary_color, s.logo_url
-            FROM $bookings_table b
-            LEFT JOIN $settings_table s ON b.user_id = s.user_id
-            WHERE b.id = %d",
-            $booking_id
-        ), ARRAY_A);
-        
-        if (!$booking) {
-            return false;
-        }
-        
-        // If no company name from settings, get from user
-        if (empty($booking['company_name'])) {
-            $user = get_userdata($booking['user_id']);
-            $booking['company_name'] = $user ? $user->display_name : __('Cleaning Service', 'mobooking');
-        }
-        
-        // Decode services
-        $booking['services_array'] = json_decode($booking['services'], true);
-        
-        return $booking;
+        ob_start();
+        ?>
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title><?php _e('Booking Confirmation', 'mobooking'); ?></title>
+        </head>
+        <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
+            <?php if (!empty($settings->email_header)) : ?>
+                <?php echo $this->process_email_template($settings->email_header, $booking, $settings); ?>
+            <?php endif; ?>
+            
+            <div style="background: #f9f9f9; padding: 20px; border-radius: 8px; margin: 20px 0;">
+                <h2 style="color: <?php echo esc_attr($settings->primary_color); ?>; margin-top: 0;">
+                    <?php _e('Booking Confirmation', 'mobooking'); ?>
+                </h2>
+                
+                <p><?php _e('Dear', 'mobooking'); ?> <?php echo esc_html($booking->customer_name); ?>,</p>
+                
+                <p><?php echo esc_html($settings->booking_confirmation_message); ?></p>
+                
+                <div style="background: white; padding: 15px; border-radius: 5px; margin: 20px 0;">
+                    <h3><?php _e('Booking Details', 'mobooking'); ?></h3>
+                    <p><strong><?php _e('Booking ID:', 'mobooking'); ?></strong> #<?php echo esc_html($booking->id); ?></p>
+                    <p><strong><?php _e('Service Date:', 'mobooking'); ?></strong> <?php echo date_i18n(get_option('date_format') . ' ' . get_option('time_format'), strtotime($booking->service_date)); ?></p>
+                    <p><strong><?php _e('Service Address:', 'mobooking'); ?></strong><br><?php echo nl2br(esc_html($booking->customer_address)); ?></p>
+                    
+                    <h4><?php _e('Services Booked:', 'mobooking'); ?></h4>
+                    <?php if (is_array($services)) : ?>
+                        <ul>
+                            <?php foreach ($services as $service) : ?>
+                                <li><?php echo esc_html($service['name']); ?> - <?php echo wc_price($service['price']); ?></li>
+                            <?php endforeach; ?>
+                        </ul>
+                    <?php endif; ?>
+                    
+                    <p><strong><?php _e('Total Amount:', 'mobooking'); ?></strong> <?php echo wc_price($booking->total_price); ?></p>
+                    
+                    <?php if (!empty($booking->notes)) : ?>
+                        <p><strong><?php _e('Special Instructions:', 'mobooking'); ?></strong><br><?php echo nl2br(esc_html($booking->notes)); ?></p>
+                    <?php endif; ?>
+                </div>
+                
+                <p><?php _e('We will contact you to confirm the appointment details. If you have any questions, please don\'t hesitate to reach out.', 'mobooking'); ?></p>
+                
+                <p><?php _e('Thank you for choosing our services!', 'mobooking'); ?></p>
+            </div>
+            
+            <?php if (!empty($settings->email_footer)) : ?>
+                <?php echo $this->process_email_template($settings->email_footer, $booking, $settings); ?>
+            <?php endif; ?>
+        </body>
+        </html>
+        <?php
+        return ob_get_clean();
     }
     
     /**
-     * Get email headers
+     * Build admin notification email
      */
-    private function get_email_headers($user_id) {
+    private function build_admin_notification_email($booking, $settings) {
+        $services = json_decode($booking->services, true);
+        
+        ob_start();
+        ?>
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title><?php _e('New Booking Received', 'mobooking'); ?></title>
+        </head>
+        <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
+            <div style="background: #f0f8ff; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid <?php echo esc_attr($settings->primary_color); ?>;">
+                <h2 style="color: <?php echo esc_attr($settings->primary_color); ?>; margin-top: 0;">
+                    <?php _e('New Booking Received!', 'mobooking'); ?>
+                </h2>
+                
+                <p><?php _e('You have received a new booking. Here are the details:', 'mobooking'); ?></p>
+                
+                <div style="background: white; padding: 15px; border-radius: 5px; margin: 20px 0;">
+                    <h3><?php _e('Customer Information', 'mobooking'); ?></h3>
+                    <p><strong><?php _e('Name:', 'mobooking'); ?></strong> <?php echo esc_html($booking->customer_name); ?></p>
+                    <p><strong><?php _e('Email:', 'mobooking'); ?></strong> <?php echo esc_html($booking->customer_email); ?></p>
+                    <?php if (!empty($booking->customer_phone)) : ?>
+                        <p><strong><?php _e('Phone:', 'mobooking'); ?></strong> <?php echo esc_html($booking->customer_phone); ?></p>
+                    <?php endif; ?>
+                    <p><strong><?php _e('Address:', 'mobooking'); ?></strong><br><?php echo nl2br(esc_html($booking->customer_address)); ?></p>
+                    
+                    <h3><?php _e('Booking Details', 'mobooking'); ?></h3>
+                    <p><strong><?php _e('Booking ID:', 'mobooking'); ?></strong> #<?php echo esc_html($booking->id); ?></p>
+                    <p><strong><?php _e('Service Date:', 'mobooking'); ?></strong> <?php echo date_i18n(get_option('date_format') . ' ' . get_option('time_format'), strtotime($booking->service_date)); ?></p>
+                    <p><strong><?php _e('Status:', 'mobooking'); ?></strong> <?php echo esc_html(ucfirst($booking->status)); ?></p>
+                    
+                    <h4><?php _e('Services Requested:', 'mobooking'); ?></h4>
+                    <?php if (is_array($services)) : ?>
+                        <ul>
+                            <?php foreach ($services as $service) : ?>
+                                <li><?php echo esc_html($service['name']); ?> - <?php echo wc_price($service['price']); ?></li>
+                            <?php endforeach; ?>
+                        </ul>
+                    <?php endif; ?>
+                    
+                    <p><strong><?php _e('Total Amount:', 'mobooking'); ?></strong> <?php echo wc_price($booking->total_price); ?></p>
+                    
+                    <?php if (!empty($booking->notes)) : ?>
+                        <p><strong><?php _e('Customer Notes:', 'mobooking'); ?></strong><br><?php echo nl2br(esc_html($booking->notes)); ?></p>
+                    <?php endif; ?>
+                </div>
+                
+                <p style="text-align: center;">
+                    <a href="<?php echo esc_url(home_url('/dashboard/bookings/')); ?>" 
+                       style="background: <?php echo esc_attr($settings->primary_color); ?>; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; display: inline-block;">
+                        <?php _e('View in Dashboard', 'mobooking'); ?>
+                    </a>
+                </p>
+                
+                <p><?php _e('Please contact the customer to confirm the appointment details.', 'mobooking'); ?></p>
+            </div>
+        </body>
+        </html>
+        <?php
+        return ob_get_clean();
+    }
+    
+    /**
+     * Build status update email
+     */
+    private function build_status_update_email($booking, $settings) {
+        $status_messages = array(
+            'confirmed' => __('Your booking has been confirmed! We will see you at the scheduled time.', 'mobooking'),
+            'cancelled' => __('Your booking has been cancelled. If you have any questions, please contact us.', 'mobooking'),
+            'completed' => __('Your service has been completed. Thank you for choosing our services!', 'mobooking')
+        );
+        
+        $message = isset($status_messages[$booking->status]) ? $status_messages[$booking->status] : __('Your booking status has been updated.', 'mobooking');
+        
+        ob_start();
+        ?>
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title><?php _e('Booking Update', 'mobooking'); ?></title>
+        </head>
+        <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
+            <?php if (!empty($settings->email_header)) : ?>
+                <?php echo $this->process_email_template($settings->email_header, $booking, $settings); ?>
+            <?php endif; ?>
+            
+            <div style="background: #f9f9f9; padding: 20px; border-radius: 8px; margin: 20px 0;">
+                <h2 style="color: <?php echo esc_attr($settings->primary_color); ?>; margin-top: 0;">
+                    <?php _e('Booking Update', 'mobooking'); ?>
+                </h2>
+                
+                <p><?php _e('Dear', 'mobooking'); ?> <?php echo esc_html($booking->customer_name); ?>,</p>
+                
+                <p><?php echo esc_html($message); ?></p>
+                
+                <div style="background: white; padding: 15px; border-radius: 5px; margin: 20px 0;">
+                    <p><strong><?php _e('Booking ID:', 'mobooking'); ?></strong> #<?php echo esc_html($booking->id); ?></p>
+                    <p><strong><?php _e('Status:', 'mobooking'); ?></strong> <?php echo esc_html(ucfirst($booking->status)); ?></p>
+                    <p><strong><?php _e('Service Date:', 'mobooking'); ?></strong> <?php echo date_i18n(get_option('date_format') . ' ' . get_option('time_format'), strtotime($booking->service_date)); ?></p>
+                </div>
+                
+                <p><?php _e('If you have any questions, please don\'t hesitate to contact us.', 'mobooking'); ?></p>
+            </div>
+            
+            <?php if (!empty($settings->email_footer)) : ?>
+                <?php echo $this->process_email_template($settings->email_footer, $booking, $settings); ?>
+            <?php endif; ?>
+        </body>
+        </html>
+        <?php
+        return ob_get_clean();
+    }
+    
+    /**
+     * Process email template variables
+     */
+    private function process_email_template($template, $booking, $settings) {
+        $replacements = array(
+            '{{company_name}}' => $settings->company_name,
+            '{{customer_name}}' => $booking->customer_name,
+            '{{booking_id}}' => $booking->id,
+            '{{current_year}}' => date('Y'),
+            '{{phone}}' => $settings->phone,
+            '{{email}}' => get_userdata($booking->user_id)->user_email
+        );
+        
+        return str_replace(array_keys($replacements), array_values($replacements), $template);
+    }
+    
+    /**
+     * AJAX handler to send test email
+     */
+    public function ajax_send_test_email() {
+        // Check nonce
+        if (!isset($_POST['nonce']) || !wp_verify_nonce($_POST['nonce'], 'mobooking-test-email-nonce')) {
+            wp_send_json_error(__('Security verification failed.', 'mobooking'));
+        }
+        
+        // Check permissions
+        if (!current_user_can('mobooking_business_owner') && !current_user_can('administrator')) {
+            wp_send_json_error(__('You do not have permission to do this.', 'mobooking'));
+        }
+        
+        $user_id = get_current_user_id();
+        $user = get_userdata($user_id);
+        $email = isset($_POST['email']) ? sanitize_email($_POST['email']) : $user->user_email;
+        
+        if (!is_email($email)) {
+            wp_send_json_error(__('Invalid email address.', 'mobooking'));
+        }
+        
+        // Get settings
         $settings_manager = new \MoBooking\Database\SettingsManager();
         $settings = $settings_manager->get_settings($user_id);
         
-        $from_name = $settings->company_name;
-        $from_email = get_option('admin_email');
+        // Send test email
+        $subject = sprintf(__('Test Email from %s', 'mobooking'), $settings->company_name);
+        $message = $settings->email_header . '<p>' . __('This is a test email from your MoBooking setup.', 'mobooking') . '</p>' . $settings->email_footer;
         
         $headers = array(
             'Content-Type: text/html; charset=UTF-8',
-            'From: ' . $from_name . ' <' . $from_email . '>'
+            'From: ' . $settings->company_name . ' <noreply@' . $_SERVER['HTTP_HOST'] . '>'
         );
         
-        return $headers;
-    }
-    
-    /**
-     * Get booking confirmation email template
-     */
-    private function get_booking_confirmation_template($booking) {
-        ob_start();
+        $result = wp_mail($email, $subject, $message, $headers);
         
-        // Get email header
-        $settings_manager = new \MoBooking\Database\SettingsManager();
-        $settings = $settings_manager->get_settings($booking['user_id']);
-        
-        // Replace placeholders in header
-        $email_header = $settings->email_header;
-        $email_header = str_replace('{{company_name}}', $booking['company_name'], $email_header);
-        
-        // Replace placeholders in footer
-        $email_footer = $settings->email_footer;
-        $email_footer = str_replace('{{company_name}}', $booking['company_name'], $email_footer);
-        $email_footer = str_replace('{{current_year}}', date('Y'), $email_footer);
-        $email_footer = str_replace('{{phone}}', $settings->phone, $email_footer);
-        $email_footer = str_replace('{{email}}', get_option('admin_email'), $email_footer);
-        
-        $primary_color = !empty($booking['primary_color']) ? $booking['primary_color'] : '#4CAF50';
-        ?>
-        <!DOCTYPE html>
-        <html>
-        <head>
-            <meta charset="UTF-8">
-            <title><?php _e('Booking Confirmation', 'mobooking'); ?></title>
-            <style>
-                body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
-                .container { max-width: 600px; margin: 0 auto; }
-                .booking-details { margin: 20px 0; padding: 20px; border: 1px solid #ddd; }
-                .services-list { margin: 20px 0; }
-                .service-item { margin-bottom: 10px; }
-                .total { margin-top: 20px; font-weight: bold; }
-                .button { display: inline-block; padding: 10px 20px; background-color: <?php echo esc_attr($primary_color); ?>; color: white; text-decoration: none; border-radius: 3px; }
-            </style>
-        </head>
-        <body>
-            <div class="container">
-                <?php echo $email_header; ?>
-                
-                <h2><?php _e('Thank You for Your Booking!', 'mobooking'); ?></h2>
-                
-                <p><?php printf(__('Hello %s,', 'mobooking'), $booking['customer_name']); ?></p>
-                
-                <p><?php _e('Your booking has been received and is now pending confirmation. Below you will find the details of your booking.', 'mobooking'); ?></p>
-                
-                <div class="booking-details">
-                    <h3><?php _e('Booking Information', 'mobooking'); ?></h3>
-                    
-                    <p><strong><?php _e('Booking Reference:', 'mobooking'); ?></strong> #<?php echo $booking['id']; ?></p>
-                    <p><strong><?php _e('Date & Time:', 'mobooking'); ?></strong> <?php echo date_i18n(get_option('date_format') . ' ' . get_option('time_format'), strtotime($booking['service_date'])); ?></p>
-                    <p><strong><?php _e('Status:', 'mobooking'); ?></strong> <?php echo ucfirst($booking['status']); ?></p>
-                    
-                    <h4><?php _e('Selected Services', 'mobooking'); ?></h4>
-                    <div class="services-list">
-                        <?php 
-                        $services = $booking['services_array'];
-                        if (is_array($services)) {
-                            foreach ($services as $service) {
-                                ?>
-                                <div class="service-item">
-                                    <strong><?php echo esc_html($service['name']); ?></strong> - <?php echo wc_price($service['price']); ?>
-                                </div>
-                                <?php
-                            }
-                        }
-                        ?>
-                    </div>
-                    
-                    <?php if (!empty($booking['discount_code'])) : ?>
-                        <p><strong><?php _e('Discount Code:', 'mobooking'); ?></strong> <?php echo esc_html($booking['discount_code']); ?></p>
-                        <p><strong><?php _e('Discount Amount:', 'mobooking'); ?></strong> <?php echo wc_price($booking['discount_amount']); ?></p>
-                    <?php endif; ?>
-                    
-                    <div class="total">
-                        <p><strong><?php _e('Total:', 'mobooking'); ?></strong> <?php echo wc_price($booking['total_price']); ?></p>
-                    </div>
-                </div>
-                
-                <h3><?php _e('Your Information', 'mobooking'); ?></h3>
-                <p><strong><?php _e('Name:', 'mobooking'); ?></strong> <?php echo esc_html($booking['customer_name']); ?></p>
-                <p><strong><?php _e('Email:', 'mobooking'); ?></strong> <?php echo esc_html($booking['customer_email']); ?></p>
-                <?php if (!empty($booking['customer_phone'])) : ?>
-                    <p><strong><?php _e('Phone:', 'mobooking'); ?></strong> <?php echo esc_html($booking['customer_phone']); ?></p>
-                <?php endif; ?>
-                <p><strong><?php _e('Address:', 'mobooking'); ?></strong> <?php echo esc_html($booking['customer_address']); ?></p>
-                <p><strong><?php _e('ZIP Code:', 'mobooking'); ?></strong> <?php echo esc_html($booking['zip_code']); ?></p>
-                
-                <?php if (!empty($booking['notes'])) : ?>
-                    <h3><?php _e('Additional Notes', 'mobooking'); ?></h3>
-                    <p><?php echo nl2br(esc_html($booking['notes'])); ?></p>
-                <?php endif; ?>
-                
-                <p><?php _e('We will contact you shortly to confirm your booking.', 'mobooking'); ?></p>
-                
-                <p><?php _e('Thank you for choosing us!', 'mobooking'); ?></p>
-                
-                <?php echo $email_footer; ?>
-            </div>
-        </body>
-        </html>
-        <?php
-        return ob_get_clean();
-    }
-    
-    /**
-     * Get admin notification email template
-     */
-    private function get_admin_notification_template($booking) {
-        ob_start();
-        
-        // Get email header
-        $settings_manager = new \MoBooking\Database\SettingsManager();
-        $settings = $settings_manager->get_settings($booking['user_id']);
-        
-        // Replace placeholders in header
-        $email_header = $settings->email_header;
-        $email_header = str_replace('{{company_name}}', $booking['company_name'], $email_header);
-        
-        // Replace placeholders in footer
-        $email_footer = $settings->email_footer;
-        $email_footer = str_replace('{{company_name}}', $booking['company_name'], $email_footer);
-        $email_footer = str_replace('{{current_year}}', date('Y'), $email_footer);
-        $email_footer = str_replace('{{phone}}', $settings->phone, $email_footer);
-        $email_footer = str_replace('{{email}}', get_option('admin_email'), $email_footer);
-        
-        $primary_color = !empty($booking['primary_color']) ? $booking['primary_color'] : '#4CAF50';
-        $dashboard_url = home_url('/dashboard/bookings/');
-        ?>
-        <!DOCTYPE html>
-        <html>
-        <head>
-            <meta charset="UTF-8">
-            <title><?php _e('New Booking Notification', 'mobooking'); ?></title>
-            <style>
-                body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
-                .container { max-width: 600px; margin: 0 auto; }
-                .booking-details { margin: 20px 0; padding: 20px; border: 1px solid #ddd; }
-                .services-list { margin: 20px 0; }
-                .service-item { margin-bottom: 10px; }
-                .total { margin-top: 20px; font-weight: bold; }
-                .button { display: inline-block; padding: 10px 20px; background-color: <?php echo esc_attr($primary_color); ?>; color: white; text-decoration: none; border-radius: 3px; }
-            </style>
-        </head>
-        <body>
-            <div class="container">
-                <?php echo $email_header; ?>
-                
-                <h2><?php _e('New Booking Received', 'mobooking'); ?></h2>
-                
-                <p><?php _e('You have received a new booking. Below you will find the details.', 'mobooking'); ?></p>
-                
-                <div class="booking-details">
-                    <h3><?php _e('Booking Information', 'mobooking'); ?></h3>
-                    
-                    <p><strong><?php _e('Booking Reference:', 'mobooking'); ?></strong> #<?php echo $booking['id']; ?></p>
-                    <p><strong><?php _e('Date & Time:', 'mobooking'); ?></strong> <?php echo date_i18n(get_option('date_format') . ' ' . get_option('time_format'), strtotime($booking['service_date'])); ?></p>
-                    <p><strong><?php _e('Status:', 'mobooking'); ?></strong> <?php echo ucfirst($booking['status']); ?></p>
-                    
-                    <h4><?php _e('Selected Services', 'mobooking'); ?></h4>
-                    <div class="services-list">
-                        <?php 
-                        $services = $booking['services_array'];
-                        if (is_array($services)) {
-                            foreach ($services as $service) {
-                                ?>
-                                <div class="service-item">
-                                    <strong><?php echo esc_html($service['name']); ?></strong> - <?php echo wc_price($service['price']); ?>
-                                </div>
-                                <?php
-                            }
-                        }
-                        ?>
-                    </div>
-                    
-                    <?php if (!empty($booking['discount_code'])) : ?>
-                        <p><strong><?php _e('Discount Code:', 'mobooking'); ?></strong> <?php echo esc_html($booking['discount_code']); ?></p>
-                        <p><strong><?php _e('Discount Amount:', 'mobooking'); ?></strong> <?php echo wc_price($booking['discount_amount']); ?></p>
-                    <?php endif; ?>
-                    
-                    <div class="total">
-                        <p><strong><?php _e('Total:', 'mobooking'); ?></strong> <?php echo wc_price($booking['total_price']); ?></p>
-                    </div>
-                </div>
-                
-                <h3><?php _e('Customer Information', 'mobooking'); ?></h3>
-                <p><strong><?php _e('Name:', 'mobooking'); ?></strong> <?php echo esc_html($booking['customer_name']); ?></p>
-                <p><strong><?php _e('Email:', 'mobooking'); ?></strong> <?php echo esc_html($booking['customer_email']); ?></p>
-                <?php if (!empty($booking['customer_phone'])) : ?>
-                    <p><strong><?php _e('Phone:', 'mobooking'); ?></strong> <?php echo esc_html($booking['customer_phone']); ?></p>
-                <?php endif; ?>
-                <p><strong><?php _e('Address:', 'mobooking'); ?></strong> <?php echo esc_html($booking['customer_address']); ?></p>
-                <p><strong><?php _e('ZIP Code:', 'mobooking'); ?></strong> <?php echo esc_html($booking['zip_code']); ?></p>
-                
-                <?php if (!empty($booking['notes'])) : ?>
-                    <h3><?php _e('Additional Notes', 'mobooking'); ?></h3>
-                    <p><?php echo nl2br(esc_html($booking['notes'])); ?></p>
-                <?php endif; ?>
-                
-                <p>
-                    <a href="<?php echo esc_url($dashboard_url); ?>" class="button"><?php _e('View Booking in Dashboard', 'mobooking'); ?></a>
-                </p>
-                
-                <?php echo $email_footer; ?>
-            </div>
-        </body>
-        </html>
-        <?php
-        return ob_get_clean();
-    }
-    
-    /**
-     * Get booking confirmed email template
-     */
-    private function get_booking_confirmed_template($booking) {
-        ob_start();
-        
-        // Get email header
-        $settings_manager = new \MoBooking\Database\SettingsManager();
-        $settings = $settings_manager->get_settings($booking['user_id']);
-        
-        // Replace placeholders in header
-        $email_header = $settings->email_header;
-        $email_header = str_replace('{{company_name}}', $booking['company_name'], $email_header);
-        
-        // Replace placeholders in footer
-        $email_footer = $settings->email_footer;
-        $email_footer = str_replace('{{company_name}}', $booking['company_name'], $email_footer);
-        $email_footer = str_replace('{{current_year}}', date('Y'), $email_footer);
-        $email_footer = str_replace('{{phone}}', $settings->phone, $email_footer);
-        $email_footer = str_replace('{{email}}', get_option('admin_email'), $email_footer);
-        
-        $primary_color = !empty($booking['primary_color']) ? $booking['primary_color'] : '#4CAF50';
-        ?>
-        <!DOCTYPE html>
-        <html>
-        <head>
-            <meta charset="UTF-8">
-            <title><?php _e('Booking Confirmed', 'mobooking'); ?></title>
-            <style>
-                body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
-                .container { max-width: 600px; margin: 0 auto; }
-                .booking-details { margin: 20px 0; padding: 20px; border: 1px solid #ddd; }
-                .services-list { margin: 20px 0; }
-                .service-item { margin-bottom: 10px; }
-                .total { margin-top: 20px; font-weight: bold; }
-                .button { display: inline-block; padding: 10px 20px; background-color: <?php echo esc_attr($primary_color); ?>; color: white; text-decoration: none; border-radius: 3px; }
-            </style>
-        </head>
-        <body>
-            <div class="container">
-                <?php echo $email_header; ?>
-                
-                <h2><?php _e('Your Booking is Confirmed!', 'mobooking'); ?></h2>
-                
-                <p><?php printf(__('Hello %s,', 'mobooking'), $booking['customer_name']); ?></p>
-                
-                <p><?php _e('Great news! Your booking has been confirmed. We look forward to providing our services to you.', 'mobooking'); ?></p>
-                
-                <div class="booking-details">
-                    <h3><?php _e('Booking Information', 'mobooking'); ?></h3>
-                    
-                    <p><strong><?php _e('Booking Reference:', 'mobooking'); ?></strong> #<?php echo $booking['id']; ?></p>
-                    <p><strong><?php _e('Date & Time:', 'mobooking'); ?></strong> <?php echo date_i18n(get_option('date_format') . ' ' . get_option('time_format'), strtotime($booking['service_date'])); ?></p>
-                    <p><strong><?php _e('Status:', 'mobooking'); ?></strong> <?php _e('Confirmed', 'mobooking'); ?></p>
-                    
-                    <h4><?php _e('Selected Services', 'mobooking'); ?></h4>
-                    <div class="services-list">
-                        <?php 
-                        $services = $booking['services_array'];
-                        if (is_array($services)) {
-                            foreach ($services as $service) {
-                                ?>
-                                <div class="service-item">
-                                    <strong><?php echo esc_html($service['name']); ?></strong> - <?php echo wc_price($service['price']); ?>
-                                </div>
-                                <?php
-                            }
-                        }
-                        ?>
-                    </div>
-                    
-                    <?php if (!empty($booking['discount_code'])) : ?>
-                        <p><strong><?php _e('Discount Code:', 'mobooking'); ?></strong> <?php echo esc_html($booking['discount_code']); ?></p>
-                        <p><strong><?php _e('Discount Amount:', 'mobooking'); ?></strong> <?php echo wc_price($booking['discount_amount']); ?></p>
-                    <?php endif; ?>
-                    
-                    <div class="total">
-                        <p><strong><?php _e('Total:', 'mobooking'); ?></strong> <?php echo wc_price($booking['total_price']); ?></p>
-                    </div>
-                </div>
-                
-                <h3><?php _e('Important Information', 'mobooking'); ?></h3>
-                <p><?php _e('Our team will arrive at the scheduled date and time. Please ensure that someone is available to provide access.', 'mobooking'); ?></p>
-                
-                <p><?php _e('If you need to make any changes to your booking, please contact us as soon as possible.', 'mobooking'); ?></p>
-                
-                <p><?php _e('Thank you for choosing our services!', 'mobooking'); ?></p>
-                
-                <?php echo $email_footer; ?>
-            </div>
-        </body>
-        </html>
-        <?php
-        return ob_get_clean();
-    }
-    
-    /**
-     * Get booking cancelled email template
-     */
-    private function get_booking_cancelled_template($booking) {
-        ob_start();
-        
-        // Get email header
-        $settings_manager = new \MoBooking\Database\SettingsManager();
-        $settings = $settings_manager->get_settings($booking['user_id']);
-        
-        // Replace placeholders in header
-        $email_header = $settings->email_header;
-        $email_header = str_replace('{{company_name}}', $booking['company_name'], $email_header);
-        
-        // Replace placeholders in footer
-        $email_footer = $settings->email_footer;
-        $email_footer = str_replace('{{company_name}}', $booking['company_name'], $email_footer);
-        $email_footer = str_replace('{{current_year}}', date('Y'), $email_footer);
-        $email_footer = str_replace('{{phone}}', $settings->phone, $email_footer);
-        $email_footer = str_replace('{{email}}', get_option('admin_email'), $email_footer);
-        
-        $primary_color = !empty($booking['primary_color']) ? $booking['primary_color'] : '#4CAF50';
-        ?>
-        <!DOCTYPE html>
-        <html>
-        <head>
-            <meta charset="UTF-8">
-            <title><?php _e('Booking Cancelled', 'mobooking'); ?></title>
-            <style>
-                body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
-                .container { max-width: 600px; margin: 0 auto; }
-                .booking-details { margin: 20px 0; padding: 20px; border: 1px solid #ddd; }
-                .services-list { margin: 20px 0; }
-                .service-item { margin-bottom: 10px; }
-                .total { margin-top: 20px; font-weight: bold; }
-                .button { display: inline-block; padding: 10px 20px; background-color: <?php echo esc_attr($primary_color); ?>; color: white; text-decoration: none; border-radius: 3px; }
-            </style>
-        </head>
-        <body>
-            <div class="container">
-                <?php echo $email_header; ?>
-                
-                <h2><?php _e('Booking Cancelled', 'mobooking'); ?></h2>
-                
-                <p><?php printf(__('Hello %s,', 'mobooking'), $booking['customer_name']); ?></p>
-                
-                <p><?php _e('We regret to inform you that your booking has been cancelled. Below are the details of the cancelled booking.', 'mobooking'); ?></p>
-                
-                <div class="booking-details">
-                    <h3><?php _e('Booking Information', 'mobooking'); ?></h3>
-                    
-                    <p><strong><?php _e('Booking Reference:', 'mobooking'); ?></strong> #<?php echo $booking['id']; ?></p>
-                    <p><strong><?php _e('Date & Time:', 'mobooking'); ?></strong> <?php echo date_i18n(get_option('date_format') . ' ' . get_option('time_format'), strtotime($booking['service_date'])); ?></p>
-                    <p><strong><?php _e('Status:', 'mobooking'); ?></strong> <?php _e('Cancelled', 'mobooking'); ?></p>
-                    
-                    <h4><?php _e('Selected Services', 'mobooking'); ?></h4>
-                    <div class="services-list">
-                        <?php 
-                        $services = $booking['services_array'];
-                        if (is_array($services)) {
-                            foreach ($services as $service) {
-                                ?>
-                                <div class="service-item">
-                                    <strong><?php echo esc_html($service['name']); ?></strong> - <?php echo wc_price($service['price']); ?>
-                                </div>
-                                <?php
-                            }
-                        }
-                        ?>
-                    </div>
-                    
-                    <?php if (!empty($booking['discount_code'])) : ?>
-                        <p><strong><?php _e('Discount Code:', 'mobooking'); ?></strong> <?php echo esc_html($booking['discount_code']); ?></p>
-                        <p><strong><?php _e('Discount Amount:', 'mobooking'); ?></strong> <?php echo wc_price($booking['discount_amount']); ?></p>
-                    <?php endif; ?>
-                    
-                    <div class="total">
-                        <p><strong><?php _e('Total:', 'mobooking'); ?></strong> <?php echo wc_price($booking['total_price']); ?></p>
-                    </div>
-                </div>
-                
-                <p><?php _e('If you would like to make a new booking, please visit our website.', 'mobooking'); ?></p>
-                
-                <p><?php _e('We apologize for any inconvenience this may have caused.', 'mobooking'); ?></p>
-                
-                <?php echo $email_footer; ?>
-            </div>
-        </body>
-        </html>
-        <?php
-        return ob_get_clean();
-    }
-    
-    /**
-     * Get booking status update email template
-     */
-    private function get_booking_status_update_template($booking) {
-        ob_start();
-        
-        // Get email header
-        $settings_manager = new \MoBooking\Database\SettingsManager();
-        $settings = $settings_manager->get_settings($booking['user_id']);
-        
-        // Replace placeholders in header
-        $email_header = $settings->email_header;
-        $email_header = str_replace('{{company_name}}', $booking['company_name'], $email_header);
-        
-        // Replace placeholders in footer
-        $email_footer = $settings->email_footer;
-        $email_footer = str_replace('{{company_name}}', $booking['company_name'], $email_footer);
-        $email_footer = str_replace('{{current_year}}', date('Y'), $email_footer);
-        $email_footer = str_replace('{{phone}}', $settings->phone, $email_footer);
-        $email_footer = str_replace('{{email}}', get_option('admin_email'), $email_footer);
-        
-        $primary_color = !empty($booking['primary_color']) ? $booking['primary_color'] : '#4CAF50';
-        ?>
-        <!DOCTYPE html>
-        <html>
-        <head>
-            <meta charset="UTF-8">
-            <title><?php _e('Booking Update', 'mobooking'); ?></title>
-            <style>
-                body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
-                .container { max-width: 600px; margin: 0 auto; }
-                .booking-details { margin: 20px 0; padding: 20px; border: 1px solid #ddd; }
-                .services-list { margin: 20px 0; }
-                .service-item { margin-bottom: 10px; }
-                .total { margin-top: 20px; font-weight: bold; }
-                .button { display: inline-block; padding: 10px 20px; background-color: <?php echo esc_attr($primary_color); ?>; color: white; text-decoration: none; border-radius: 3px; }
-            </style>
-        </head>
-        <body>
-            <div class="container">
-                <?php echo $email_header; ?>
-                
-                <h2><?php _e('Booking Update', 'mobooking'); ?></h2>
-                
-                <p><?php printf(__('Hello %s,', 'mobooking'), $booking['customer_name']); ?></p>
-                
-                <p><?php _e('There has been an update to your booking. The current status is now:', 'mobooking'); ?> <strong><?php echo ucfirst($booking['status']); ?></strong></p>
-                
-                <div class="booking-details">
-                    <h3><?php _e('Booking Information', 'mobooking'); ?></h3>
-                    
-                    <p><strong><?php _e('Booking Reference:', 'mobooking'); ?></strong> #<?php echo $booking['id']; ?></p>
-                    <p><strong><?php _e('Date & Time:', 'mobooking'); ?></strong> <?php echo date_i18n(get_option('date_format') . ' ' . get_option('time_format'), strtotime($booking['service_date'])); ?></p>
-                    <p><strong><?php _e('Status:', 'mobooking'); ?></strong> <?php echo ucfirst($booking['status']); ?></p>
-                    
-                    <h4><?php _e('Selected Services', 'mobooking'); ?></h4>
-                    <div class="services-list">
-                        <?php 
-                        $services = $booking['services_array'];
-                        if (is_array($services)) {
-                            foreach ($services as $service) {
-                                ?>
-                                <div class="service-item">
-                                    <strong><?php echo esc_html($service['name']); ?></strong> - <?php echo wc_price($service['price']); ?>
-                                </div>
-                                <?php
-                            }
-                        }
-                        ?>
-                    </div>
-                    
-                    <?php if (!empty($booking['discount_code'])) : ?>
-                        <p><strong><?php _e('Discount Code:', 'mobooking'); ?></strong> <?php echo esc_html($booking['discount_code']); ?></p>
-                        <p><strong><?php _e('Discount Amount:', 'mobooking'); ?></strong> <?php echo wc_price($booking['discount_amount']); ?></p>
-                    <?php endif; ?>
-                    
-                    <div class="total">
-                        <p><strong><?php _e('Total:', 'mobooking'); ?></strong> <?php echo wc_price($booking['total_price']); ?></p>
-                    </div>
-                </div>
-                
-                <p><?php _e('If you have any questions about this update, please contact us.', 'mobooking'); ?></p>
-                
-                <p><?php _e('Thank you for choosing our services!', 'mobooking'); ?></p>
-                
-                <?php echo $email_footer; ?>
-            </div>
-        </body>
-        </html>
-        <?php
-        return ob_get_clean();
+        if ($result) {
+            wp_send_json_success(array(
+                'message' => __('Test email sent successfully.', 'mobooking')
+            ));
+        } else {
+            wp_send_json_error(__('Failed to send test email.', 'mobooking'));
+        }
     }
 }
