@@ -353,7 +353,8 @@ class Manager {
      */
     public function ajax_check_zip_coverage() {
         // Check nonce
-        if (!isset($_POST['nonce']) || !wp_verify_nonce($_POST['nonce'], 'mobooking-zip-nonce')) {
+        // if (!isset($_POST['nonce']) || !wp_verify_nonce($_POST['nonce'], 'mobooking-zip-nonce')) {
+        if (!isset($_POST['nonce']) || !wp_verify_nonce($_POST['nonce'], 'mobooking-booking-nonce')) {
             wp_send_json_error(__('Security verification failed.', 'mobooking'));
         }
         
@@ -549,8 +550,8 @@ class Manager {
             'userId' => $user_id,
             'nonces' => array(
                 'booking' => wp_create_nonce('mobooking-booking-nonce'),
-                'zip_check' => wp_create_nonce('mobooking-zip-nonce'),
-                'discount' => wp_create_nonce('mobooking-discount-nonce')
+                'zip_check' => wp_create_nonce('mobooking-booking-nonce'), // Use same nonce
+                'discount' => wp_create_nonce('mobooking-booking-nonce')   // Use same nonce
             ),
             'strings' => array(
                 'error' => __('An error occurred', 'mobooking'),
