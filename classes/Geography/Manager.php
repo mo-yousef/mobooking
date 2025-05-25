@@ -281,6 +281,8 @@ class Manager {
      * AJAX handler to check ZIP coverage
      */
     public function ajax_check_zip_coverage() {
+        error_log('ZIP Coverage Debug - POST data: ' . print_r($_POST, true));
+
         // Check nonce
         if (!isset($_POST['nonce']) || !wp_verify_nonce($_POST['nonce'], 'mobooking-zip-nonce')) {
             wp_send_json_error(__('Security verification failed.', 'mobooking'));
