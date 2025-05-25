@@ -305,3 +305,283 @@ add_action('send_headers', 'mobooking_security_headers');
 if (!defined('DISALLOW_FILE_EDIT')) {
     define('DISALLOW_FILE_EDIT', true);
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+/**
+ * Add this to your functions.php file to flush rewrite rules
+ * This should be done after making changes to the booking form endpoints
+ */
+
+// Add this function to flush rewrite rules manually
+function mobooking_flush_rewrite_rules_admin() {
+    if (current_user_can('administrator') && isset($_GET['mobooking_flush_rules'])) {
+        // Register the rewrite rules
+        $booking_form_manager = new \MoBooking\BookingForm\Manager();
+        $booking_form_manager->register_booking_form_endpoints();
+        
+        // Flush the rules
+        flush_rewrite_rules();
+        
+        // Show admin notice
+        add_action('admin_notices', function() {
+            echo '<div class="notice notice-success is-dismissible"><p>MoBooking: Rewrite rules have been flushed successfully!</p></div>';
+        });
+    }
+}
+add_action('admin_init', 'mobooking_flush_rewrite_rules_admin');
+
+// Add admin menu item to flush rules
+function mobooking_add_flush_rules_page() {
+    if (current_user_can('administrator')) {
+        add_submenu_page(
+            'tools.php',
+            'Flush MoBooking Rules',
+            'Flush MoBooking Rules',
+            'administrator',
+            'mobooking-flush-rules',
+            function() {
+                echo '<div class="wrap">';
+                echo '<h1>Flush MoBooking Rewrite Rules</h1>';
+                echo '<p>Click the button below to flush rewrite rules if your booking URLs are not working.</p>';
+                echo '<a href="' . admin_url('tools.php?page=mobooking-flush-rules&mobooking_flush_rules=1') . '" class="button-primary">Flush Rewrite Rules</a>';
+                echo '</div>';
+            }
+        );
+    }
+}
+add_action('admin_menu', 'mobooking_add_flush_rules_page');
+
+// Automatically flush rules when the theme is activated or BookingForm\Manager is loaded for the first time
+function mobooking_maybe_flush_rules() {
+    $rules_flushed = get_option('mobooking_rules_flushed', false);
+    
+    if (!$rules_flushed || (defined('WP_DEBUG') && WP_DEBUG && isset($_GET['force_flush']))) {
+        // Register the rewrite rules
+        if (class_exists('\MoBooking\BookingForm\Manager')) {
+            $booking_form_manager = new \MoBooking\BookingForm\Manager();
+            $booking_form_manager->register_booking_form_endpoints();
+            
+            // Flush the rules
+            flush_rewrite_rules();
+            
+            // Mark as flushed
+            update_option('mobooking_rules_flushed', true);
+            
+            if (defined('WP_DEBUG') && WP_DEBUG) {
+                error_log('MoBooking: Rewrite rules flushed automatically');
+            }
+        }
+    }
+}
+add_action('init', 'mobooking_maybe_flush_rules', 20);
+
+// Debug function to check current rewrite rules
+function mobooking_debug_rewrite_rules() {
+    if (defined('WP_DEBUG') && WP_DEBUG && current_user_can('administrator') && isset($_GET['debug_rewrite'])) {
+        global $wp_rewrite;
+        
+        echo '<pre>';
+        echo "=== MoBooking Rewrite Rules Debug ===\n";
+        echo "Current rules:\n";
+        print_r($wp_rewrite->wp_rewrite_rules());
+        echo "\nQuery vars:\n";
+        print_r($wp_rewrite->querystring_start);
+        echo "\nBooking form query vars should include:\n";
+        echo "- mobooking_booking_form\n";
+        echo "- mobooking_booking_embed\n";  
+        echo "- booking_user\n";
+        echo '</pre>';
+        
+        // Test URL generation
+        echo '<h3>Test URLs:</h3>';
+        if (class_exists('\MoBooking\BookingForm\Manager')) {
+            $booking_form_manager = new \MoBooking\BookingForm\Manager();
+            $current_user_id = get_current_user_id();
+            if ($current_user_id) {
+                echo '<p>Your booking URL: <a href="' . $booking_form_manager->get_booking_form_url($current_user_id) . '" target="_blank">' . $booking_form_manager->get_booking_form_url($current_user_id) . '</a></p>';
+                echo '<p>Your embed URL: <a href="' . $booking_form_manager->get_embed_url($current_user_id) . '" target="_blank">' . $booking_form_manager->get_embed_url($current_user_id) . '</a></p>';
+            }
+        }
+        exit;
+    }
+}
+add_action('init', 'mobooking_debug_rewrite_rules', 25);
+
+
+
+/**
+ * Debug helper for booking forms
+ * Add this to your theme's functions.php temporarily to debug issues
+ */
+
+// Debug booking form setup
+function mobooking_debug_booking_setup() {
+    if (!current_user_can('administrator') || !isset($_GET['mobooking_debug'])) {
+        return;
+    }
+    
+    echo '<div style="background: #f0f0f0; padding: 20px; margin: 20px; border-radius: 5px; font-family: monospace;">';
+    echo '<h2>MoBooking Debug Information</h2>';
+    
+    // Check if templates directory exists
+    $templates_dir = MOBOOKING_PATH . '/templates';
+    echo '<h3>Template Files:</h3>';
+    echo '<p>Templates directory: ' . $templates_dir . '</p>';
+    echo '<p>Directory exists: ' . (is_dir($templates_dir) ? 'YES' : 'NO') . '</p>';
+    
+    $public_template = $templates_dir . '/booking-form-public.php';
+    $embed_template = $templates_dir . '/booking-form-embed.php';
+    
+    echo '<p>Public template exists: ' . (file_exists($public_template) ? 'YES' : 'NO') . '</p>';
+    echo '<p>Embed template exists: ' . (file_exists($embed_template) ? 'YES' : 'NO') . '</p>';
+    
+    // Check current user
+    $current_user = wp_get_current_user();
+    echo '<h3>Current User:</h3>';
+    echo '<p>User ID: ' . $current_user->ID . '</p>';
+    echo '<p>Username: ' . $current_user->user_login . '</p>';
+    echo '<p>Roles: ' . implode(', ', $current_user->roles) . '</p>';
+    echo '<p>Is business owner: ' . (in_array('mobooking_business_owner', $current_user->roles) ? 'YES' : 'NO') . '</p>';
+    
+    // Check services and areas
+    if (class_exists('\MoBooking\Services\ServicesManager')) {
+        $services_manager = new \MoBooking\Services\ServicesManager();
+        $services = $services_manager->get_user_services($current_user->ID);
+        echo '<h3>Services:</h3>';
+        echo '<p>Number of services: ' . count($services) . '</p>';
+    }
+    
+    if (class_exists('\MoBooking\Geography\Manager')) {
+        $geography_manager = new \MoBooking\Geography\Manager();
+        $areas = $geography_manager->get_user_areas($current_user->ID);
+        echo '<h3>Service Areas:</h3>';
+        echo '<p>Number of areas: ' . count($areas) . '</p>';
+    }
+    
+    // Check rewrite rules
+    global $wp_rewrite;
+    echo '<h3>Rewrite Rules:</h3>';
+    $rules = get_option('rewrite_rules');
+    $booking_rules = array_filter($rules, function($key) {
+        return strpos($key, 'booking') !== false;
+    }, ARRAY_FILTER_USE_KEY);
+    
+    if (!empty($booking_rules)) {
+        echo '<p>Booking-related rewrite rules found:</p>';
+        echo '<pre>' . print_r($booking_rules, true) . '</pre>';
+    } else {
+        echo '<p style="color: red;">No booking-related rewrite rules found! You may need to flush rewrite rules.</p>';
+    }
+    
+    // Test URLs
+    if (class_exists('\MoBooking\BookingForm\Manager')) {
+        $booking_form_manager = new \MoBooking\BookingForm\Manager();
+        echo '<h3>Generated URLs:</h3>';
+        echo '<p>Booking URL: <a href="' . $booking_form_manager->get_booking_form_url($current_user->ID) . '" target="_blank">' . $booking_form_manager->get_booking_form_url($current_user->ID) . '</a></p>';
+        echo '<p>Embed URL: <a href="' . $booking_form_manager->get_embed_url($current_user->ID) . '" target="_blank">' . $booking_form_manager->get_embed_url($current_user->ID) . '</a></p>';
+    }
+    
+    echo '<h3>Quick Actions:</h3>';
+    echo '<a href="' . admin_url('tools.php?page=mobooking-flush-rules&mobooking_flush_rules=1') . '" style="background: #0073aa; color: white; padding: 10px 15px; text-decoration: none; border-radius: 3px; margin-right: 10px;">Flush Rewrite Rules</a>';
+    echo '<a href="' . add_query_arg('debug_rewrite', '1') . '" style="background: #d54e21; color: white; padding: 10px 15px; text-decoration: none; border-radius: 3px; margin-right: 10px;">Debug Rewrite Rules</a>';
+    
+    echo '</div>';
+}
+add_action('wp_head', 'mobooking_debug_booking_setup');
+
+// Quick setup function to create template files if they don't exist
+function mobooking_create_template_files() {
+    if (!current_user_can('administrator') || !isset($_GET['create_templates'])) {
+        return;
+    }
+    
+    $templates_dir = MOBOOKING_PATH . '/templates';
+    
+    // Create templates directory if it doesn't exist
+    if (!is_dir($templates_dir)) {
+        wp_mkdir_p($templates_dir);
+    }
+    
+    $public_template = $templates_dir . '/booking-form-public.php';
+    $embed_template = $templates_dir . '/booking-form-embed.php';
+    
+    // Create basic public template if it doesn't exist
+    if (!file_exists($public_template)) {
+        $public_content = '<?php
+// Basic public booking form template
+// This is a minimal template - replace with the full template from the artifacts
+
+if (!defined("ABSPATH")) {
+    exit;
+}
+
+global $mobooking_form_user;
+
+if (!$mobooking_form_user) {
+    get_header();
+    echo "<h1>Booking form not found</h1>";
+    get_footer();
+    return;
+}
+
+get_header();
+echo "<h1>Booking Form for " . esc_html($mobooking_form_user->display_name) . "</h1>";
+echo "<p>Template loaded successfully! Replace this with the full template.</p>";
+get_footer();
+?>';
+        file_put_contents($public_template, $public_content);
+    }
+    
+    // Create basic embed template if it doesn't exist
+    if (!file_exists($embed_template)) {
+        $embed_content = '<?php
+// Basic embed booking form template
+// This is a minimal template - replace with the full template from the artifacts
+
+if (!defined("ABSPATH")) {
+    exit;
+}
+
+global $mobooking_form_user;
+
+if (!$mobooking_form_user) {
+    echo "<p>Booking form not found</p>";
+    return;
+}
+
+echo "<!DOCTYPE html><html><head><title>Booking Form</title></head><body>";
+echo "<h1>Embed Booking Form for " . esc_html($mobooking_form_user->display_name) . "</h1>";
+echo "<p>Embed template loaded successfully! Replace this with the full template.</p>";
+echo "</body></html>";
+?>';
+        file_put_contents($embed_template, $embed_content);
+    }
+    
+    echo '<div class="notice notice-success"><p>Template files have been created!</p></div>';
+}
+add_action('admin_init', 'mobooking_create_template_files');
