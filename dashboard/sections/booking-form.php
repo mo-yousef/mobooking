@@ -989,10 +989,12 @@ jQuery(document).ready(function($) {
 }
 
 .booking-form-header-content {
-    display: flex;
+    display: flex
+;
     align-items: flex-start;
-    gap: 3rem;
+    gap: 30px;
     flex: 1;
+    flex-direction: column;
 }
 
 .booking-form-title-group {
