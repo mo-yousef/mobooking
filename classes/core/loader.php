@@ -34,7 +34,10 @@ class Loader {
         new \MoBooking\Services\ServiceOptionsManager();
         
         // Initialize other managers
-        new \MoBooking\Bookings\Manager();
+        // new \MoBooking\Bookings\Manager();
+        new \MoBooking\BookingForm\Manager();
+
+        
         new \MoBooking\Discounts\Manager();
         new \MoBooking\Geography\Manager();
         new \MoBooking\Notifications\Manager();

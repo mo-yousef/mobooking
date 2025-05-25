@@ -1,1099 +1,585 @@
 <?php
-namespace MoBooking\Bookings;
+namespace MoBooking\BookingForm;
 
 /**
- * Bookings Manager class
+ * Booking Form Manager - Handles custom booking forms per user
  */
 class Manager {
     /**
      * Constructor
      */
     public function __construct() {
+        // Register hooks
+        add_action('init', array($this, 'register_booking_form_endpoints'));
+        add_filter('query_vars', array($this, 'add_booking_form_query_vars'));
+        add_filter('template_include', array($this, 'load_booking_form_template'));
+        
         // Register AJAX handlers
-        add_action('wp_ajax_mobooking_save_booking', array($this, 'ajax_save_booking'));
-        add_action('wp_ajax_nopriv_mobooking_save_booking', array($this, 'ajax_save_booking'));
-        add_action('wp_ajax_mobooking_update_booking_status', array($this, 'ajax_update_booking_status'));
-        add_action('wp_ajax_mobooking_get_bookings', array($this, 'ajax_get_bookings'));
+        add_action('wp_ajax_mobooking_save_booking_form_settings', array($this, 'ajax_save_settings'));
+        add_action('wp_ajax_mobooking_get_booking_form_settings', array($this, 'ajax_get_settings'));
+        add_action('wp_ajax_mobooking_generate_embed_code', array($this, 'ajax_generate_embed_code'));
+        add_action('wp_ajax_mobooking_preview_booking_form', array($this, 'ajax_preview_form'));
         
         // Add shortcodes
-        add_shortcode('mobooking_booking_form', array($this, 'booking_form_shortcode'));
-        add_shortcode('mobooking_booking_list', array($this, 'booking_list_shortcode'));
+        add_shortcode('mobooking_booking_form_public', array($this, 'public_booking_form_shortcode'));
     }
     
     /**
-     * Get bookings for a user
+     * Register booking form endpoints
      */
-    public function get_user_bookings($user_id, $args = array()) {
-        global $wpdb;
-        $table_name = $wpdb->prefix . 'mobooking_bookings';
+    public function register_booking_form_endpoints() {
+        // Public booking form URLs: /booking/{username} or /booking/{user_id}
+        add_rewrite_rule('^booking/([^/]+)/?$', 'index.php?mobooking_booking_form=1&booking_user=$matches[1]', 'top');
         
-        $defaults = array(
-            'status' => '',
-            'limit' => -1,
-            'offset' => 0,
-            'order' => 'DESC',
-            'orderby' => 'service_date'
-        );
-        
-        $args = wp_parse_args($args, $defaults);
-        
-        $sql = "SELECT * FROM $table_name WHERE user_id = %d";
-        $params = array($user_id);
-        
-        // Filter by status if specified
-        if (!empty($args['status'])) {
-            $sql .= " AND status = %s";
-            $params[] = $args['status'];
-        }
-        
-        // Order the results
-        $sql .= " ORDER BY " . sanitize_sql_orderby($args['orderby'] . ' ' . $args['order']);
-        
-        // Limit the results
-        if ($args['limit'] > 0) {
-            $sql .= " LIMIT %d, %d";
-            $params[] = $args['offset'];
-            $params[] = $args['limit'];
-        }
-        
-        return $wpdb->get_results($wpdb->prepare($sql, $params));
+        // Embed form endpoint
+        add_rewrite_rule('^booking-embed/([^/]+)/?$', 'index.php?mobooking_booking_embed=1&booking_user=$matches[1]', 'top');
     }
     
     /**
-     * Get a specific booking
+     * Add query vars
      */
-    public function get_booking($booking_id, $user_id = null) {
-        global $wpdb;
-        $table_name = $wpdb->prefix . 'mobooking_bookings';
-        
-        if ($user_id) {
-            // Get booking only if it belongs to the user
-            return $wpdb->get_row($wpdb->prepare(
-                "SELECT * FROM $table_name WHERE id = %d AND user_id = %d",
-                $booking_id, $user_id
-            ));
-        }
-        
-        return $wpdb->get_row($wpdb->prepare(
-            "SELECT * FROM $table_name WHERE id = %d",
-            $booking_id
-        ));
+    public function add_booking_form_query_vars($vars) {
+        $vars[] = 'mobooking_booking_form';
+        $vars[] = 'mobooking_booking_embed';
+        $vars[] = 'booking_user';
+        return $vars;
     }
     
-/**
-     * Save a booking
+    /**
+     * Load booking form template
      */
-    public function save_booking($data) {
-        global $wpdb;
-        $table_name = $wpdb->prefix . 'mobooking_bookings';
+    public function load_booking_form_template($template) {
+        global $wp_query;
         
-        // Sanitize data
-        $booking_data = array(
-            'user_id' => absint($data['user_id']),
-            'customer_name' => sanitize_text_field($data['customer_name']),
-            'customer_email' => sanitize_email($data['customer_email']),
-            'customer_phone' => isset($data['customer_phone']) ? sanitize_text_field($data['customer_phone']) : '',
-            'customer_address' => sanitize_textarea_field($data['customer_address']),
-            'zip_code' => sanitize_text_field($data['zip_code']),
-            'service_date' => sanitize_text_field($data['service_date']),
-            'services' => is_array($data['services']) ? wp_json_encode($data['services']) : $data['services'],
-            'total_price' => floatval($data['total_price']),
-            'discount_code' => isset($data['discount_code']) ? sanitize_text_field($data['discount_code']) : null,
-            'discount_amount' => isset($data['discount_amount']) ? floatval($data['discount_amount']) : null,
-            'status' => isset($data['status']) ? sanitize_text_field($data['status']) : 'pending',
-            'notes' => isset($data['notes']) ? sanitize_textarea_field($data['notes']) : ''
-        );
-        
-        // Check if we're updating or creating
-        if (!empty($data['id'])) {
-            // Update existing booking
-            $wpdb->update(
-                $table_name,
-                $booking_data,
-                array('id' => absint($data['id'])),
-                array('%d', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%f', '%s', '%f', '%s', '%s'),
-                array('%d')
-            );
+        if (get_query_var('mobooking_booking_form') || get_query_var('mobooking_booking_embed')) {
+            $booking_user = get_query_var('booking_user');
+            $is_embed = get_query_var('mobooking_booking_embed');
             
-            return absint($data['id']);
-        } else {
-            // Create new booking
-            $wpdb->insert(
-                $table_name,
-                $booking_data,
-                array('%d', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%f', '%s', '%f', '%s', '%s')
-            );
-            
-            return $wpdb->insert_id;
-        }
-    }
-    
-    /**
-     * Update booking status
-     */
-    public function update_booking_status($booking_id, $status, $user_id) {
-        global $wpdb;
-        $table_name = $wpdb->prefix . 'mobooking_bookings';
-        
-        // Check if booking exists and belongs to user
-        $booking = $this->get_booking($booking_id, $user_id);
-        if (!$booking) {
-            return false;
-        }
-        
-        // Update status
-        return $wpdb->update(
-            $table_name,
-            array('status' => sanitize_text_field($status)),
-            array('id' => $booking_id),
-            array('%s'),
-            array('%d')
-        );
-    }
-    
-    /**
-     * Delete a booking
-     */
-    public function delete_booking($booking_id, $user_id) {
-        global $wpdb;
-        $table_name = $wpdb->prefix . 'mobooking_bookings';
-        
-        return $wpdb->delete(
-            $table_name,
-            array(
-                'id' => $booking_id,
-                'user_id' => $user_id
-            ),
-            array('%d', '%d')
-        );
-    }
-    
-    /**
-     * Count bookings for a user
-     */
-    public function count_user_bookings($user_id, $status = '') {
-        global $wpdb;
-        $table_name = $wpdb->prefix . 'mobooking_bookings';
-        
-        $sql = "SELECT COUNT(*) FROM $table_name WHERE user_id = %d";
-        $params = array($user_id);
-        
-        if (!empty($status)) {
-            $sql .= " AND status = %s";
-            $params[] = $status;
+            if ($booking_user) {
+                // Try to find user by username first, then by ID
+                $user = get_user_by('login', $booking_user);
+                if (!$user && is_numeric($booking_user)) {
+                    $user = get_user_by('id', $booking_user);
+                }
+                
+                if ($user && in_array('mobooking_business_owner', $user->roles)) {
+                    // Set global variables for the template
+                    global $mobooking_form_user, $mobooking_is_embed;
+                    $mobooking_form_user = $user;
+                    $mobooking_is_embed = $is_embed;
+                    
+                    // Load appropriate template
+                    $template_file = $is_embed ? 'booking-form-embed.php' : 'booking-form-public.php';
+                    $custom_template = MOBOOKING_PATH . '/templates/' . $template_file;
+                    
+                    if (file_exists($custom_template)) {
+                        return $custom_template;
+                    }
+                } else {
+                    // User not found or not a business owner
+                    $wp_query->set_404();
+                    status_header(404);
+                }
+            }
         }
         
-        return $wpdb->get_var($wpdb->prepare($sql, $params));
+        return $template;
     }
     
     /**
-     * Calculate total revenue for a user
+     * Get booking form settings for a user
      */
-    public function calculate_user_revenue($user_id, $period = '') {
+    public function get_settings($user_id) {
         global $wpdb;
-        $table_name = $wpdb->prefix . 'mobooking_bookings';
+        $table_name = $wpdb->prefix . 'mobooking_booking_form_settings';
         
-        $sql = "SELECT SUM(total_price) FROM $table_name WHERE user_id = %d AND status != 'cancelled'";
-        $params = array($user_id);
+        // Create table if it doesn't exist
+        $this->maybe_create_settings_table();
         
-        if ($period == 'today') {
-            $sql .= " AND DATE(service_date) = CURDATE()";
-        } elseif ($period == 'this_week') {
-            $sql .= " AND YEARWEEK(service_date, 1) = YEARWEEK(CURDATE(), 1)";
-        } elseif ($period == 'this_month') {
-            $sql .= " AND MONTH(service_date) = MONTH(CURDATE()) AND YEAR(service_date) = YEAR(CURDATE())";
-        } elseif ($period == 'this_year') {
-            $sql .= " AND YEAR(service_date) = YEAR(CURDATE())";
-        }
-        
-        $revenue = $wpdb->get_var($wpdb->prepare($sql, $params));
-        
-        return $revenue ? $revenue : 0;
-    }
-    
-    /**
-     * Get most popular service for a user
-     */
-    public function get_most_popular_service($user_id) {
-        global $wpdb;
-        $table_name = $wpdb->prefix . 'mobooking_bookings';
-        
-        $bookings = $wpdb->get_results($wpdb->prepare(
-            "SELECT services FROM $table_name WHERE user_id = %d AND status != 'cancelled'",
+        $settings = $wpdb->get_row($wpdb->prepare(
+            "SELECT * FROM $table_name WHERE user_id = %d",
             $user_id
         ));
         
-        if (empty($bookings)) {
-            return null;
+        if (!$settings) {
+            return $this->get_default_settings($user_id);
         }
         
-        // Count service occurrences
-        $service_counts = array();
-        
-        foreach ($bookings as $booking) {
-            $services = json_decode($booking->services, true);
-            
-            if (is_array($services)) {
-                foreach ($services as $service) {
-                    $service_id = $service['id'];
-                    
-                    if (!isset($service_counts[$service_id])) {
-                        $service_counts[$service_id] = 0;
-                    }
-                    
-                    $service_counts[$service_id]++;
-                }
-            }
-        }
-        
-        if (empty($service_counts)) {
-            return null;
-        }
-        
-        // Find the most popular service
-        arsort($service_counts);
-        $most_popular_id = key($service_counts);
-        
-        // Get service details
-        $services_manager = new \MoBooking\Services\ServiceManager();
-        return $services_manager->get_service($most_popular_id);
+        return $settings;
     }
     
     /**
-     * AJAX handler to save booking
+     * Get default settings
      */
-    public function ajax_save_booking() {
-        // Check nonce
-        if (!isset($_POST['nonce']) || !wp_verify_nonce($_POST['nonce'], 'mobooking-booking-nonce')) {
-            wp_send_json_error(__('Security verification failed.', 'mobooking'));
-        }
+    private function get_default_settings($user_id) {
+        $user = get_userdata($user_id);
         
-        // Prepare data
-        $booking_data = array(
-            'user_id' => isset($_POST['user_id']) ? absint($_POST['user_id']) : 0,
-            'customer_name' => isset($_POST['customer_name']) ? $_POST['customer_name'] : '',
-            'customer_email' => isset($_POST['customer_email']) ? $_POST['customer_email'] : '',
-            'customer_phone' => isset($_POST['customer_phone']) ? $_POST['customer_phone'] : '',
-            'customer_address' => isset($_POST['customer_address']) ? $_POST['customer_address'] : '',
-            'zip_code' => isset($_POST['zip_code']) ? $_POST['zip_code'] : '',
-            'service_date' => isset($_POST['service_date']) ? $_POST['service_date'] : '',
-            'services' => isset($_POST['services']) ? $_POST['services'] : array(),
-            'total_price' => isset($_POST['total_price']) ? $_POST['total_price'] : 0,
-            'discount_code' => isset($_POST['discount_code']) ? $_POST['discount_code'] : '',
-            'discount_amount' => isset($_POST['discount_amount']) ? $_POST['discount_amount'] : 0,
-            'notes' => isset($_POST['notes']) ? $_POST['notes'] : ''
+        return (object) array(
+            'user_id' => $user_id,
+            'form_title' => $user ? $user->display_name . "'s Booking" : __('Book a Service', 'mobooking'),
+            'form_description' => __('Book our professional services quickly and easily.', 'mobooking'),
+            'logo_url' => '',
+            'primary_color' => '#3b82f6',
+            'secondary_color' => '#1e40af',
+            'background_color' => '#ffffff',
+            'text_color' => '#1f2937',
+            'language' => 'en',
+            'show_service_descriptions' => 1,
+            'show_price_breakdown' => 1,
+            'show_form_header' => 1,
+            'show_form_footer' => 1,
+            'enable_zip_validation' => 1,
+            'custom_css' => '',
+            'custom_js' => '',
+            'form_layout' => 'modern',
+            'step_indicator_style' => 'progress',
+            'button_style' => 'rounded',
+            'form_width' => 'standard',
+            'enable_testimonials' => 0,
+            'testimonials_data' => '',
+            'contact_info' => '',
+            'social_links' => '',
+            'custom_footer_text' => '',
+            'seo_title' => '',
+            'seo_description' => '',
+            'analytics_code' => '',
+            'is_active' => 1
+        );
+    }
+    
+    /**
+     * Save booking form settings
+     */
+    public function save_settings($user_id, $data) {
+        global $wpdb;
+        $table_name = $wpdb->prefix . 'mobooking_booking_form_settings';
+        
+        // Create table if it doesn't exist
+        $this->maybe_create_settings_table();
+        
+        // Sanitize data
+        $sanitized_data = array(
+            'form_title' => sanitize_text_field($data['form_title']),
+            'form_description' => sanitize_textarea_field($data['form_description']),
+            'logo_url' => esc_url_raw($data['logo_url']),
+            'primary_color' => sanitize_hex_color($data['primary_color']),
+            'secondary_color' => sanitize_hex_color($data['secondary_color']),
+            'background_color' => sanitize_hex_color($data['background_color']),
+            'text_color' => sanitize_hex_color($data['text_color']),
+            'language' => sanitize_text_field($data['language']),
+            'show_service_descriptions' => isset($data['show_service_descriptions']) ? 1 : 0,
+            'show_price_breakdown' => isset($data['show_price_breakdown']) ? 1 : 0,
+            'show_form_header' => isset($data['show_form_header']) ? 1 : 0,
+            'show_form_footer' => isset($data['show_form_footer']) ? 1 : 0,
+            'enable_zip_validation' => isset($data['enable_zip_validation']) ? 1 : 0,
+            'custom_css' => wp_strip_all_tags($data['custom_css']),
+            'custom_js' => wp_strip_all_tags($data['custom_js']),
+            'form_layout' => sanitize_text_field($data['form_layout']),
+            'step_indicator_style' => sanitize_text_field($data['step_indicator_style']),
+            'button_style' => sanitize_text_field($data['button_style']),
+            'form_width' => sanitize_text_field($data['form_width']),
+            'enable_testimonials' => isset($data['enable_testimonials']) ? 1 : 0,
+            'testimonials_data' => wp_kses_post($data['testimonials_data']),
+            'contact_info' => sanitize_textarea_field($data['contact_info']),
+            'social_links' => sanitize_textarea_field($data['social_links']),
+            'custom_footer_text' => wp_kses_post($data['custom_footer_text']),
+            'seo_title' => sanitize_text_field($data['seo_title']),
+            'seo_description' => sanitize_textarea_field($data['seo_description']),
+            'analytics_code' => wp_strip_all_tags($data['analytics_code']),
+            'is_active' => isset($data['is_active']) ? 1 : 0
         );
         
-        // Validate data
-        if (empty($booking_data['user_id']) || empty($booking_data['customer_name']) || 
-            empty($booking_data['customer_email']) || empty($booking_data['customer_address']) || 
-            empty($booking_data['zip_code']) || empty($booking_data['service_date']) || 
-            empty($booking_data['services']) || $booking_data['total_price'] <= 0) {
-            
-            wp_send_json_error(__('Please fill in all required fields.', 'mobooking'));
-        }
-        
-        // Validate email
-        if (!is_email($booking_data['customer_email'])) {
-            wp_send_json_error(__('Please enter a valid email address.', 'mobooking'));
-        }
-        
-        // Validate services format
-        if (is_array($booking_data['services'])) {
-            $booking_data['services'] = wp_json_encode($booking_data['services']);
-        } elseif (!is_string($booking_data['services'])) {
-            wp_send_json_error(__('Invalid services format.', 'mobooking'));
-        }
-        
-        // Save booking
-        $booking_id = $this->save_booking($booking_data);
-        
-        if (!$booking_id) {
-            wp_send_json_error(__('Failed to save booking.', 'mobooking'));
-        }
-        
-        // If there's a discount code, increment its usage count
-        if (!empty($booking_data['discount_code'])) {
-            $discounts_manager = new \MoBooking\Discounts\Manager();
-            $discount = $discounts_manager->get_discount_by_code($booking_data['discount_code'], $booking_data['user_id']);
-            
-            if ($discount) {
-                $discounts_manager->increment_usage_count($discount->id);
-            }
-        }
-        
-        // Send notification emails
-        $notifications_manager = new \MoBooking\Notifications\Manager();
-        $notifications_manager->send_booking_confirmation($booking_id);
-        $notifications_manager->send_admin_notification($booking_id);
-        
-        wp_send_json_success(array(
-            'id' => $booking_id,
-            'message' => __('Booking saved successfully.', 'mobooking')
+        // Check if settings exist
+        $existing = $wpdb->get_var($wpdb->prepare(
+            "SELECT id FROM $table_name WHERE user_id = %d",
+            $user_id
         ));
-    }
-    
-    /**
-     * AJAX handler to update booking status
-     */
-    public function ajax_update_booking_status() {
-        // Check nonce
-        if (!isset($_POST['nonce']) || !wp_verify_nonce($_POST['nonce'], 'mobooking-booking-status-nonce')) {
-            wp_send_json_error(__('Security verification failed.', 'mobooking'));
-        }
         
-        // Check permissions
-        if (!current_user_can('mobooking_business_owner') && !current_user_can('administrator')) {
-            wp_send_json_error(__('You do not have permission to do this.', 'mobooking'));
-        }
-        
-        // Check required fields
-        if (!isset($_POST['booking_id']) || empty($_POST['booking_id']) || !isset($_POST['status']) || empty($_POST['status'])) {
-            wp_send_json_error(__('Missing required information.', 'mobooking'));
-        }
-        
-        $booking_id = absint($_POST['booking_id']);
-        $status = sanitize_text_field($_POST['status']);
-        $user_id = get_current_user_id();
-        
-        // Valid statuses
-        $valid_statuses = array('pending', 'confirmed', 'completed', 'cancelled');
-        
-        if (!in_array($status, $valid_statuses)) {
-            wp_send_json_error(__('Invalid status.', 'mobooking'));
-        }
-        
-        // Update status
-        $result = $this->update_booking_status($booking_id, $status, $user_id);
-        
-        if (!$result) {
-            wp_send_json_error(__('Failed to update booking status.', 'mobooking'));
-        }
-        
-        // Send status update notification
-        if ($status == 'confirmed' || $status == 'cancelled') {
-            $notifications_manager = new \MoBooking\Notifications\Manager();
-            $notifications_manager->send_status_update($booking_id);
-        }
-        
-        wp_send_json_success(array(
-            'message' => __('Booking status updated successfully.', 'mobooking')
-        ));
-    }
-    
-    /**
-     * AJAX handler to get bookings
-     */
-    public function ajax_get_bookings() {
-        // Check nonce
-        if (!isset($_POST['nonce']) || !wp_verify_nonce($_POST['nonce'], 'mobooking-bookings-nonce')) {
-            wp_send_json_error(__('Security verification failed.', 'mobooking'));
-        }
-        
-        // Check permissions
-        if (!current_user_can('mobooking_business_owner') && !current_user_can('administrator')) {
-            wp_send_json_error(__('You do not have permission to do this.', 'mobooking'));
-        }
-        
-        $user_id = get_current_user_id();
-        
-        // Parse args
-        $args = array(
-            'status' => isset($_POST['status']) ? sanitize_text_field($_POST['status']) : '',
-            'limit' => isset($_POST['limit']) ? absint($_POST['limit']) : -1,
-            'offset' => isset($_POST['offset']) ? absint($_POST['offset']) : 0,
-            'order' => isset($_POST['order']) && in_array(strtoupper($_POST['order']), array('ASC', 'DESC')) ? strtoupper($_POST['order']) : 'DESC',
-            'orderby' => isset($_POST['orderby']) ? sanitize_sql_orderby($_POST['orderby']) : 'service_date'
-        );
-        
-        $bookings = $this->get_user_bookings($user_id, $args);
-        $total = $this->count_user_bookings($user_id, $args['status']);
-        
-        wp_send_json_success(array(
-            'bookings' => $bookings,
-            'total' => $total
-        ));
-    }
-
-
-/**
- * Enhanced Multi-Step Booking form shortcode
- */
-public function booking_form_shortcode($atts) {
-    // Parse attributes
-    $atts = shortcode_atts(array(
-        'user_id' => 0,
-        'style' => 'modern' // modern, classic
-    ), $atts);
-    
-    // If no user_id specified, use current logged-in user
-    if (empty($atts['user_id'])) {
-        $atts['user_id'] = get_current_user_id();
-    }
-    
-    $user_id = absint($atts['user_id']);
-    
-    // If still no valid user ID, check if we're on a business owner profile page
-    if (!$user_id) {
-        // You might be viewing another business owner's page
-        // Try to get user from the current page/post author
-        global $post;
-        if ($post && isset($post->post_author)) {
-            $user_id = $post->post_author;
-        }
-    }
-    
-    // If still no valid user ID, show a message
-    if (!$user_id) {
-        return '<p>' . __('Please log in as a service provider or specify a service provider ID.', 'mobooking') . '</p>';
-    }
-    
-    // Verify user exists and is a business owner
-    $user = get_userdata($user_id);
-    if (!$user || !in_array('mobooking_business_owner', $user->roles)) {
-        return '<p>' . __('Invalid service provider.', 'mobooking') . '</p>';
-    }
-    
-    // Get user's services
-    $services_manager = new \MoBooking\Services\ServicesManager();
-    $services = $services_manager->get_user_services($user_id);
-    
-    if (empty($services)) {
-        return '<p>' . __('No services available for this provider.', 'mobooking') . '</p>';
-    }
-    
-    // Get user settings
-    $settings_manager = new \MoBooking\Database\SettingsManager();
-    $settings = $settings_manager->get_settings($user_id);
-    
-    // Get service options for each service
-    $options_manager = new \MoBooking\Services\ServiceOptionsManager();
-    foreach ($services as $service) {
-        $service->options = $options_manager->get_service_options($service->id);
-    }
-    
-    // Enqueue necessary scripts and styles
-    wp_enqueue_script('jquery');
-    wp_enqueue_style('mobooking-booking-form', MOBOOKING_URL . '/assets/css/booking-form.css', array(), MOBOOKING_VERSION);
-    wp_enqueue_script('mobooking-booking-form', MOBOOKING_URL . '/assets/js/booking-form.js', array('jquery'), MOBOOKING_VERSION, true);
-    
-    // Localize script
-    wp_localize_script('mobooking-booking-form', 'mobookingBooking', array(
-        'ajaxUrl' => admin_url('admin-ajax.php'),
-        'userId' => $user_id,
-        'nonces' => array(
-            'zip_check' => wp_create_nonce('mobooking-zip-nonce'),
-            'booking' => wp_create_nonce('mobooking-booking-nonce'),
-            'discount' => wp_create_nonce('mobooking-validate-discount-nonce')
-        ),
-        'strings' => array(
-            'loading' => __('Loading...', 'mobooking'),
-            'error' => __('An error occurred. Please try again.', 'mobooking'),
-            'selectService' => __('Please select at least one service.', 'mobooking'),
-            'fillRequired' => __('Please fill in all required fields.', 'mobooking'),
-            'invalidEmail' => __('Please enter a valid email address.', 'mobooking'),
-            'processingBooking' => __('Processing your booking...', 'mobooking'),
-            'bookingSuccess' => __('Booking successful!', 'mobooking')
-        ),
-        'currency' => array(
-            'symbol' => get_woocommerce_currency_symbol(),
-            'position' => get_option('woocommerce_currency_pos', 'left')
-        )
-    ));
-    
-    ob_start();
-    ?>
-    <div class="mobooking-booking-form-container" data-user-id="<?php echo esc_attr($user_id); ?>" data-style="<?php echo esc_attr($atts['style']); ?>">
-        <!-- Progress Indicator -->
-        <div class="booking-progress">
-            <div class="progress-bar">
-                <div class="progress-fill" style="width: 20%;"></div>
-            </div>
-            <div class="progress-steps">
-                <div class="step active" data-step="1">
-                    <div class="step-number">1</div>
-                    <div class="step-label"><?php _e('Location', 'mobooking'); ?></div>
-                </div>
-                <div class="step" data-step="2">
-                    <div class="step-number">2</div>
-                    <div class="step-label"><?php _e('Services', 'mobooking'); ?></div>
-                </div>
-                <div class="step" data-step="3">
-                    <div class="step-number">3</div>
-                    <div class="step-label"><?php _e('Options', 'mobooking'); ?></div>
-                </div>
-                <div class="step" data-step="4">
-                    <div class="step-number">4</div>
-                    <div class="step-label"><?php _e('Details', 'mobooking'); ?></div>
-                </div>
-                <div class="step" data-step="5">
-                    <div class="step-number">5</div>
-                    <div class="step-label"><?php _e('Confirm', 'mobooking'); ?></div>
-                </div>
-            </div>
-        </div>
-        
-        <form id="mobooking-booking-form" class="booking-form">
-            <!-- Step 1: ZIP Code Check -->
-            <div class="booking-step step-1 active">
-                <div class="step-header">
-                    <h2><?php _e('Check Service Availability', 'mobooking'); ?></h2>
-                    <p><?php _e('Enter your ZIP code to see if we service your area', 'mobooking'); ?></p>
-                </div>
-                
-                <div class="step-content">
-                    <div class="zip-input-group">
-                        <label for="customer_zip_code"><?php _e('ZIP Code', 'mobooking'); ?></label>
-                        <div class="input-with-button">
-                            <input type="text" 
-                                id="customer_zip_code" 
-                                name="zip_code" 
-                                class="zip-input" 
-                                placeholder="<?php _e('Enter your ZIP code', 'mobooking'); ?>" 
-                                required>
-                            <button type="button" class="check-zip-btn">
-                                <span class="btn-text"><?php _e('Check Availability', 'mobooking'); ?></span>
-                                <span class="btn-loading"><?php _e('Checking...', 'mobooking'); ?></span>
-                            </button>
-                        </div>
-                    </div>
-                    
-                    <div class="zip-result" style="display: none;">
-                        <div class="result-message"></div>
-                    </div>
-                </div>
-            </div>
-            
-            <!-- Step 2: Service Selection -->
-            <div class="booking-step step-2">
-                <div class="step-header">
-                    <h2><?php _e('Choose Your Services', 'mobooking'); ?></h2>
-                    <p><?php _e('Select the services you need', 'mobooking'); ?></p>
-                </div>
-                
-                <div class="step-content">
-                    <div class="services-grid">
-                        <?php foreach ($services as $service) : ?>
-                            <div class="service-card" 
-                                data-service-id="<?php echo esc_attr($service->id); ?>"
-                                data-service-price="<?php echo esc_attr($service->price); ?>"
-                                data-service-duration="<?php echo esc_attr($service->duration); ?>">
-                                
-                                <div class="service-header">
-                                    <div class="service-visual">
-                                        <?php if (!empty($service->image_url)) : ?>
-                                            <div class="service-image">
-                                                <img src="<?php echo esc_url($service->image_url); ?>" alt="<?php echo esc_attr($service->name); ?>">
-                                            </div>
-                                        <?php elseif (!empty($service->icon)) : ?>
-                                            <div class="service-icon">
-                                                <span class="dashicons <?php echo esc_attr($service->icon); ?>"></span>
-                                            </div>
-                                        <?php else : ?>
-                                            <div class="service-icon service-icon-default">
-                                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                                    <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/>
-                                                </svg>
-                                            </div>
-                                        <?php endif; ?>
-                                        
-                                        <div class="service-selector">
-                                            <input type="checkbox" 
-                                                id="service_<?php echo esc_attr($service->id); ?>" 
-                                                name="selected_services[]" 
-                                                value="<?php echo esc_attr($service->id); ?>"
-                                                data-has-options="<?php echo !empty($service->options) ? '1' : '0'; ?>">
-                                            <label for="service_<?php echo esc_attr($service->id); ?>" class="service-checkbox"></label>
-                                        </div>
-                                    </div>
-                                </div>
-                                
-                                <div class="service-content">
-                                    <h3 class="service-name"><?php echo esc_html($service->name); ?></h3>
-                                    
-                                    <?php if (!empty($service->description)) : ?>
-                                        <p class="service-description"><?php echo esc_html($service->description); ?></p>
-                                    <?php endif; ?>
-                                    
-                                    <div class="service-meta">
-                                        <div class="service-price">
-                                            <span class="price-amount"><?php echo wc_price($service->price); ?></span>
-                                        </div>
-                                        <div class="service-duration">
-                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                                <circle cx="12" cy="12" r="10"></circle>
-                                                <polyline points="12,6 12,12 16,14"></polyline>
-                                            </svg>
-                                            <span><?php echo sprintf(_n('%d min', '%d mins', $service->duration, 'mobooking'), $service->duration); ?></span>
-                                        </div>
-                                    </div>
-                                    
-                                    <?php if (!empty($service->options)) : ?>
-                                        <div class="service-options-indicator">
-                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                                <circle cx="12" cy="12" r="3"/>
-                                                <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1 1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>
-                                            </svg>
-                                            <?php printf(_n('%d option', '%d options', count($service->options), 'mobooking'), count($service->options)); ?>
-                                        </div>
-                                    <?php endif; ?>
-                                </div>
-                            </div>
-                        <?php endforeach; ?>
-                    </div>
-                </div>
-                
-                <div class="step-actions">
-                    <button type="button" class="btn-secondary prev-step"><?php _e('Back', 'mobooking'); ?></button>
-                    <button type="button" class="btn-primary next-step"><?php _e('Continue', 'mobooking'); ?></button>
-                </div>
-            </div>
-            
-            <!-- Step 3: Service Options -->
-            <div class="booking-step step-3">
-                <div class="step-header">
-                    <h2><?php _e('Customize Your Services', 'mobooking'); ?></h2>
-                    <p><?php _e('Configure options for your selected services', 'mobooking'); ?></p>
-                </div>
-                
-                <div class="step-content">
-                    <div class="service-options-container">
-                        <!-- Service options will be dynamically loaded here -->
-                    </div>
-                </div>
-                
-                <div class="step-actions">
-                    <button type="button" class="btn-secondary prev-step"><?php _e('Back', 'mobooking'); ?></button>
-                    <button type="button" class="btn-primary next-step"><?php _e('Continue', 'mobooking'); ?></button>
-                </div>
-            </div>
-            
-            <!-- Step 4: Customer Information -->
-            <div class="booking-step step-4">
-                <div class="step-header">
-                    <h2><?php _e('Your Information', 'mobooking'); ?></h2>
-                    <p><?php _e('Please provide your contact details', 'mobooking'); ?></p>
-                </div>
-                
-                <div class="step-content">
-                    <div class="form-grid">
-                        <div class="form-group">
-                            <label for="customer_name"><?php _e('Full Name', 'mobooking'); ?> *</label>
-                            <input type="text" id="customer_name" name="customer_name" required>
-                        </div>
-                        
-                        <div class="form-group">
-                            <label for="customer_email"><?php _e('Email Address', 'mobooking'); ?> *</label>
-                            <input type="email" id="customer_email" name="customer_email" required>
-                        </div>
-                        
-                        <div class="form-group">
-                            <label for="customer_phone"><?php _e('Phone Number', 'mobooking'); ?></label>
-                            <input type="tel" id="customer_phone" name="customer_phone">
-                        </div>
-                        
-                        <div class="form-group full-width">
-                            <label for="customer_address"><?php _e('Service Address', 'mobooking'); ?> *</label>
-                            <textarea id="customer_address" name="customer_address" rows="3" required placeholder="<?php _e('Enter the full address where service will be provided', 'mobooking'); ?>"></textarea>
-                        </div>
-                        
-                        <div class="form-group full-width">
-                            <label for="service_date"><?php _e('Preferred Date & Time', 'mobooking'); ?> *</label>
-                            <input type="datetime-local" id="service_date" name="service_date" required min="<?php echo date('Y-m-d\TH:i', strtotime('+1 day')); ?>">
-                        </div>
-                        
-                        <div class="form-group full-width">
-                            <label for="booking_notes"><?php _e('Additional Notes', 'mobooking'); ?></label>
-                            <textarea id="booking_notes" name="notes" rows="3" placeholder="<?php _e('Any special instructions or requirements...', 'mobooking'); ?>"></textarea>
-                        </div>
-                    </div>
-                </div>
-                
-                <div class="step-actions">
-                    <button type="button" class="btn-secondary prev-step"><?php _e('Back', 'mobooking'); ?></button>
-                    <button type="button" class="btn-primary next-step"><?php _e('Review Order', 'mobooking'); ?></button>
-                </div>
-            </div>
-            
-            <!-- Step 5: Review & Confirm -->
-            <div class="booking-step step-5">
-                <div class="step-header">
-                    <h2><?php _e('Review Your Booking', 'mobooking'); ?></h2>
-                    <p><?php _e('Please review your order details before confirming', 'mobooking'); ?></p>
-                </div>
-                
-                <div class="step-content">
-                    <div class="booking-summary">
-                        <div class="summary-section">
-                            <h3><?php _e('Service Details', 'mobooking'); ?></h3>
-                            <div class="service-address"></div>
-                            <div class="service-datetime"></div>
-                        </div>
-                        
-                        <div class="summary-section">
-                            <h3><?php _e('Selected Services', 'mobooking'); ?></h3>
-                            <div class="selected-services-list"></div>
-                        </div>
-                        
-                        <div class="summary-section">
-                            <h3><?php _e('Customer Information', 'mobooking'); ?></h3>
-                            <div class="customer-info"></div>
-                        </div>
-                        
-                        <div class="summary-section discount-section" style="display: none;">
-                            <h3><?php _e('Discount Code', 'mobooking'); ?></h3>
-                            <div class="discount-input-group">
-                                <input type="text" id="discount_code" name="discount_code" placeholder="<?php _e('Enter discount code', 'mobooking'); ?>">
-                                <button type="button" class="apply-discount-btn"><?php _e('Apply', 'mobooking'); ?></button>
-                            </div>
-                            <div class="discount-message"></div>
-                        </div>
-                    </div>
-                    
-                    <div class="pricing-summary">
-                        <div class="pricing-line subtotal">
-                            <span class="label"><?php _e('Subtotal', 'mobooking'); ?></span>
-                            <span class="amount">$0.00</span>
-                        </div>
-                        <div class="pricing-line discount" style="display: none;">
-                            <span class="label"><?php _e('Discount', 'mobooking'); ?></span>
-                            <span class="amount">-$0.00</span>
-                        </div>
-                        <div class="pricing-line total">
-                            <span class="label"><?php _e('Total', 'mobooking'); ?></span>
-                            <span class="amount">$0.00</span>
-                        </div>
-                    </div>
-                </div>
-                
-                <div class="step-actions">
-                    <button type="button" class="btn-secondary prev-step"><?php _e('Back', 'mobooking'); ?></button>
-                    <button type="submit" class="btn-primary confirm-booking-btn">
-                        <span class="btn-text"><?php _e('Confirm Booking', 'mobooking'); ?></span>
-                        <span class="btn-loading"><?php _e('Processing...', 'mobooking'); ?></span>
-                    </button>
-                </div>
-            </div>
-            
-            <!-- Success Step -->
-            <div class="booking-step step-success">
-                <div class="success-content">
-                    <div class="success-icon">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <path d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2ZM8 12l2 2 4-4"/>
-                        </svg>
-                    </div>
-                    <h2><?php _e('Booking Confirmed!', 'mobooking'); ?></h2>
-                    <p class="success-message"><?php echo esc_html($settings->booking_confirmation_message); ?></p>
-                    <div class="booking-reference">
-                        <strong><?php _e('Booking Reference:', 'mobooking'); ?></strong>
-                        <span class="reference-number"></span>
-                    </div>
-                    <div class="next-steps">
-                        <p><?php _e('What happens next:', 'mobooking'); ?></p>
-                        <ul>
-                            <li><?php _e('You will receive a confirmation email shortly', 'mobooking'); ?></li>
-                            <li><?php _e('We will contact you to confirm the appointment', 'mobooking'); ?></li>
-                            <li><?php _e('Our team will arrive at the scheduled time', 'mobooking'); ?></li>
-                        </ul>
-                    </div>
-                </div>
-            </div>
-            
-            <!-- Hidden fields -->
-            <input type="hidden" name="user_id" value="<?php echo esc_attr($user_id); ?>">
-            <input type="hidden" name="total_price" id="total_price" value="0">
-            <input type="hidden" name="discount_amount" id="discount_amount" value="0">
-            <input type="hidden" name="service_options_data" id="service_options_data" value="">
-            
-            <?php wp_nonce_field('mobooking-booking-nonce', 'nonce'); ?>
-        </form>
-        
-        <!-- Service Options Template (Hidden) -->
-        <div id="service-options-template" style="display: none;">
-            <?php foreach ($services as $service) : ?>
-                <?php if (!empty($service->options)) : ?>
-                    <div class="service-options-section" data-service-id="<?php echo esc_attr($service->id); ?>">
-                        <h3 class="service-options-title"><?php echo esc_html($service->name); ?></h3>
-                        
-                        <?php foreach ($service->options as $option) : ?>
-                            <div class="option-field" data-option-id="<?php echo esc_attr($option->id); ?>" data-price-type="<?php echo esc_attr($option->price_type); ?>" data-price-impact="<?php echo esc_attr($option->price_impact); ?>">
-                                <label class="option-label">
-                                    <?php echo esc_html($option->name); ?>
-                                    <?php if ($option->is_required) : ?>
-                                        <span class="required">*</span>
-                                    <?php endif; ?>
-                                    <?php if ($option->price_impact > 0) : ?>
-                                        <span class="price-impact">(+<?php echo wc_price($option->price_impact); ?>)</span>
-                                    <?php endif; ?>
-                                </label>
-                                
-                                <?php if (!empty($option->description)) : ?>
-                                    <p class="option-description"><?php echo esc_html($option->description); ?></p>
-                                <?php endif; ?>
-                                
-                                <div class="option-input">
-                                    <?php
-                                    $field_name = "option_{$option->id}";
-                                    $field_id = "option_{$option->id}_{$service->id}";
-                                    
-                                    switch ($option->type) :
-                                        case 'checkbox':
-                                    ?>
-                                            <input type="checkbox" 
-                                                id="<?php echo esc_attr($field_id); ?>" 
-                                                name="<?php echo esc_attr($field_name); ?>" 
-                                                value="1"
-                                                <?php echo $option->is_required ? 'data-required="true"' : ''; ?>
-                                                <?php echo $option->default_value == '1' ? 'checked' : ''; ?>>
-                                            <label for="<?php echo esc_attr($field_id); ?>" class="checkbox-label">
-                                                <?php echo !empty($option->option_label) ? esc_html($option->option_label) : __('Yes', 'mobooking'); ?>
-                                            </label>
-                                    <?php
-                                            break;
-                                        case 'text':
-                                    ?>
-                                            <input type="text" 
-                                                id="<?php echo esc_attr($field_id); ?>" 
-                                                name="<?php echo esc_attr($field_name); ?>" 
-                                                placeholder="<?php echo esc_attr($option->placeholder); ?>"
-                                                value="<?php echo esc_attr($option->default_value); ?>"
-                                                <?php echo $option->is_required ? 'required' : ''; ?>
-                                                <?php echo $option->min_length ? 'minlength="' . esc_attr($option->min_length) . '"' : ''; ?>
-                                                <?php echo $option->max_length ? 'maxlength="' . esc_attr($option->max_length) . '"' : ''; ?>>
-                                    <?php
-                                            break;
-                                        case 'number':
-                                        case 'quantity':
-                                    ?>
-                                            <input type="number" 
-                                                id="<?php echo esc_attr($field_id); ?>" 
-                                                name="<?php echo esc_attr($field_name); ?>" 
-                                                value="<?php echo esc_attr($option->default_value); ?>"
-                                                <?php echo $option->is_required ? 'required' : ''; ?>
-                                                <?php echo $option->min_value !== null ? 'min="' . esc_attr($option->min_value) . '"' : ''; ?>
-                                                <?php echo $option->max_value !== null ? 'max="' . esc_attr($option->max_value) . '"' : ''; ?>
-                                                step="<?php echo esc_attr($option->step); ?>">
-                                    <?php
-                                            break;
-                                        case 'textarea':
-                                    ?>
-                                            <textarea id="<?php echo esc_attr($field_id); ?>" 
-                                                    name="<?php echo esc_attr($field_name); ?>" 
-                                                    rows="<?php echo esc_attr($option->rows); ?>"
-                                                    placeholder="<?php echo esc_attr($option->placeholder); ?>"
-                                                    <?php echo $option->is_required ? 'required' : ''; ?>
-                                                    <?php echo $option->min_length ? 'minlength="' . esc_attr($option->min_length) . '"' : ''; ?>
-                                                    <?php echo $option->max_length ? 'maxlength="' . esc_attr($option->max_length) . '"' : ''; ?>><?php echo esc_textarea($option->default_value); ?></textarea>
-                                    <?php
-                                            break;
-                                        case 'select':
-                                            $choices = $this->parse_option_choices($option->options);
-                                    ?>
-                                            <select id="<?php echo esc_attr($field_id); ?>" 
-                                                    name="<?php echo esc_attr($field_name); ?>" 
-                                                    <?php echo $option->is_required ? 'required' : ''; ?>>
-                                                <?php if (!$option->is_required) : ?>
-                                                    <option value=""><?php _e('-- Select --', 'mobooking'); ?></option>
-                                                <?php endif; ?>
-                                                <?php foreach ($choices as $choice) : ?>
-                                                    <option value="<?php echo esc_attr($choice['value']); ?>" 
-                                                            data-price="<?php echo esc_attr($choice['price']); ?>"
-                                                            <?php echo $choice['value'] == $option->default_value ? 'selected' : ''; ?>>
-                                                        <?php echo esc_html($choice['label']); ?>
-                                                        <?php if ($choice['price'] > 0) : ?>
-                                                            (+<?php echo wc_price($choice['price']); ?>)
-                                                        <?php endif; ?>
-                                                    </option>
-                                                <?php endforeach; ?>
-                                            </select>
-                                    <?php
-                                            break;
-                                        case 'radio':
-                                            $choices = $this->parse_option_choices($option->options);
-                                    ?>
-                                            <div class="radio-group">
-                                                <?php foreach ($choices as $index => $choice) : ?>
-                                                    <label class="radio-label">
-                                                        <input type="radio" 
-                                                            name="<?php echo esc_attr($field_name); ?>" 
-                                                            value="<?php echo esc_attr($choice  ['value']); ?>" value="<?php echo esc_attr($choice['value']); ?>"
-                                                            data-price="<?php echo esc_attr($choice['price']); ?>"
-                                                            <?php echo $choice['value'] == $option->default_value ? 'checked' : ''; ?>
-                                                            <?php echo $option->is_required && $index === 0 ? 'required' : ''; ?>>
-                                                        <?php echo esc_html($choice['label']); ?>
-                                                        <?php if ($choice['price'] > 0) : ?>
-                                                            <span class="choice-price">(+<?php echo wc_price($choice['price']); ?>)</span>
-                                                        <?php endif; ?>
-                                                    </label>
-                                                <?php endforeach; ?>
-                                            </div>
-                                    <?php
-                                            break;
-                                    endswitch;
-                                    ?>
-                                </div>
-                            </div>
-                        <?php endforeach; ?>
-                    </div>
-                <?php endif; ?>
-            <?php endforeach; ?>
-        </div>
-    </div>
-    <?php
-    return ob_get_clean();
-}
-    /**
-     * Parse option choices from string format
-     */
-    private function parse_option_choices($options_string) {
-        if (empty($options_string)) {
-            return array();
-        }
-        
-        $choices = array();
-        $lines = explode("\n", $options_string);
-        
-        foreach ($lines as $line) {
-            $line = trim($line);
-            if (empty($line)) {
-                continue;
-            }
-            
-            $parts = explode('|', $line);
-            $value = trim($parts[0]);
-            
-            if (empty($value)) {
-                continue;
-            }
-            
-            $label = $value;
-            $price = 0;
-            
-            if (isset($parts[1])) {
-                $label_price = explode(':', $parts[1]);
-                $label = trim($label_price[0]);
-                if (isset($label_price[1])) {
-                    $price = floatval($label_price[1]);
-                }
-            }
-            
-            $choices[] = array(
-                'value' => $value,
-                'label' => $label,
-                'price' => $price
+        if ($existing) {
+            // Update existing settings
+            return $wpdb->update(
+                $table_name,
+                $sanitized_data,
+                array('user_id' => $user_id),
+                array('%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%d', '%d', '%d', '%d', '%d', '%s', '%s', '%s', '%s', '%s', '%s', '%d', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%d'),
+                array('%d')
+            );
+        } else {
+            // Insert new settings
+            return $wpdb->insert(
+                $table_name,
+                array_merge($sanitized_data, array('user_id' => $user_id)),
+                array('%d', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%d', '%d', '%d', '%d', '%d', '%s', '%s', '%s', '%s', '%s', '%s', '%d', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%d')
             );
         }
-        
-        return $choices;
     }
-        
+    
     /**
-     * Booking list shortcode
+     * Generate unique booking form URL
      */
-    public function booking_list_shortcode($atts) {
-        // Parse attributes
-        $atts = shortcode_atts(array(
-            'user_id' => 0,
-            'status' => '',
-            'limit' => 10
-        ), $atts);
-        
-        $user_id = $atts['user_id'] ? absint($atts['user_id']) : get_current_user_id();
-        
-        // If not logged in and no user ID specified, return nothing
-        if (!$user_id) {
-            return '';
+    public function get_booking_form_url($user_id) {
+        $user = get_userdata($user_id);
+        if (!$user) {
+            return false;
         }
         
-        // Check if current user has permission to view these bookings
-        if (!current_user_can('administrator') && get_current_user_id() != $user_id) {
-            return '<p>' . __('You do not have permission to view these bookings.', 'mobooking') . '</p>';
+        // Use username if available, otherwise use ID
+        $identifier = $user->user_login ?: $user_id;
+        return home_url('/booking/' . $identifier . '/');
+    }
+    
+    /**
+     * Generate embed code
+     */
+    public function generate_embed_code($user_id, $width = '100%', $height = '800') {
+        $embed_url = $this->get_embed_url($user_id);
+        if (!$embed_url) {
+            return false;
         }
         
-        // Get bookings
-        $args = array(
-            'status' => $atts['status'],
-            'limit' => $atts['limit']
+        return sprintf(
+            '<iframe src="%s" width="%s" height="%s" frameborder="0" scrolling="auto" style="border: none; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.15);"></iframe>',
+            esc_url($embed_url),
+            esc_attr($width),
+            esc_attr($height)
         );
-        
-        $bookings = $this->get_user_bookings($user_id, $args);
-        
-        if (empty($bookings)) {
-            return '<p>' . __('No bookings found.', 'mobooking') . '</p>';
+    }
+    
+    /**
+     * Get embed URL
+     */
+    public function get_embed_url($user_id) {
+        $user = get_userdata($user_id);
+        if (!$user) {
+            return false;
         }
         
+        $identifier = $user->user_login ?: $user_id;
+        return home_url('/booking-embed/' . $identifier . '/');
+    }
+    
+    /**
+     * Create settings table if it doesn't exist
+     */
+    private function maybe_create_settings_table() {
+        global $wpdb;
+        $table_name = $wpdb->prefix . 'mobooking_booking_form_settings';
+        
+        if ($wpdb->get_var("SHOW TABLES LIKE '$table_name'") != $table_name) {
+            $charset_collate = $wpdb->get_charset_collate();
+            
+            $sql = "CREATE TABLE $table_name (
+                id bigint(20) NOT NULL AUTO_INCREMENT,
+                user_id bigint(20) NOT NULL,
+                form_title varchar(255) DEFAULT '',
+                form_description text DEFAULT '',
+                logo_url varchar(500) DEFAULT '',
+                primary_color varchar(20) DEFAULT '#3b82f6',
+                secondary_color varchar(20) DEFAULT '#1e40af',
+                background_color varchar(20) DEFAULT '#ffffff',
+                text_color varchar(20) DEFAULT '#1f2937',
+                language varchar(10) DEFAULT 'en',
+                show_service_descriptions tinyint(1) DEFAULT 1,
+                show_price_breakdown tinyint(1) DEFAULT 1,
+                show_form_header tinyint(1) DEFAULT 1,
+                show_form_footer tinyint(1) DEFAULT 1,
+                enable_zip_validation tinyint(1) DEFAULT 1,
+                custom_css longtext DEFAULT '',
+                custom_js longtext DEFAULT '',
+                form_layout varchar(50) DEFAULT 'modern',
+                step_indicator_style varchar(50) DEFAULT 'progress',
+                button_style varchar(50) DEFAULT 'rounded',
+                form_width varchar(50) DEFAULT 'standard',
+                enable_testimonials tinyint(1) DEFAULT 0,
+                testimonials_data longtext DEFAULT '',
+                contact_info text DEFAULT '',
+                social_links text DEFAULT '',
+                custom_footer_text text DEFAULT '',
+                seo_title varchar(255) DEFAULT '',
+                seo_description text DEFAULT '',
+                analytics_code text DEFAULT '',
+                is_active tinyint(1) DEFAULT 1,
+                created_at datetime DEFAULT CURRENT_TIMESTAMP,
+                updated_at datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                PRIMARY KEY (id),
+                UNIQUE KEY user_id (user_id)
+            ) $charset_collate;";
+            
+            require_once(ABSPATH . 'wp-admin/includes/upgrade.php');
+            dbDelta($sql);
+        }
+    }
+    
+    /**
+     * AJAX handler to save settings
+     */
+    public function ajax_save_settings() {
+        // Check nonce
+        if (!isset($_POST['nonce']) || !wp_verify_nonce($_POST['nonce'], 'mobooking-booking-form-nonce')) {
+            wp_send_json_error(__('Security verification failed.', 'mobooking'));
+        }
+        
+        // Check permissions
+        if (!current_user_can('mobooking_business_owner') && !current_user_can('administrator')) {
+            wp_send_json_error(__('You do not have permission to do this.', 'mobooking'));
+        }
+        
+        $user_id = get_current_user_id();
+        
+        // Save settings
+        $result = $this->save_settings($user_id, $_POST);
+        
+        if ($result === false) {
+            wp_send_json_error(__('Failed to save settings.', 'mobooking'));
+        }
+        
+        // Return URLs
+        wp_send_json_success(array(
+            'message' => __('Settings saved successfully.', 'mobooking'),
+            'booking_url' => $this->get_booking_form_url($user_id),
+            'embed_url' => $this->get_embed_url($user_id)
+        ));
+    }
+    
+    /**
+     * AJAX handler to get settings
+     */
+    public function ajax_get_settings() {
+        // Check nonce
+        if (!isset($_POST['nonce']) || !wp_verify_nonce($_POST['nonce'], 'mobooking-booking-form-nonce')) {
+            wp_send_json_error(__('Security verification failed.', 'mobooking'));
+        }
+        
+        // Check permissions
+        if (!current_user_can('mobooking_business_owner') && !current_user_can('administrator')) {
+            wp_send_json_error(__('You do not have permission to do this.', 'mobooking'));
+        }
+        
+        $user_id = get_current_user_id();
+        $settings = $this->get_settings($user_id);
+        
+        wp_send_json_success(array(
+            'settings' => $settings,
+            'booking_url' => $this->get_booking_form_url($user_id),
+            'embed_url' => $this->get_embed_url($user_id)
+        ));
+    }
+    
+    /**
+     * AJAX handler to generate embed code
+     */
+    public function ajax_generate_embed_code() {
+        // Check nonce
+        if (!isset($_POST['nonce']) || !wp_verify_nonce($_POST['nonce'], 'mobooking-booking-form-nonce')) {
+            wp_send_json_error(__('Security verification failed.', 'mobooking'));
+        }
+        
+        // Check permissions
+        if (!current_user_can('mobooking_business_owner') && !current_user_can('administrator')) {
+            wp_send_json_error(__('You do not have permission to do this.', 'mobooking'));
+        }
+        
+        $user_id = get_current_user_id();
+        $width = isset($_POST['width']) ? sanitize_text_field($_POST['width']) : '100%';
+        $height = isset($_POST['height']) ? sanitize_text_field($_POST['height']) : '800';
+        
+        $embed_code = $this->generate_embed_code($user_id, $width, $height);
+        
+        if (!$embed_code) {
+            wp_send_json_error(__('Failed to generate embed code.', 'mobooking'));
+        }
+        
+        wp_send_json_success(array(
+            'embed_code' => $embed_code,
+            'embed_url' => $this->get_embed_url($user_id)
+        ));
+    }
+    
+    /**
+     * AJAX handler for form preview
+     */
+    public function ajax_preview_form() {
+        // Check nonce
+        if (!isset($_POST['nonce']) || !wp_verify_nonce($_POST['nonce'], 'mobooking-booking-form-nonce')) {
+            wp_send_json_error(__('Security verification failed.', 'mobooking'));
+        }
+        
+        // Check permissions
+        if (!current_user_can('mobooking_business_owner') && !current_user_can('administrator')) {
+            wp_send_json_error(__('You do not have permission to do this.', 'mobooking'));
+        }
+        
+        $user_id = get_current_user_id();
+        
+        // Generate preview HTML with current settings
+        $preview_html = $this->generate_preview_html($user_id, $_POST);
+        
+        wp_send_json_success(array(
+            'html' => $preview_html
+        ));
+    }
+    
+    /**
+     * Generate preview HTML
+     */
+    private function generate_preview_html($user_id, $settings) {
+        // This would generate a preview of the form with the current settings
+        // For now, return a simple preview
         ob_start();
         ?>
-        <div class="mobooking-booking-list">
-            <table class="bookings-table">
-                <thead>
-                    <tr>
-                        <th><?php _e('ID', 'mobooking'); ?></th>
-                        <th><?php _e('Customer', 'mobooking'); ?></th>
-                        <th><?php _e('Date', 'mobooking'); ?></th>
-                        <th><?php _e('Services', 'mobooking'); ?></th>
-                        <th><?php _e('Total', 'mobooking'); ?></th>
-                        <th><?php _e('Status', 'mobooking'); ?></th>
-                        <th><?php _e('Actions', 'mobooking'); ?></th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <?php foreach ($bookings as $booking) : 
-                        $booking_services = json_decode($booking->services, true);
-                    ?>
-                        <tr class="booking-row status-<?php echo esc_attr($booking->status); ?>">
-                            <td class="booking-id"><?php echo esc_html($booking->id); ?></td>
-                            <td class="booking-customer">
-                                <div class="customer-name"><?php echo esc_html($booking->customer_name); ?></div>
-                                <div class="customer-email"><?php echo esc_html($booking->customer_email); ?></div>
-                            </td>
-                            <td class="booking-date">
-                                <?php echo date_i18n(get_option('date_format') . ' ' . get_option('time_format'), strtotime($booking->service_date)); ?>
-                            </td>
-                            <td class="booking-services">
-                                <?php if (is_array($booking_services)) : ?>
-                                    <ul>
-                                        <?php foreach ($booking_services as $service) : ?>
-                                            <li><?php echo esc_html($service['name']); ?></li>
-                                        <?php endforeach; ?>
-                                    </ul>
-                                <?php endif; ?>
-                            </td>
-                            <td class="booking-total">
-                                <?php echo wc_price($booking->total_price); ?>
-                            </td>
-                            <td class="booking-status">
-                                <span class="status-badge status-<?php echo esc_attr($booking->status); ?>">
-                                    <?php 
-                                    switch ($booking->status) {
-                                        case 'pending':
-                                            _e('Pending', 'mobooking');
-                                            break;
-                                        case 'confirmed':
-                                            _e('Confirmed', 'mobooking');
-                                            break;
-                                        case 'completed':
-                                            _e('Completed', 'mobooking');
-                                            break;
-                                        case 'cancelled':
-                                            _e('Cancelled', 'mobooking');
-                                            break;
-                                        default:
-                                            echo esc_html($booking->status);
-                                    }
-                                    ?>
-                                </span>
-                            </td>
-                            <td class="booking-actions">
-                                <a href="#" class="view-booking" data-id="<?php echo esc_attr($booking->id); ?>"><?php _e('View', 'mobooking'); ?></a>
-                            </td>
-                        </tr>
-                    <?php endforeach; ?>
-                </tbody>
-            </table>
+        <div class="booking-form-preview" style="
+            background-color: <?php echo esc_attr($settings['background_color'] ?? '#ffffff'); ?>;
+            color: <?php echo esc_attr($settings['text_color'] ?? '#1f2937'); ?>;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            padding: 2rem;
+            border-radius: 8px;
+            max-width: 800px;
+            margin: 0 auto;
+        ">
+            <?php if (!empty($settings['show_form_header'])) : ?>
+                <div class="form-header" style="text-align: center; margin-bottom: 2rem;">
+                    <?php if (!empty($settings['logo_url'])) : ?>
+                        <img src="<?php echo esc_url($settings['logo_url']); ?>" alt="Logo" style="max-height: 60px; margin-bottom: 1rem;">
+                    <?php endif; ?>
+                    <h1 style="color: <?php echo esc_attr($settings['primary_color'] ?? '#3b82f6'); ?>; margin: 0;">
+                        <?php echo esc_html($settings['form_title'] ?? 'Book a Service'); ?>
+                    </h1>
+                    <?php if (!empty($settings['form_description'])) : ?>
+                        <p style="margin: 0.5rem 0 0 0; opacity: 0.8;">
+                            <?php echo esc_html($settings['form_description']); ?>
+                        </p>
+                    <?php endif; ?>
+                </div>
+            <?php endif; ?>
+            
+            <div class="form-preview-content">
+                <div style="background: rgba(0,0,0,0.05); padding: 1.5rem; border-radius: 6px; text-align: center;">
+                    <p style="margin: 0; font-style: italic;">📋 Form content will appear here</p>
+                    <p style="margin: 0.5rem 0 0 0; font-size: 0.875rem; opacity: 0.7;">
+                        This is a preview of your booking form layout and styling
+                    </p>
+                </div>
+            </div>
+            
+            <?php if (!empty($settings['show_form_footer'])) : ?>
+                <div class="form-footer" style="text-align: center; margin-top: 2rem; padding-top: 2rem; border-top: 1px solid rgba(0,0,0,0.1);">
+                    <p style="margin: 0; font-size: 0.875rem; opacity: 0.6;">
+                        <?php echo esc_html($settings['custom_footer_text'] ?? 'Powered by MoBooking'); ?>
+                    </p>
+                </div>
+            <?php endif; ?>
         </div>
         <?php
+        return ob_get_clean();
+    }
+    
+    /**
+     * Public booking form shortcode
+     */
+    public function public_booking_form_shortcode($atts) {
+        global $mobooking_form_user;
+        
+        // Parse attributes
+        $atts = shortcode_atts(array(
+            'user_id' => $mobooking_form_user ? $mobooking_form_user->ID : 0,
+        ), $atts);
+        
+        if (!$atts['user_id']) {
+            return '<p>' . __('Invalid booking form.', 'mobooking') . '</p>';
+        }
+        
+        // Get user's booking form settings
+        $settings = $this->get_settings($atts['user_id']);
+        
+        if (!$settings->is_active) {
+            return '<p>' . __('This booking form is currently unavailable.', 'mobooking') . '</p>';
+        }
+        
+        // Generate the booking form with custom styling
+        return $this->render_public_booking_form($atts['user_id'], $settings);
+    }
+    
+    /**
+     * Render public booking form
+     */
+    private function render_public_booking_form($user_id, $settings) {
+        // Use the existing booking form shortcode but with custom styling
+        ob_start();
+        
+        // Add custom CSS
+        if (!empty($settings->custom_css)) {
+            echo '<style>' . wp_strip_all_tags($settings->custom_css) . '</style>';
+        }
+        
+        // Add dynamic CSS based on settings
+        ?>
+        <style>
+        .mobooking-public-form {
+            --primary-color: <?php echo esc_attr($settings->primary_color); ?>;
+            --secondary-color: <?php echo esc_attr($settings->secondary_color); ?>;
+            --background-color: <?php echo esc_attr($settings->background_color); ?>;
+            --text-color: <?php echo esc_attr($settings->text_color); ?>;
+        }
+        .mobooking-public-form .btn-primary {
+            background-color: var(--primary-color);
+            border-color: var(--primary-color);
+        }
+        .mobooking-public-form .btn-primary:hover {
+            background-color: var(--secondary-color);
+            border-color: var(--secondary-color);
+        }
+        <?php if ($settings->form_width === 'narrow') : ?>
+        .mobooking-booking-form-container {
+            max-width: 600px;
+        }
+        <?php elseif ($settings->form_width === 'wide') : ?>
+        .mobooking-booking-form-container {
+            max-width: 1000px;
+        }
+        <?php endif; ?>
+        </style>
+        
+        <div class="mobooking-public-form" style="background-color: <?php echo esc_attr($settings->background_color); ?>; color: <?php echo esc_attr($settings->text_color); ?>;">
+            <?php if ($settings->show_form_header) : ?>
+                <div class="form-header" style="text-align: center; padding: 2rem 1rem; margin-bottom: 1rem;">
+                    <?php if (!empty($settings->logo_url)) : ?>
+                        <img src="<?php echo esc_url($settings->logo_url); ?>" alt="Logo" style="max-height: 80px; margin-bottom: 1rem;">
+                    <?php endif; ?>
+                    <h1 style="color: <?php echo esc_attr($settings->primary_color); ?>; margin: 0 0 0.5rem 0;">
+                        <?php echo esc_html($settings->form_title); ?>
+                    </h1>
+                    <?php if (!empty($settings->form_description)) : ?>
+                        <p style="margin: 0; font-size: 1.125rem; opacity: 0.8;">
+                            <?php echo esc_html($settings->form_description); ?>
+                        </p>
+                    <?php endif; ?>
+                </div>
+            <?php endif; ?>
+            
+            <?php
+            // Render the actual booking form
+            $bookings_manager = new \MoBooking\Bookings\Manager();
+            echo $bookings_manager->booking_form_shortcode(array('user_id' => $user_id));
+            ?>
+            
+            <?php if ($settings->show_form_footer && !empty($settings->custom_footer_text)) : ?>
+                <div class="form-footer" style="text-align: center; padding: 2rem 1rem; margin-top: 2rem; border-top: 1px solid rgba(0,0,0,0.1);">
+                    <?php echo wp_kses_post($settings->custom_footer_text); ?>
+                </div>
+            <?php endif; ?>
+        </div>
+        
+        <?php
+        // Add custom JavaScript
+        if (!empty($settings->custom_js)) {
+            echo '<script>' . wp_strip_all_tags($settings->custom_js) . '</script>';
+        }
+        
+        // Add analytics code
+        if (!empty($settings->analytics_code)) {
+            echo wp_strip_all_tags($settings->analytics_code);
+        }
+        
         return ob_get_clean();
     }
 }
