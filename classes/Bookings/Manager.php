@@ -468,6 +468,9 @@ class Manager {
             'pages' => ceil($total_bookings / $per_page)
         ));
     }
+
+
+    
     
     /**
      * AJAX handler to update booking status
