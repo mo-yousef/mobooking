@@ -903,30 +903,34 @@
       return isValid;
     },
 
-    // Prepare service options for selected services
+    // FIXED: Enhanced prepareServiceOptions function
     prepareServiceOptions: function () {
+      console.log("🔧 Preparing service options...");
       this.elements.optionsContainer.empty();
 
+      if (this.state.selectedServices.length === 0) {
+        console.warn("No services selected for options preparation");
+        this.showNoOptionsMessage();
+        return;
+      }
+
+      // Get services that have options
       const servicesWithOptions = this.state.selectedServices.filter(
-        (serviceId) => this.state.servicesData[serviceId]?.hasOptions
+        (serviceId) => {
+          const serviceData = this.state.servicesData[serviceId];
+          const hasOptions = serviceData && serviceData.hasOptions;
+          console.log(`Service ${serviceId} has options:`, hasOptions);
+          return hasOptions;
+        }
       );
 
-      this.log("Services with options:", servicesWithOptions);
+      console.log("Services with options:", servicesWithOptions);
 
       if (servicesWithOptions.length === 0) {
-        this.log("No services with options, showing auto-advance message");
-        this.elements.optionsContainer.html(`
-          <div class="no-options-message">
-            <div class="no-options-icon">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2ZM8 12l2 2 4-4"/>
-              </svg>
-            </div>
-            <h3>No additional options needed</h3>
-            <p>Your selected services are ready to go!</p>
-          </div>
-        `);
-
+        console.log(
+          "No services with options found, showing auto-advance message"
+        );
+        this.showNoOptionsMessage();
         // Auto-advance if no options needed
         if (this.config.autoAdvance.enabled) {
           this.autoAdvanceToNextStep(3, "No additional options needed");
@@ -934,16 +938,44 @@
         return;
       }
 
+      // Show loading indicator
+      this.elements.optionsContainer.html(`
+        <div class="options-loading">
+            <div class="loading-spinner"></div>
+            <p>Loading service options...</p>
+        </div>
+    `);
+
       // Load options for each service
+      let loadedCount = 0;
+      const totalCount = servicesWithOptions.length;
+
       servicesWithOptions.forEach((serviceId) => {
-        this.loadServiceOptions(serviceId);
+        this.loadServiceOptions(serviceId, () => {
+          loadedCount++;
+          console.log(
+            `Loaded options for service ${serviceId} (${loadedCount}/${totalCount})`
+          );
+
+          if (loadedCount === totalCount) {
+            console.log("✅ All service options loaded");
+            this.elements.optionsContainer.find(".options-loading").remove();
+            this.initializeAllOptionHandlers();
+          }
+        });
       });
     },
 
-    // Load options for a specific service
-    loadServiceOptions: function (serviceId) {
+    // FIXED: Enhanced loadServiceOptions function with callback
+    loadServiceOptions: function (serviceId, callback) {
+      console.log(`🔄 Loading options for service ${serviceId}`);
+
       const serviceData = this.state.servicesData[serviceId];
-      if (!serviceData) return;
+      if (!serviceData) {
+        console.error(`Service data not found for ID: ${serviceId}`);
+        if (callback) callback();
+        return;
+      }
 
       const data = {
         action: "mobooking_get_service_options",
@@ -951,195 +983,332 @@
         nonce: this.config.nonces.booking,
       };
 
+      console.log("AJAX request data:", data);
+
       $.ajax({
         url: this.config.ajaxUrl,
         type: "POST",
         data: data,
+        timeout: 30000, // 30 second timeout
         success: (response) => {
-          if (response.success && response.data.options) {
-            this.renderServiceOptions(
+          console.log(
+            `✅ Service options response for ${serviceId}:`,
+            response
+          );
+
+          if (response && response.success) {
+            if (response.data && Array.isArray(response.data.options)) {
+              if (response.data.options.length > 0) {
+                this.renderServiceOptions(
+                  serviceId,
+                  serviceData,
+                  response.data.options
+                );
+              } else {
+                console.log(`Service ${serviceId} has no options configured`);
+              }
+            } else {
+              console.warn(
+                `Invalid options data structure for service ${serviceId}:`,
+                response.data
+              );
+            }
+          } else {
+            console.error(
+              `Failed to load options for service ${serviceId}:`,
+              response
+            );
+            this.showOptionsError(
               serviceId,
-              serviceData,
-              response.data.options
+              response?.data?.message || "Failed to load options"
             );
           }
+
+          if (callback) callback();
         },
         error: (xhr, status, error) => {
-          this.log(`Error loading options for service ${serviceId}:`, error);
+          console.error(
+            `❌ AJAX error loading options for service ${serviceId}:`,
+            {
+              status: xhr.status,
+              statusText: xhr.statusText,
+              error: error,
+              responseText: xhr.responseText,
+            }
+          );
+
+          this.showOptionsError(
+            serviceId,
+            `Error loading options (${xhr.status}): ${error}`
+          );
+          if (callback) callback();
         },
       });
     },
 
-    // Render service options
+    // FIXED: Enhanced renderServiceOptions function
     renderServiceOptions: function (serviceId, serviceData, options) {
+      console.log(
+        `🎨 Rendering ${options.length} options for service ${serviceId}:`,
+        serviceData.name
+      );
+
+      if (!options || options.length === 0) {
+        console.log(`No options to render for service ${serviceId}`);
+        return;
+      }
+
+      // Remove any existing section for this service
+      $(`.service-options-section[data-service-id="${serviceId}"]`).remove();
+
       const $section = $(`
         <div class="service-options-section" data-service-id="${serviceId}">
-          <div class="service-options-header">
-            <h3 class="service-options-title">${serviceData.name}</h3>
-          </div>
-          <div class="service-options-fields">
-            ${this.generateOptionsHTML(options)}
-          </div>
+            <div class="service-options-header">
+                <h3 class="service-options-title">
+                    <span class="service-icon">⚙️</span>
+                    ${serviceData.name} Options
+                </h3>
+                <p class="service-options-subtitle">Customize your ${
+                  serviceData.name
+                } service</p>
+            </div>
+            <div class="service-options-fields">
+                ${this.generateOptionsHTML(options)}
+            </div>
         </div>
-      `);
+    `);
 
       this.elements.optionsContainer.append($section);
+
+      // Initialize handlers for this section
       this.initializeOptionHandlers($section);
+
+      console.log(`✅ Service options section rendered for ${serviceId}`);
     },
 
-    // Generate HTML for service options
+    // FIXED: Enhanced generateOptionsHTML function
     generateOptionsHTML: function (options) {
+      console.log("🏗️ Generating HTML for options:", options);
+
+      if (!Array.isArray(options) || options.length === 0) {
+        return '<p class="no-options">No additional options for this service.</p>';
+      }
+
       let html = "";
 
-      options.forEach((option) => {
-        const isRequired = option.is_required == 1;
-        const requiredMark = isRequired
-          ? ' <span class="required">*</span>'
-          : "";
-        const priceImpact =
-          option.price_impact > 0
-            ? ` <span class="price-impact">(+${this.formatPrice(
-                option.price_impact
-              )})</span>`
+      options.forEach((option, index) => {
+        try {
+          const isRequired = option.is_required == 1;
+          const requiredMark = isRequired
+            ? ' <span class="required">*</span>'
             : "";
+          const priceImpact =
+            option.price_impact > 0
+              ? ` <span class="price-impact">(+${this.formatPrice(
+                  option.price_impact
+                )})</span>`
+              : "";
 
-        html += `
-          <div class="option-field" data-option-id="${
-            option.id
-          }" data-price-type="${option.price_type}" data-price-impact="${
-          option.price_impact
-        }">
-            <label class="option-label">
-              ${option.name}${requiredMark}${priceImpact}
-            </label>
-            ${
-              option.description
-                ? `<p class="option-description">${option.description}</p>`
-                : ""
-            }
-            <div class="option-input">
-              ${this.generateOptionInput(option, isRequired)}
-            </div>
-          </div>
-        `;
+          html += `
+                <div class="option-field" 
+                     data-option-id="${option.id}" 
+                     data-option-type="${option.type}"
+                     data-price-type="${option.price_type}" 
+                     data-price-impact="${option.price_impact}"
+                     data-service-id="${option.service_id}">
+                    <label class="option-label">
+                        ${option.name}${requiredMark}${priceImpact}
+                    </label>
+                    ${
+                      option.description
+                        ? `<p class="option-description">${option.description}</p>`
+                        : ""
+                    }
+                    <div class="option-input">
+                        ${this.generateOptionInput(option, isRequired)}
+                    </div>
+                </div>
+            `;
+        } catch (error) {
+          console.error(
+            `Error generating HTML for option ${index}:`,
+            error,
+            option
+          );
+          // Continue with next option instead of breaking
+        }
       });
 
+      console.log("Generated options HTML length:", html.length);
       return html;
     },
 
-    // Generate input HTML for specific option types
+    // FIXED: Enhanced generateOptionInput function
     generateOptionInput: function (option, isRequired) {
-      const requiredAttr = isRequired ? "required data-required='true'" : "";
+      console.log(
+        `🎛️ Generating input for option: ${option.name} (${option.type})`
+      );
+
+      const requiredAttr = isRequired ? 'required data-required="true"' : "";
       const placeholderAttr = option.placeholder
         ? `placeholder="${option.placeholder}"`
         : "";
+      const optionId = `option_${option.id}`;
 
-      switch (option.type) {
-        case "text":
-          return `<input type="text" ${requiredAttr} ${placeholderAttr} 
-                    ${
-                      option.min_length
-                        ? `minlength="${option.min_length}"`
-                        : ""
-                    }
-                    ${
-                      option.max_length
-                        ? `maxlength="${option.max_length}"`
-                        : ""
-                    }>`;
+      try {
+        switch (option.type) {
+          case "text":
+            return `<input type="text" id="${optionId}" name="${optionId}" 
+                         ${requiredAttr} ${placeholderAttr} 
+                         ${
+                           option.min_length
+                             ? `minlength="${option.min_length}"`
+                             : ""
+                         }
+                         ${
+                           option.max_length
+                             ? `maxlength="${option.max_length}"`
+                             : ""
+                         } 
+                         value="${
+                           option.default_value || ""
+                         }" class="option-input-field">`;
 
-        case "textarea":
-          return `<textarea ${requiredAttr} ${placeholderAttr} rows="${
-            option.rows || 3
-          }"
-                    ${
-                      option.min_length
-                        ? `minlength="${option.min_length}"`
-                        : ""
-                    }
-                    ${
-                      option.max_length
-                        ? `maxlength="${option.max_length}"`
-                        : ""
-                    }></textarea>`;
+          case "textarea":
+            return `<textarea id="${optionId}" name="${optionId}" 
+                         ${requiredAttr} ${placeholderAttr} 
+                         rows="${option.rows || 3}"
+                         ${
+                           option.min_length
+                             ? `minlength="${option.min_length}"`
+                             : ""
+                         }
+                         ${
+                           option.max_length
+                             ? `maxlength="${option.max_length}"`
+                             : ""
+                         } 
+                         class="option-input-field">${
+                           option.default_value || ""
+                         }</textarea>`;
 
-        case "number":
-        case "quantity":
-          return `<input type="number" ${requiredAttr} ${placeholderAttr}
-                    ${
-                      option.min_value !== null
-                        ? `min="${option.min_value}"`
-                        : ""
-                    }
-                    ${
-                      option.max_value !== null
-                        ? `max="${option.max_value}"`
-                        : ""
-                    }
-                    step="${option.step || 1}" value="${
-            option.default_value || ""
-          }">
-                    ${
-                      option.unit
-                        ? `<span class="input-unit">${option.unit}</span>`
-                        : ""
-                    }`;
+          case "number":
+          case "quantity":
+            return `<div class="number-input-wrapper">
+                         <input type="number" id="${optionId}" name="${optionId}" 
+                          ${requiredAttr} ${placeholderAttr}
+                          ${
+                            option.min_value !== null
+                              ? `min="${option.min_value}"`
+                              : ""
+                          }
+                          ${
+                            option.max_value !== null
+                              ? `max="${option.max_value}"`
+                              : ""
+                          }
+                          step="${option.step || 1}" 
+                          value="${option.default_value || ""}" 
+                          class="option-input-field">
+                         ${
+                           option.unit
+                             ? `<span class="input-unit">${option.unit}</span>`
+                             : ""
+                         }
+                        </div>`;
 
-        case "select":
-          const selectOptions = this.parseChoices(option.options);
-          let selectHTML = `<select ${requiredAttr}>`;
-          if (!isRequired) {
-            selectHTML += '<option value="">Choose an option...</option>';
-          }
-          selectOptions.forEach((choice) => {
-            selectHTML += `<option value="${choice.value}" ${
-              choice.price > 0 ? `data-price="${choice.price}"` : ""
-            }>${choice.label}${
-              choice.price > 0
-                ? " (+" + this.formatPrice(choice.price) + ")"
-                : ""
-            }</option>`;
-          });
-          selectHTML += "</select>";
-          return selectHTML;
+          case "select":
+            const selectOptions = this.parseChoices(option.options);
+            let selectHTML = `<select id="${optionId}" name="${optionId}" ${requiredAttr} class="option-input-field">`;
 
-        case "radio":
-          const radioOptions = this.parseChoices(option.options);
-          let radioHTML = '<div class="radio-group">';
-          radioOptions.forEach((choice, index) => {
-            const radioId = `option_${option.id}_${index}`;
-            radioHTML += `
-              <label class="radio-label" for="${radioId}">
-                <input type="radio" id="${radioId}" name="option_${
-              option.id
-            }" value="${choice.value}" 
-                       ${
-                         choice.price > 0 ? `data-price="${choice.price}"` : ""
-                       } ${requiredAttr}>
-                <span class="radio-text">${choice.label}</span>
-                ${
-                  choice.price > 0
-                    ? `<span class="choice-price">+${this.formatPrice(
-                        choice.price
-                      )}</span>`
-                    : ""
-                }
-              </label>
-            `;
-          });
-          radioHTML += "</div>";
-          return radioHTML;
+            if (!isRequired) {
+              selectHTML += '<option value="">Choose an option...</option>';
+            }
 
-        case "checkbox":
-          return `
-            <label class="checkbox-label">
-              <input type="checkbox" ${option.default_value ? "checked" : ""}>
-              <span class="checkbox-text">${option.option_label || "Yes"}</span>
-            </label>
-          `;
+            selectOptions.forEach((choice) => {
+              const selected =
+                choice.value === option.default_value ? "selected" : "";
+              selectHTML += `<option value="${choice.value}" ${selected} 
+                                   ${
+                                     choice.price > 0
+                                       ? `data-price="${choice.price}"`
+                                       : ""
+                                   }>
+                                   ${choice.label}${
+                choice.price > 0
+                  ? " (+" + this.formatPrice(choice.price) + ")"
+                  : ""
+              }
+                                   </option>`;
+            });
+            selectHTML += "</select>";
+            return selectHTML;
 
-        default:
-          return `<input type="text" ${requiredAttr} ${placeholderAttr}>`;
+          case "radio":
+            const radioOptions = this.parseChoices(option.options);
+            let radioHTML = '<div class="radio-group">';
+
+            radioOptions.forEach((choice, index) => {
+              const radioId = `${optionId}_${index}`;
+              const checked =
+                choice.value === option.default_value ? "checked" : "";
+
+              radioHTML += `
+                        <label class="radio-label" for="${radioId}">
+                            <input type="radio" id="${radioId}" 
+                                   name="${optionId}" value="${choice.value}" 
+                                   ${checked} ${requiredAttr}
+                                   ${
+                                     choice.price > 0
+                                       ? `data-price="${choice.price}"`
+                                       : ""
+                                   } 
+                                   class="option-input-field">
+                            <span class="radio-text">${choice.label}</span>
+                            ${
+                              choice.price > 0
+                                ? `<span class="choice-price">+${this.formatPrice(
+                                    choice.price
+                                  )}</span>`
+                                : ""
+                            }
+                        </label>
+                    `;
+            });
+            radioHTML += "</div>";
+            return radioHTML;
+
+          case "checkbox":
+            const checked =
+              option.default_value == "1" || option.default_value === "true"
+                ? "checked"
+                : "";
+            return `
+                    <label class="checkbox-label">
+                        <input type="checkbox" id="${optionId}" name="${optionId}" 
+                               value="1" ${checked} class="option-input-field">
+                        <span class="checkbox-text">${
+                          option.option_label || "Yes"
+                        }</span>
+                    </label>
+                `;
+
+          default:
+            console.warn(
+              `Unknown option type: ${option.type}, defaulting to text input`
+            );
+            return `<input type="text" id="${optionId}" name="${optionId}" 
+                         ${requiredAttr} ${placeholderAttr} 
+                         value="${
+                           option.default_value || ""
+                         }" class="option-input-field">`;
+        }
+      } catch (error) {
+        console.error(
+          `Error generating input for option ${option.name}:`,
+          error
+        );
+        return `<p class="option-error">Error loading option input</p>`;
       }
     },
 
@@ -1174,20 +1343,45 @@
       return choices;
     },
 
-    // Initialize option handlers
+    // FIXED: Enhanced initializeOptionHandlers function
     initializeOptionHandlers: function ($section) {
-      // Range inputs
-      $section.find('input[type="range"]').on("input", function () {
-        const $this = $(this);
-        const $display = $this.siblings(".range-display");
-        $display.text($this.val());
-      });
+      console.log("🔧 Initializing option handlers for section");
 
-      // Clear errors on change
-      $section.find("input, select, textarea").on("change", function () {
-        $(this).removeClass("error");
-        $(this).siblings(".field-error").remove();
-      });
+      // Clear previous handlers to avoid duplicates
+      $section.find(".option-input-field").off(".optionHandler");
+
+      // Add change handlers for real-time updates
+      $section
+        .find(".option-input-field")
+        .on("change.optionHandler input.optionHandler", (e) => {
+          console.log("Option value changed:", e.target.name, e.target.value);
+          this.updatePricing();
+          this.validateOptionField($(e.target));
+          this.checkAutoAdvanceOptions();
+        });
+
+      // Handle range inputs with display updates
+      $section
+        .find('input[type="range"]')
+        .on("input.optionHandler", function () {
+          const $this = $(this);
+          let $display = $this.siblings(".range-display");
+          if ($display.length === 0) {
+            $display = $('<span class="range-display"></span>');
+            $this.after($display);
+          }
+          $display.text($this.val() + ($this.data("unit") || ""));
+        });
+
+      // Clear validation errors on focus
+      $section
+        .find(".option-input-field")
+        .on("focus.optionHandler", function () {
+          $(this).removeClass("error");
+          $(this).siblings(".field-error").remove();
+        });
+
+      console.log("✅ Option handlers initialized");
     },
 
     // Collect service options data
@@ -1732,6 +1926,70 @@
       `
         )
         .show();
+    },
+
+    // NEW: Initialize all option handlers
+    initializeAllOptionHandlers: function () {
+      console.log("🔧 Initializing all option handlers");
+      $(".service-options-section").each((index, section) => {
+        this.initializeOptionHandlers($(section));
+      });
+    },
+
+    // NEW: Validate individual option field
+    validateOptionField: function ($field) {
+      const isRequired = $field.prop("required") || $field.data("required");
+      let value = "";
+
+      if ($field.is('input[type="checkbox"]')) {
+        value = $field.is(":checked") ? "1" : "";
+      } else if ($field.is('input[type="radio"]')) {
+        value =
+          $field
+            .closest(".option-field")
+            .find('input[type="radio"]:checked')
+            .val() || "";
+      } else {
+        value = $field.val() || "";
+      }
+
+      if (isRequired && (!value || value.trim() === "")) {
+        this.showFieldError($field, "This field is required");
+        return false;
+      }
+
+      this.clearFieldError($field);
+      return true;
+    },
+
+    // NEW: Show options loading error
+    showOptionsError: function (serviceId, message) {
+      const serviceData = this.state.servicesData[serviceId];
+      const serviceName = serviceData
+        ? serviceData.name
+        : `Service ${serviceId}`;
+
+      const $errorSection = $(`
+        <div class="service-options-section error" data-service-id="${serviceId}">
+            <div class="service-options-header">
+                <h3 class="service-options-title">${serviceName} Options</h3>
+            </div>
+            <div class="options-error">
+                <p class="error-message">⚠️ ${message}</p>
+                <button type="button" class="retry-options-btn" data-service-id="${serviceId}">
+                    Try Again
+                </button>
+            </div>
+        </div>
+    `);
+
+      this.elements.optionsContainer.append($errorSection);
+
+      // Add retry handler
+      $errorSection.find(".retry-options-btn").on("click", () => {
+        $errorSection.remove();
+        this.loadServiceOptions(serviceId);
+      });
     },
 
     showNotification: function (message, type = "info") {

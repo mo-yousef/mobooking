@@ -424,7 +424,7 @@
 }
 
 .service-card input[type="checkbox"] {
-  display: none;
+  /* display: none; */
 }
 
 .service-card input[type="checkbox"]:checked+.service-checkbox {
