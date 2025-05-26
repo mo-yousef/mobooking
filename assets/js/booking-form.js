@@ -1,6 +1,6 @@
 /**
- * MoBooking Frontend Booking Form Handler - FIXED VERSION
- * Handles multi-step booking form with ZIP validation, service selection, and order processing
+ * MoBooking Frontend Booking Form Handler - COMPLETE FIXED VERSION
+ * Handles multi-step booking form with enhanced error handling and debugging
  */
 
 (function ($) {
@@ -30,6 +30,7 @@
       },
       customerData: {},
       isZipValid: false,
+      debugMode: false,
     },
 
     // Initialize
@@ -38,12 +39,58 @@
         return;
       }
 
-      console.log("🚀 Booking Form initializing...");
-      console.log("Config:", this.config);
+      // Enable debug mode for troubleshooting
+      this.state.debugMode =
+        window.location.search.includes("debug=1") ||
+        (typeof console !== "undefined" && console.log);
+
+      this.log("🚀 Booking Form initializing...");
+      this.log("Config:", this.config);
+
+      // Validate configuration
+      if (!this.validateConfig()) {
+        return;
+      }
+
       this.cacheElements();
       this.attachEventListeners();
       this.initializeForm();
-      console.log("✅ Booking Form initialized");
+      this.log("✅ Booking Form initialized");
+    },
+
+    // Validate configuration
+    validateConfig: function () {
+      const issues = [];
+
+      if (!this.config.ajaxUrl) {
+        issues.push("AJAX URL not configured");
+      }
+
+      if (!this.config.userId || this.config.userId === "0") {
+        issues.push("User ID not configured");
+      }
+
+      if (!this.config.nonces || !this.config.nonces.booking) {
+        issues.push("Security nonce not configured");
+      }
+
+      if (issues.length > 0) {
+        console.error("MoBooking Configuration Issues:", issues);
+        this.showNotification(
+          "Form configuration error. Please contact support.",
+          "error"
+        );
+        return false;
+      }
+
+      return true;
+    },
+
+    // Enhanced logging
+    log: function (...args) {
+      if (this.state.debugMode) {
+        console.log("MoBooking:", ...args);
+      }
     },
 
     // Cache DOM elements
@@ -101,13 +148,13 @@
       const self = this;
 
       // ZIP Code validation
-      this.elements.checkZipBtn.on("click", function () {
+      this.elements.checkZipBtn.on("click", function (e) {
+        e.preventDefault();
         self.checkZipCode();
       });
 
       this.elements.zipInput.on("keypress", function (e) {
         if (e.which === 13) {
-          // Enter key
           e.preventDefault();
           self.checkZipCode();
         }
@@ -145,7 +192,6 @@
 
       this.elements.discountInput.on("keypress", function (e) {
         if (e.which === 13) {
-          // Enter key
           e.preventDefault();
           self.applyDiscountCode();
         }
@@ -175,26 +221,28 @@
     setMinDateTime: function () {
       const tomorrow = new Date();
       tomorrow.setDate(tomorrow.getDate() + 1);
-      tomorrow.setHours(8, 0, 0, 0); // Default to 8 AM
+      tomorrow.setHours(8, 0, 0, 0);
 
       const minDateTime = tomorrow.toISOString().slice(0, 16);
       this.elements.customerForm.date.attr("min", minDateTime);
     },
 
-    // Check ZIP code availability - FIXED
+    // Check ZIP code availability - COMPLETELY FIXED
     checkZipCode: function () {
       const zipCode = this.elements.zipInput.val().trim();
+
+      this.log("ZIP check requested for:", zipCode);
 
       if (!zipCode) {
         this.showMessage(
           this.elements.zipResult,
-          this.config.strings.error || "Please enter a ZIP code",
+          "Please enter a ZIP code",
           "error"
         );
         return;
       }
 
-      // Validate ZIP code format (basic US ZIP code validation)
+      // Validate ZIP code format
       const zipRegex = /^\d{5}(-\d{4})?$/;
       if (!zipRegex.test(zipCode)) {
         this.showMessage(
@@ -211,22 +259,26 @@
         action: "mobooking_check_zip_coverage",
         zip_code: zipCode,
         user_id: this.config.userId,
-        nonce: this.config.nonces.booking, // FIXED: Use correct nonce key
+        nonce: this.config.nonces.booking,
       };
 
-      console.log("Sending ZIP check request:", data);
+      this.log("Sending ZIP check request:", data);
 
+      // FIXED: Enhanced AJAX error handling
       $.ajax({
         url: this.config.ajaxUrl,
         type: "POST",
         data: data,
+        timeout: 30000, // 30 second timeout
         success: (response) => {
-          console.log("ZIP check response:", response);
-          if (response.success) {
+          this.log("ZIP check response:", response);
+
+          // Handle both old and new response formats
+          if (response && response.success) {
             this.state.isZipValid = true;
             this.showMessage(
               this.elements.zipResult,
-              response.data.message || "Service available in your area!",
+              response.data?.message || "Service available in your area!",
               "success"
             );
 
@@ -236,22 +288,65 @@
             }, 2000);
           } else {
             this.state.isZipValid = false;
-            this.showMessage(
-              this.elements.zipResult,
-              response.data?.message ||
-                "Sorry, we don't service this area yet.",
-              "error"
-            );
+            const errorMessage =
+              response?.data?.message ||
+              response?.message ||
+              "Sorry, we don't service this area yet.";
+            this.showMessage(this.elements.zipResult, errorMessage, "error");
           }
         },
         error: (xhr, status, error) => {
-          console.error("ZIP check error:", xhr, status, error);
-          console.error("Response text:", xhr.responseText);
-          this.showMessage(
-            this.elements.zipResult,
-            this.config.strings.error || "Error checking ZIP code",
-            "error"
-          );
+          this.log("ZIP check error details:");
+          this.log("- Status:", xhr.status);
+          this.log("- Status Text:", xhr.statusText);
+          this.log("- Response Text:", xhr.responseText);
+          this.log("- Error:", error);
+          this.log("- AJAX Status:", status);
+
+          let errorMessage = "Error checking ZIP code availability.";
+
+          // Provide specific error messages based on status
+          switch (xhr.status) {
+            case 0:
+              errorMessage = "Network error. Please check your connection.";
+              break;
+            case 400:
+              errorMessage = "Invalid request. Please try again.";
+              break;
+            case 403:
+              errorMessage = "Access denied. Please refresh the page.";
+              break;
+            case 404:
+              errorMessage = "Service not found. Please contact support.";
+              break;
+            case 500:
+              errorMessage = "Server error. Please try again later.";
+              break;
+            default:
+              if (xhr.responseText && xhr.responseText !== "0") {
+                try {
+                  const errorData = JSON.parse(xhr.responseText);
+                  errorMessage =
+                    errorData.data?.message ||
+                    errorData.message ||
+                    errorMessage;
+                } catch (e) {
+                  // If response is not JSON, use status text
+                  errorMessage = xhr.statusText || errorMessage;
+                }
+              }
+          }
+
+          this.showMessage(this.elements.zipResult, errorMessage, "error");
+
+          // Show debug info if in debug mode
+          if (this.state.debugMode) {
+            this.showMessage(
+              this.elements.zipResult,
+              `Debug: ${xhr.status} - ${xhr.responseText}`,
+              "error"
+            );
+          }
         },
         complete: () => {
           this.setLoading(this.elements.checkZipBtn, false);
@@ -265,19 +360,16 @@
       const $serviceCard = $checkbox.closest(".service-card");
 
       if ($checkbox.is(":checked")) {
-        // Add service
         $serviceCard.addClass("selected");
         if (!this.state.selectedServices.includes(serviceId)) {
           this.state.selectedServices.push(serviceId);
         }
       } else {
-        // Remove service
         $serviceCard.removeClass("selected");
         const index = this.state.selectedServices.indexOf(serviceId);
         if (index > -1) {
           this.state.selectedServices.splice(index, 1);
         }
-        // Clear options for this service
         delete this.state.serviceOptions[serviceId];
       }
 
@@ -288,18 +380,15 @@
     nextStep: function (currentStep) {
       if (this.state.isProcessing) return;
 
-      // Validate current step
       if (!this.validateStep(currentStep)) {
         return;
       }
 
-      // Handle step-specific logic
       switch (currentStep) {
         case 1:
           if (!this.state.isZipValid) {
             this.showNotification(
-              this.config.strings.error ||
-                "Please check ZIP code availability first",
+              "Please check ZIP code availability first",
               "error"
             );
             return;
@@ -330,15 +419,12 @@
 
       this.state.currentStep = stepNumber;
 
-      // Update step visibility
       this.elements.steps.removeClass("active");
       $(`.booking-step.step-${stepNumber}`).addClass("active");
 
-      // Update progress
       this.updateProgressBar();
       this.updateProgressSteps();
 
-      // Scroll to top
       this.elements.container[0].scrollIntoView({ behavior: "smooth" });
     },
 
@@ -356,8 +442,7 @@
         case 2:
           if (this.state.selectedServices.length === 0) {
             this.showNotification(
-              this.config.strings.selectService ||
-                "Please select at least one service",
+              "Please select at least one service",
               "error"
             );
             return false;
@@ -393,11 +478,7 @@
       });
 
       if (!isValid) {
-        this.showNotification(
-          this.config.strings.fillRequired ||
-            "Please fill in all required fields",
-          "error"
-        );
+        this.showNotification("Please fill in all required fields", "error");
       }
 
       return isValid;
@@ -407,7 +488,6 @@
       let isValid = true;
       const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-      // Check required fields
       Object.entries(this.elements.customerForm).forEach(([key, $field]) => {
         if ($field.prop("required")) {
           const value = $field.val().trim();
@@ -420,24 +500,15 @@
         }
       });
 
-      // Validate email format
       const email = this.elements.customerForm.email.val().trim();
       if (email && !emailRegex.test(email)) {
         isValid = false;
         this.elements.customerForm.email.addClass("error");
-        this.showNotification(
-          this.config.strings.invalidEmail ||
-            "Please enter a valid email address",
-          "error"
-        );
+        this.showNotification("Please enter a valid email address", "error");
       }
 
       if (!isValid && !email) {
-        this.showNotification(
-          this.config.strings.fillRequired ||
-            "Please fill in all required fields",
-          "error"
-        );
+        this.showNotification("Please fill in all required fields", "error");
       }
 
       return isValid;
@@ -447,7 +518,6 @@
     loadServiceOptions: function () {
       this.elements.optionsContainer.empty();
 
-      // Check if any selected services have options
       const servicesWithOptions = this.state.selectedServices.filter(
         (serviceId) => {
           const $checkbox = $(`input[value="${serviceId}"]`);
@@ -456,12 +526,10 @@
       );
 
       if (servicesWithOptions.length === 0) {
-        // Skip options step
         this.showStep(4);
         return;
       }
 
-      // Load options from template
       servicesWithOptions.forEach((serviceId) => {
         const $optionsSection = this.elements.optionsTemplate
           .find(`[data-service-id="${serviceId}"]`)
@@ -469,12 +537,10 @@
         this.elements.optionsContainer.append($optionsSection);
       });
 
-      // Initialize option handlers
       this.initializeOptionHandlers();
     },
 
     initializeOptionHandlers: function () {
-      // Add any special handlers for specific option types
       $('.option-field input[type="range"]').on("input", function () {
         const $this = $(this);
         const $display = $this.siblings(".range-display");
@@ -482,7 +548,6 @@
       });
     },
 
-    // Collect service options data
     collectServiceOptions: function () {
       const optionsData = {};
 
@@ -513,7 +578,6 @@
       this.elements.serviceOptionsField.val(JSON.stringify(optionsData));
     },
 
-    // Update customer data
     updateCustomerData: function () {
       this.state.customerData = {
         name: this.elements.customerForm.name.val().trim(),
@@ -525,7 +589,6 @@
       };
     },
 
-    // Build order summary for review step
     buildOrderSummary: function () {
       this.buildServicesSummary();
       this.buildCustomerSummary();
@@ -542,10 +605,8 @@
 
         html += `<div class="service-summary-item">
                     <div class="service-info">
-                        <h4>${serviceName}</h4>
-                `;
+                        <h4>${serviceName}</h4>`;
 
-        // Add options summary
         if (this.state.serviceOptions[serviceId]) {
           const optionsHtml = this.buildOptionsHtml(serviceId);
           if (optionsHtml) {
@@ -630,7 +691,6 @@
     updatePricing: function () {
       let subtotal = 0;
 
-      // Calculate base service prices
       this.state.selectedServices.forEach((serviceId) => {
         const $serviceCard = $(`.service-card[data-service-id="${serviceId}"]`);
         const servicePrice =
@@ -659,7 +719,7 @@
             const choicePrice = parseFloat($checked.data("price")) || 0;
             if (choicePrice > 0) {
               subtotal += choicePrice;
-              return; // Skip the general price impact
+              return;
             }
           }
         } else if ($input.is("select")) {
@@ -669,7 +729,7 @@
             const choicePrice = parseFloat($selected.data("price")) || 0;
             if (choicePrice > 0) {
               subtotal += choicePrice;
-              return; // Skip the general price impact
+              return;
             }
           }
         } else if (
@@ -745,7 +805,7 @@
         code: code,
         user_id: this.config.userId,
         total: this.state.pricing.subtotal,
-        nonce: this.config.nonces.booking, // FIXED: Use correct nonce
+        nonce: this.config.nonces.booking,
       };
 
       $.ajax({
@@ -774,7 +834,7 @@
           }
         },
         error: (xhr, status, error) => {
-          console.error("Discount validation error:", xhr, status, error);
+          this.log("Discount validation error:", xhr, status, error);
           this.showMessage(
             $(".discount-message"),
             "Error applying discount code",
@@ -787,7 +847,7 @@
       });
     },
 
-    // Submit booking - FIXED
+    // Submit booking - FIXED with enhanced error handling
     submitBooking: function () {
       if (this.state.isProcessing) return;
 
@@ -797,12 +857,9 @@
       // Collect all form data
       const formData = new FormData(this.elements.form[0]);
       formData.append("action", "mobooking_save_booking");
-      formData.append("nonce", this.config.nonces.booking); // FIXED: Ensure nonce is included
+      formData.append("nonce", this.config.nonces.booking);
 
-      console.log(
-        "Submitting booking with data:",
-        Object.fromEntries(formData)
-      );
+      this.log("Submitting booking with data:", Object.fromEntries(formData));
 
       $.ajax({
         url: this.config.ajaxUrl,
@@ -810,29 +867,49 @@
         data: formData,
         processData: false,
         contentType: false,
+        timeout: 60000, // 60 second timeout for booking submission
         success: (response) => {
-          console.log("Booking submission response:", response);
-          if (response.success) {
+          this.log("Booking submission response:", response);
+          if (response && response.success) {
             $(".reference-number").text("#" + response.data.id);
             this.showStep(6); // Success step
             this.showNotification(
-              this.config.strings.bookingSuccess || "Booking confirmed!",
+              response.data.message || "Booking confirmed!",
               "success"
             );
           } else {
             this.showNotification(
-              response.data?.message || "Booking failed. Please try again.",
+              response?.data?.message ||
+                response?.message ||
+                "Booking failed. Please try again.",
               "error"
             );
           }
         },
         error: (xhr, status, error) => {
-          console.error("Booking submission error:", xhr, status, error);
-          console.error("Response text:", xhr.responseText);
-          this.showNotification(
-            "An error occurred. Please try again.",
-            "error"
-          );
+          this.log("Booking submission error:", xhr, status, error);
+          this.log("Response text:", xhr.responseText);
+
+          let errorMessage = "An error occurred. Please try again.";
+
+          // Provide more specific error messages
+          if (xhr.status === 0) {
+            errorMessage =
+              "Network error. Please check your connection and try again.";
+          } else if (xhr.status >= 500) {
+            errorMessage = "Server error. Please try again in a few minutes.";
+          } else if (xhr.responseText && xhr.responseText !== "0") {
+            try {
+              const errorData = JSON.parse(xhr.responseText);
+              errorMessage =
+                errorData.data?.message || errorData.message || errorMessage;
+            } catch (e) {
+              // Response is not JSON
+              errorMessage = "Booking submission failed. Please try again.";
+            }
+          }
+
+          this.showNotification(errorMessage, "error");
         },
         complete: () => {
           this.state.isProcessing = false;
@@ -914,7 +991,4 @@
   $(document).ready(function () {
     BookingForm.init();
   });
-
-  // Make globally available
-  window.BookingForm = BookingForm;
 })(jQuery);
