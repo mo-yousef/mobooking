@@ -1,6 +1,6 @@
 /**
- * MoBooking Enhanced Frontend Booking Form Handler
- * Complete booking form with improved ZIP validation, service flow, and navigation
+ * MoBooking Enhanced Frontend Booking Form Handler with Auto-Progression
+ * Complete booking form with improved ZIP validation, service flow, and automatic step advancement
  */
 
 (function ($) {
@@ -14,7 +14,15 @@
       nonces: mobookingBooking?.nonces || {},
       strings: mobookingBooking?.strings || {},
       currency: mobookingBooking?.currency || { symbol: "$", position: "left" },
-      zipDebounceDelay: 800, // Debounce delay for ZIP validation
+      autoAdvance: mobookingBooking?.autoAdvance || {
+        enabled: true,
+        delay: 1500,
+        zipSuccess: true,
+        serviceSelection: true,
+        optionsComplete: true,
+        customerComplete: true,
+      },
+      zipDebounceDelay: 800,
     },
 
     // State
@@ -33,6 +41,7 @@
       customerData: {},
       isZipValid: false,
       zipDebounceTimer: null,
+      autoProgressTimer: null,
       debugMode: false,
     },
 
@@ -43,7 +52,9 @@
       }
 
       this.state.debugMode = window.location.search.includes("debug=1");
-      this.log("🚀 Enhanced Booking Form initializing...");
+      this.log(
+        "🚀 Enhanced Booking Form with Auto-Progression initializing..."
+      );
 
       if (!this.validateConfig()) {
         return;
@@ -53,6 +64,7 @@
       this.loadServicesData();
       this.attachEventListeners();
       this.initializeForm();
+      this.createAutoProgressIndicator();
       this.log("✅ Enhanced Booking Form initialized");
     },
 
@@ -94,11 +106,11 @@
         progressBar: $(".progress-fill"),
         progressSteps: $(".progress-steps .step"),
 
-        // Step 1 - ZIP Code (Streamlined)
+        // Step 1 - ZIP Code
         zipInput: $("#customer_zip_code"),
         zipInputGroup: $(".zip-input-group"),
         zipResult: $(".zip-result"),
-        zipValidationIcon: null, // Will be created dynamically
+        zipValidationIcon: null, // Will be created
 
         // Step 2 - Services
         serviceCards: $(".service-card"),
@@ -136,21 +148,40 @@
         serviceOptionsField: $("#service_options_data"),
       };
 
-      // Create streamlined ZIP validation UI
+      // Create ZIP validation UI
       this.createZipValidationUI();
     },
 
-    // Create streamlined ZIP validation interface
+    // Create auto-progress indicator
+    createAutoProgressIndicator: function () {
+      if ($("#auto-progress-indicator").length === 0) {
+        const $indicator = $(`
+          <div id="auto-progress-indicator" class="auto-progress-indicator" style="display: none;">
+            <div class="progress-content">
+              <div class="progress-spinner"></div>
+              <span class="progress-text">Processing...</span>
+              <button class="progress-cancel" type="button">Cancel</button>
+            </div>
+          </div>
+        `);
+
+        this.elements.container.append($indicator);
+        this.elements.autoProgressIndicator = $indicator;
+
+        // Handle cancel button
+        $indicator.find(".progress-cancel").on("click", () => {
+          this.cancelAutoProgress();
+        });
+      }
+    },
+
+    // Create ZIP validation UI
     createZipValidationUI: function () {
       const $zipGroup = this.elements.zipInputGroup;
       const $zipInput = this.elements.zipInput;
 
-      // Remove the separate button approach
-      $(".check-zip-btn").remove();
-
       // Style the input for inline validation
       $zipInput.wrap('<div class="zip-input-wrapper"></div>');
-
       const $wrapper = $zipInput.parent();
       $wrapper.append('<div class="zip-validation-icon"></div>');
 
@@ -204,7 +235,7 @@
         }
       });
 
-      // Service selection with immediate validation
+      // Service selection with immediate validation and auto-advance
       this.elements.serviceCheckboxes.on("change", function () {
         self.handleServiceSelection($(this));
       });
@@ -228,6 +259,7 @@
         ".option-field input, .option-field select, .option-field textarea",
         function () {
           self.updatePricing();
+          self.checkAutoAdvanceOptions();
         }
       );
 
@@ -250,14 +282,16 @@
         self.submitBooking();
       });
 
-      // Customer info validation
+      // Customer info validation with auto-advance
       Object.values(this.elements.customerForm).forEach((field) => {
         field.on("blur", function () {
           self.validateField($(this));
+          self.checkAutoAdvanceCustomer();
         });
 
         field.on("change", function () {
           self.updateCustomerData();
+          self.checkAutoAdvanceCustomer();
         });
       });
 
@@ -282,7 +316,7 @@
       this.updateNavigationButtons();
     },
 
-    // Enhanced ZIP code handling with debouncing
+    // Enhanced ZIP code handling with auto-progression
     handleZipInput: function () {
       const zipCode = this.elements.zipInput.val().trim();
 
@@ -298,6 +332,7 @@
 
       if (!zipCode) {
         this.updateZipValidationIcon("none");
+        this.updateNavigationButtons();
         return;
       }
 
@@ -312,6 +347,7 @@
             "error"
           );
         }
+        this.updateNavigationButtons();
         return;
       }
 
@@ -329,7 +365,7 @@
       }
     },
 
-    // Streamlined ZIP validation
+    // Enhanced ZIP validation with auto-progression
     validateZipCode: function () {
       const zipCode = this.elements.zipInput.val().trim();
 
@@ -382,6 +418,14 @@
               "success"
             );
             this.updateNavigationButtons();
+
+            // Auto-advance if enabled
+            if (
+              this.config.autoAdvance.enabled &&
+              this.config.autoAdvance.zipSuccess
+            ) {
+              this.autoAdvanceToNextStep(1, "ZIP code validated successfully!");
+            }
           } else {
             this.state.isZipValid = false;
             this.updateZipValidationIcon("error");
@@ -428,10 +472,14 @@
       }
     },
 
-    // Enhanced service selection
+    // Enhanced service selection with auto-progression
     handleServiceSelection: function ($checkbox) {
       const serviceId = parseInt($checkbox.val());
       const $serviceCard = $checkbox.closest(".service-card");
+
+      // Add selection animation
+      $serviceCard.addClass("selecting");
+      setTimeout(() => $serviceCard.removeClass("selecting"), 600);
 
       if ($checkbox.is(":checked")) {
         $serviceCard.addClass("selected");
@@ -450,6 +498,138 @@
       this.updatePricing();
       this.updateNavigationButtons();
       this.log("Selected services updated:", this.state.selectedServices);
+
+      // Auto-advance if enabled and services selected
+      if (
+        this.config.autoAdvance.enabled &&
+        this.config.autoAdvance.serviceSelection &&
+        this.state.selectedServices.length > 0
+      ) {
+        this.autoAdvanceToNextStep(2, "Services selected!");
+      }
+    },
+
+    // Auto-advance functionality
+    autoAdvanceToNextStep: function (fromStep, message = null) {
+      if (this.state.isProcessing || this.state.autoProgressTimer) {
+        return;
+      }
+
+      // Show progress indicator
+      this.showAutoProgressIndicator(message || "Advancing to next step...");
+
+      this.state.autoProgressTimer = setTimeout(() => {
+        this.hideAutoProgressIndicator();
+        this.nextStep(fromStep);
+        this.state.autoProgressTimer = null;
+      }, this.config.autoAdvance.delay);
+    },
+
+    // Show auto-progress indicator
+    showAutoProgressIndicator: function (message) {
+      this.elements.autoProgressIndicator.find(".progress-text").text(message);
+      this.elements.autoProgressIndicator.fadeIn(300);
+    },
+
+    // Hide auto-progress indicator
+    hideAutoProgressIndicator: function () {
+      this.elements.autoProgressIndicator.fadeOut(300);
+    },
+
+    // Cancel auto-progress
+    cancelAutoProgress: function () {
+      if (this.state.autoProgressTimer) {
+        clearTimeout(this.state.autoProgressTimer);
+        this.state.autoProgressTimer = null;
+        this.hideAutoProgressIndicator();
+        this.log("Auto-progress cancelled by user");
+      }
+    },
+
+    // Check if options step should auto-advance
+    checkAutoAdvanceOptions: function () {
+      if (
+        !this.config.autoAdvance.enabled ||
+        !this.config.autoAdvance.optionsComplete
+      ) {
+        return;
+      }
+
+      if (this.state.currentStep !== 3) {
+        return;
+      }
+
+      // Check if all required options are filled
+      let allRequiredFilled = true;
+      $(".option-field").each(function () {
+        const $field = $(this);
+        const $input = $field.find("input, select, textarea");
+        const isRequired = $input.prop("required") || $input.data("required");
+
+        if (isRequired) {
+          let value = "";
+          if ($input.is('input[type="checkbox"]')) {
+            value = $input.is(":checked") ? "1" : "";
+          } else if ($input.is('input[type="radio"]')) {
+            value = $field.find('input[type="radio"]:checked').val() || "";
+          } else {
+            value = $input.val() || "";
+          }
+
+          if (!value || value.trim() === "") {
+            allRequiredFilled = false;
+            return false; // Break loop
+          }
+        }
+      });
+
+      if (allRequiredFilled) {
+        this.autoAdvanceToNextStep(3, "Options configured!");
+      }
+    },
+
+    // Check if customer step should auto-advance
+    checkAutoAdvanceCustomer: function () {
+      if (
+        !this.config.autoAdvance.enabled ||
+        !this.config.autoAdvance.customerComplete
+      ) {
+        return;
+      }
+
+      if (this.state.currentStep !== 4) {
+        return;
+      }
+
+      // Check if all required customer fields are valid
+      const requiredFields = [
+        this.elements.customerForm.name,
+        this.elements.customerForm.email,
+        this.elements.customerForm.address,
+        this.elements.customerForm.date,
+      ];
+
+      let allValid = true;
+      requiredFields.forEach((field) => {
+        if (
+          !field.val() ||
+          field.val().trim() === "" ||
+          field.hasClass("error")
+        ) {
+          allValid = false;
+        }
+      });
+
+      // Email validation
+      const email = this.elements.customerForm.email.val();
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (email && !emailRegex.test(email)) {
+        allValid = false;
+      }
+
+      if (allValid) {
+        this.autoAdvanceToNextStep(4, "Information complete!");
+      }
     },
 
     // Set minimum date/time for service
@@ -462,7 +642,7 @@
       this.elements.customerForm.date.attr("min", minDateTime);
     },
 
-    // Enhanced navigation with proper validation
+    // Enhanced navigation with proper validation and step transitions
     nextStep: function (currentStep) {
       if (this.state.isProcessing) return;
 
@@ -503,6 +683,13 @@
     prevStep: function (currentStep) {
       if (this.state.isProcessing) return;
 
+      // Clear any auto-advance timers
+      if (this.state.autoProgressTimer) {
+        clearTimeout(this.state.autoProgressTimer);
+        this.state.autoProgressTimer = null;
+        this.hideAutoProgressIndicator();
+      }
+
       this.log(`Going back from step ${currentStep} to ${currentStep - 1}`);
 
       if (currentStep > 1) {
@@ -517,8 +704,15 @@
 
       this.state.currentStep = stepNumber;
 
-      this.elements.steps.removeClass("active");
-      $(`.booking-step.step-${stepNumber}`).addClass("active");
+      // Add transition classes
+      this.elements.steps.removeClass("active entering");
+      const $newStep = $(`.booking-step.step-${stepNumber}`);
+
+      // Smooth transition
+      $newStep.addClass("entering");
+      setTimeout(() => {
+        $newStep.addClass("active");
+      }, 50);
 
       this.updateProgressBar();
       this.updateProgressSteps();
@@ -720,9 +914,23 @@
       this.log("Services with options:", servicesWithOptions);
 
       if (servicesWithOptions.length === 0) {
-        this.log("No services with options, skipping to customer info");
-        // Skip options step if no services have options
-        this.showStep(4);
+        this.log("No services with options, showing auto-advance message");
+        this.elements.optionsContainer.html(`
+          <div class="no-options-message">
+            <div class="no-options-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2ZM8 12l2 2 4-4"/>
+              </svg>
+            </div>
+            <h3>No additional options needed</h3>
+            <p>Your selected services are ready to go!</p>
+          </div>
+        `);
+
+        // Auto-advance if no options needed
+        if (this.config.autoAdvance.enabled) {
+          this.autoAdvanceToNextStep(3, "No additional options needed");
+        }
         return;
       }
 
@@ -821,7 +1029,7 @@
 
     // Generate input HTML for specific option types
     generateOptionInput: function (option, isRequired) {
-      const requiredAttr = isRequired ? "required" : "";
+      const requiredAttr = isRequired ? "required data-required='true'" : "";
       const placeholderAttr = option.placeholder
         ? `placeholder="${option.placeholder}"`
         : "";
@@ -1575,4 +1783,128 @@
 
   // Export for debugging
   window.BookingForm = BookingForm;
+
+  // Add auto-progress indicator styles
+  if (!document.getElementById("auto-progress-styles")) {
+    $("<style>")
+      .attr("id", "auto-progress-styles")
+      .prop("type", "text/css")
+      .html(
+        `
+        .auto-progress-indicator {
+          position: fixed;
+          top: 50%;
+          left: 50%;
+          transform: translate(-50%, -50%);
+          background: rgba(255, 255, 255, 0.95);
+          backdrop-filter: blur(10px);
+          border-radius: 12px;
+          padding: 2rem;
+          box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+          z-index: 10000;
+          min-width: 300px;
+          text-align: center;
+        }
+
+        .progress-content {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          gap: 1rem;
+        }
+
+        .progress-spinner {
+          width: 2rem;
+          height: 2rem;
+          border: 3px solid rgba(59, 130, 246, 0.2);
+          border-top-color: #3b82f6;
+          border-radius: 50%;
+          animation: spin 1s linear infinite;
+        }
+
+        .progress-text {
+          font-weight: 600;
+          color: #374151;
+          font-size: 1rem;
+        }
+
+        .progress-cancel {
+          background: #f3f4f6;
+          border: 1px solid #d1d5db;
+          color: #6b7280;
+          padding: 0.5rem 1rem;
+          border-radius: 6px;
+          cursor: pointer;
+          font-size: 0.875rem;
+          transition: all 0.2s ease;
+        }
+
+        .progress-cancel:hover {
+          background: #e5e7eb;
+          border-color: #9ca3af;
+        }
+
+        .selecting {
+          transform: scale(1.02);
+          transition: transform 0.3s ease;
+        }
+
+        .service-card.entering {
+          opacity: 0;
+          transform: translateY(20px);
+          transition: all 0.4s ease;
+        }
+
+        .service-card.entering.active {
+          opacity: 1;
+          transform: translateY(0);
+        }
+
+        .no-options-message {
+          text-align: center;
+          padding: 3rem 2rem;
+          background: linear-gradient(135deg, #f0f9ff, #e0f2fe);
+          border-radius: 12px;
+          border: 2px dashed rgba(59, 130, 246, 0.3);
+        }
+
+        .no-options-icon {
+          width: 4rem;
+          height: 4rem;
+          background: #3b82f6;
+          border-radius: 50%;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          margin: 0 auto 1.5rem;
+          color: white;
+        }
+
+        .no-options-icon svg {
+          width: 2rem;
+          height: 2rem;
+        }
+
+        .no-options-message h3 {
+          color: #1f2937;
+          margin: 0 0 0.5rem 0;
+          font-size: 1.25rem;
+          font-weight: 600;
+        }
+
+        .no-options-message p {
+          color: #6b7280;
+          margin: 0;
+          font-size: 1rem;
+        }
+
+        @keyframes spin {
+          to {
+            transform: rotate(360deg);
+          }
+        }
+      `
+      )
+      .appendTo("head");
+  }
 })(jQuery);
