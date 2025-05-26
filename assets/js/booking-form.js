@@ -1,5 +1,5 @@
 /**
- * MoBooking Frontend Booking Form Handler
+ * MoBooking Frontend Booking Form Handler - FIXED VERSION
  * Handles multi-step booking form with ZIP validation, service selection, and order processing
  */
 
@@ -39,6 +39,7 @@
       }
 
       console.log("🚀 Booking Form initializing...");
+      console.log("Config:", this.config);
       this.cacheElements();
       this.attachEventListeners();
       this.initializeForm();
@@ -180,7 +181,7 @@
       this.elements.customerForm.date.attr("min", minDateTime);
     },
 
-    // Check ZIP code availability
+    // Check ZIP code availability - FIXED
     checkZipCode: function () {
       const zipCode = this.elements.zipInput.val().trim();
 
@@ -193,20 +194,34 @@
         return;
       }
 
+      // Validate ZIP code format (basic US ZIP code validation)
+      const zipRegex = /^\d{5}(-\d{4})?$/;
+      if (!zipRegex.test(zipCode)) {
+        this.showMessage(
+          this.elements.zipResult,
+          "Please enter a valid ZIP code (e.g., 12345 or 12345-6789)",
+          "error"
+        );
+        return;
+      }
+
       this.setLoading(this.elements.checkZipBtn, true);
 
       const data = {
         action: "mobooking_check_zip_coverage",
         zip_code: zipCode,
         user_id: this.config.userId,
-        nonce: this.config.nonces.zip_check,
+        nonce: this.config.nonces.booking, // FIXED: Use correct nonce key
       };
+
+      console.log("Sending ZIP check request:", data);
 
       $.ajax({
         url: this.config.ajaxUrl,
         type: "POST",
         data: data,
         success: (response) => {
+          console.log("ZIP check response:", response);
           if (response.success) {
             this.state.isZipValid = true;
             this.showMessage(
@@ -229,7 +244,9 @@
             );
           }
         },
-        error: () => {
+        error: (xhr, status, error) => {
+          console.error("ZIP check error:", xhr, status, error);
+          console.error("Response text:", xhr.responseText);
           this.showMessage(
             this.elements.zipResult,
             this.config.strings.error || "Error checking ZIP code",
@@ -329,7 +346,12 @@
     validateStep: function (stepNumber) {
       switch (stepNumber) {
         case 1:
-          return this.elements.zipInput.val().trim() !== "";
+          const zipCode = this.elements.zipInput.val().trim();
+          if (!zipCode) {
+            this.showNotification("Please enter a ZIP code", "error");
+            return false;
+          }
+          return this.state.isZipValid;
 
         case 2:
           if (this.state.selectedServices.length === 0) {
@@ -515,7 +537,7 @@
 
       this.state.selectedServices.forEach((serviceId) => {
         const $serviceCard = $(`.service-card[data-service-id="${serviceId}"]`);
-        const serviceName = $serviceCard.find(".service-name").text();
+        const serviceName = $serviceCard.find("h3").text();
         const servicePrice = parseFloat($serviceCard.data("service-price"));
 
         html += `<div class="service-summary-item">
@@ -703,7 +725,7 @@
       }
     },
 
-    // Discount handling
+    // Discount handling - FIXED
     applyDiscountCode: function () {
       const code = this.elements.discountInput.val().trim();
 
@@ -723,7 +745,7 @@
         code: code,
         user_id: this.config.userId,
         total: this.state.pricing.subtotal,
-        nonce: this.config.nonces.discount,
+        nonce: this.config.nonces.booking, // FIXED: Use correct nonce
       };
 
       $.ajax({
@@ -751,7 +773,8 @@
             );
           }
         },
-        error: () => {
+        error: (xhr, status, error) => {
+          console.error("Discount validation error:", xhr, status, error);
           this.showMessage(
             $(".discount-message"),
             "Error applying discount code",
@@ -764,7 +787,7 @@
       });
     },
 
-    // Submit booking
+    // Submit booking - FIXED
     submitBooking: function () {
       if (this.state.isProcessing) return;
 
@@ -774,6 +797,12 @@
       // Collect all form data
       const formData = new FormData(this.elements.form[0]);
       formData.append("action", "mobooking_save_booking");
+      formData.append("nonce", this.config.nonces.booking); // FIXED: Ensure nonce is included
+
+      console.log(
+        "Submitting booking with data:",
+        Object.fromEntries(formData)
+      );
 
       $.ajax({
         url: this.config.ajaxUrl,
@@ -782,6 +811,7 @@
         processData: false,
         contentType: false,
         success: (response) => {
+          console.log("Booking submission response:", response);
           if (response.success) {
             $(".reference-number").text("#" + response.data.id);
             this.showStep(6); // Success step
@@ -796,7 +826,9 @@
             );
           }
         },
-        error: () => {
+        error: (xhr, status, error) => {
+          console.error("Booking submission error:", xhr, status, error);
+          console.error("Response text:", xhr.responseText);
           this.showNotification(
             "An error occurred. Please try again.",
             "error"

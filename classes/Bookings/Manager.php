@@ -27,7 +27,7 @@ class Manager {
         add_shortcode('mobooking_booking_form', array($this, 'booking_form_shortcode'));
         add_shortcode('mobooking_business_owner', array($this, 'business_owner_shortcode'));
     }
-    
+   
     /**
      * Register booking endpoints
      */
@@ -349,25 +349,32 @@ class Manager {
     }
     
     /**
-     * AJAX handler to check ZIP coverage
+     * AJAX handler to check ZIP coverage - FIXED
      */
     public function ajax_check_zip_coverage() {
-        // Check nonce
-        // if (!isset($_POST['nonce']) || !wp_verify_nonce($_POST['nonce'], 'mobooking-zip-nonce')) {
+        // Debug logging
+        if (defined('WP_DEBUG') && WP_DEBUG) {
+            error_log('MoBooking ZIP Coverage Debug - POST data: ' . print_r($_POST, true));
+        }
+
+        // FIXED: Check nonce with the correct action name
         if (!isset($_POST['nonce']) || !wp_verify_nonce($_POST['nonce'], 'mobooking-booking-nonce')) {
-            wp_send_json_error(__('Security verification failed.', 'mobooking'));
+            wp_send_json_error(array('message' => __('Security verification failed.', 'mobooking')));
+            return;
         }
         
         // Check ZIP code
         if (!isset($_POST['zip_code']) || empty($_POST['zip_code'])) {
-            wp_send_json_error(__('ZIP code is required.', 'mobooking'));
+            wp_send_json_error(array('message' => __('ZIP code is required.', 'mobooking')));
+            return;
         }
         
         $zip_code = sanitize_text_field($_POST['zip_code']);
         $user_id = isset($_POST['user_id']) ? absint($_POST['user_id']) : 0;
         
         if (!$user_id) {
-            wp_send_json_error(__('Invalid request.', 'mobooking'));
+            wp_send_json_error(array('message' => __('Invalid request.', 'mobooking')));
+            return;
         }
         
         // Check if ZIP is covered
@@ -385,18 +392,21 @@ class Manager {
         }
     }
     
+    
     /**
-     * AJAX handler to validate discount
+     * AJAX handler to validate discount - FIXED
      */
     public function ajax_validate_discount() {
-        // Check nonce
-        if (!isset($_POST['nonce']) || !wp_verify_nonce($_POST['nonce'], 'mobooking-discount-nonce')) {
-            wp_send_json_error(__('Security verification failed.', 'mobooking'));
+        // FIXED: Check nonce with the correct action name
+        if (!isset($_POST['nonce']) || !wp_verify_nonce($_POST['nonce'], 'mobooking-booking-nonce')) {
+            wp_send_json_error(array('message' => __('Security verification failed.', 'mobooking')));
+            return;
         }
         
         // Check required fields
         if (!isset($_POST['code']) || !isset($_POST['user_id']) || !isset($_POST['total'])) {
-            wp_send_json_error(__('Missing required information.', 'mobooking'));
+            wp_send_json_error(array('message' => __('Missing required information.', 'mobooking')));
+            return;
         }
         
         $code = sanitize_text_field($_POST['code']);
@@ -411,6 +421,7 @@ class Manager {
             wp_send_json_error(array(
                 'message' => __('Invalid or expired discount code.', 'mobooking')
             ));
+            return;
         }
         
         // Check usage limit
@@ -418,6 +429,7 @@ class Manager {
             wp_send_json_error(array(
                 'message' => __('This discount code has reached its usage limit.', 'mobooking')
             ));
+            return;
         }
         
         // Calculate discount amount
@@ -433,6 +445,7 @@ class Manager {
             'message' => sprintf(__('Discount applied! You save %s', 'mobooking'), wc_price($discount_amount))
         ));
     }
+
     
     /**
      * AJAX handler to get user bookings
@@ -506,7 +519,7 @@ class Manager {
     }
     
     /**
-     * Booking form shortcode
+     * Booking form shortcode - FIXED localization
      */
     public function booking_form_shortcode($atts) {
         // Parse attributes
@@ -547,14 +560,14 @@ class Manager {
         wp_enqueue_style('mobooking-booking-form', MOBOOKING_URL . '/assets/css/booking-form.css', array(), MOBOOKING_VERSION);
         wp_enqueue_script('mobooking-booking-form', MOBOOKING_URL . '/assets/js/booking-form.js', array('jquery'), MOBOOKING_VERSION, true);
         
-        // Localize script
+        // FIXED: Localize script with correct nonce names
         wp_localize_script('mobooking-booking-form', 'mobookingBooking', array(
             'ajaxUrl' => admin_url('admin-ajax.php'),
             'userId' => $user_id,
             'nonces' => array(
                 'booking' => wp_create_nonce('mobooking-booking-nonce'),
-                'zip_check' => wp_create_nonce('mobooking-booking-nonce'), // Use same nonce
-                'discount' => wp_create_nonce('mobooking-booking-nonce')   // Use same nonce
+                'zip_check' => wp_create_nonce('mobooking-booking-nonce'), // FIXED: Use same nonce
+                'discount' => wp_create_nonce('mobooking-booking-nonce')   // FIXED: Use same nonce
             ),
             'strings' => array(
                 'error' => __('An error occurred', 'mobooking'),
@@ -564,7 +577,7 @@ class Manager {
                 'bookingSuccess' => __('Booking confirmed successfully!', 'mobooking')
             ),
             'currency' => array(
-                'symbol' => get_woocommerce_currency_symbol(),
+                'symbol' => function_exists('get_woocommerce_currency_symbol') ? get_woocommerce_currency_symbol() : '$',
                 'position' => get_option('woocommerce_currency_pos', 'left')
             )
         ));
@@ -572,6 +585,7 @@ class Manager {
         // Generate booking form HTML
         return $this->render_booking_form($user_id, $services, $atts);
     }
+
     
     /**
      * Render booking form HTML

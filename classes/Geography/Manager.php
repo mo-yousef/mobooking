@@ -2,7 +2,7 @@
 namespace MoBooking\Geography;
 
 /**
- * Geography Manager class
+ * Geography Manager class - FIXED ZIP Code Validation
  */
 class Manager {
     /**
@@ -13,7 +13,9 @@ class Manager {
         add_action('wp_ajax_mobooking_save_area', array($this, 'ajax_save_area'));
         add_action('wp_ajax_mobooking_delete_area', array($this, 'ajax_delete_area'));
         add_action('wp_ajax_mobooking_get_areas', array($this, 'ajax_get_areas'));
-        add_action('wp_ajax_nopriv_mobooking_check_zip_coverage', array($this, 'ajax_check_zip_coverage'));
+        
+        // REMOVED: Duplicate ZIP coverage handler since it's handled in Bookings\Manager
+        // add_action('wp_ajax_nopriv_mobooking_check_zip_coverage', array($this, 'ajax_check_zip_coverage'));
         
         // Add shortcodes
         add_shortcode('mobooking_area_list', array($this, 'area_list_shortcode'));
@@ -54,16 +56,33 @@ class Manager {
     }
     
     /**
-     * Check if a ZIP code is covered by a user
+     * Check if a ZIP code is covered by a user - IMPROVED with debugging
      */
     public function is_zip_covered($zip_code, $user_id) {
         global $wpdb;
         $table_name = $wpdb->prefix . 'mobooking_areas';
         
+        // Debug logging
+        if (defined('WP_DEBUG') && WP_DEBUG) {
+            error_log("MoBooking: Checking ZIP coverage for ZIP: {$zip_code}, User ID: {$user_id}");
+        }
+        
         $result = $wpdb->get_var($wpdb->prepare(
             "SELECT COUNT(*) FROM $table_name WHERE zip_code = %s AND user_id = %d AND active = 1",
             $zip_code, $user_id
         ));
+        
+        // Debug logging
+        if (defined('WP_DEBUG') && WP_DEBUG) {
+            error_log("MoBooking: ZIP coverage result: " . ($result > 0 ? 'COVERED' : 'NOT COVERED'));
+            
+            // Also log what areas exist for this user
+            $user_areas = $wpdb->get_results($wpdb->prepare(
+                "SELECT zip_code, active FROM $table_name WHERE user_id = %d",
+                $user_id
+            ));
+            error_log("MoBooking: User {$user_id} areas: " . print_r($user_areas, true));
+        }
         
         return $result > 0;
     }
@@ -95,7 +114,7 @@ class Manager {
         ));
     }
     
-/**
+    /**
      * Save an area
      */
     public function save_area($data) {
@@ -123,7 +142,7 @@ class Manager {
         // Check if we're updating or creating
         if (!empty($data['id'])) {
             // Update existing area
-            $wpdb->update(
+            $result = $wpdb->update(
                 $table_name,
                 $area_data,
                 array('id' => absint($data['id'])),
@@ -131,16 +150,16 @@ class Manager {
                 array('%d')
             );
             
-            return absint($data['id']);
+            return $result !== false ? absint($data['id']) : false;
         } else {
             // Create new area
-            $wpdb->insert(
+            $result = $wpdb->insert(
                 $table_name,
                 $area_data,
                 array('%d', '%s', '%s', '%d')
             );
             
-            return $wpdb->insert_id;
+            return $result !== false ? $wpdb->insert_id : false;
         }
     }
     
@@ -274,45 +293,6 @@ class Manager {
         
         wp_send_json_success(array(
             'areas' => $areas
-        ));
-    }
-    
-    /**
-     * AJAX handler to check ZIP coverage
-     */
-    public function ajax_check_zip_coverage() {
-        error_log('ZIP Coverage Debug - POST data: ' . print_r($_POST, true));
-
-        // Check nonce
-        if (!isset($_POST['nonce']) || !wp_verify_nonce($_POST['nonce'], 'mobooking-zip-nonce')) {
-            wp_send_json_error(__('Security verification failed.', 'mobooking'));
-        }
-        
-        // Check ZIP code
-        if (!isset($_POST['zip_code']) || empty($_POST['zip_code'])) {
-            wp_send_json_error(__('ZIP code is required.', 'mobooking'));
-        }
-        
-        $zip_code = sanitize_text_field($_POST['zip_code']);
-        $businesses = $this->get_businesses_by_zip($zip_code);
-        
-        if (empty($businesses)) {
-            wp_send_json_error(array(
-                'message' => __('Sorry, we don\'t have any service providers in your area yet.', 'mobooking')
-            ));
-        }
-        
-        wp_send_json_success(array(
-            'businesses' => $businesses,
-            'message' => sprintf(
-                _n(
-                    'We found %d service provider in your area!',
-                    'We found %d service providers in your area!',
-                    count($businesses),
-                    'mobooking'
-                ),
-                count($businesses)
-            )
         ));
     }
     

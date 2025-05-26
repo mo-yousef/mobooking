@@ -1173,6 +1173,7 @@ jQuery(document).ready(function($) {
 .url-display {
     flex: 1;
     font-family: monospace;
+    border: 1px solid hsl(var(--border));
     background-color: hsl(var(--muted) / 0.5);
 }
 

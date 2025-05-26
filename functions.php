@@ -585,3 +585,414 @@ echo "</body></html>";
     echo '<div class="notice notice-success"><p>Template files have been created!</p></div>';
 }
 add_action('admin_init', 'mobooking_create_template_files');
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+/**
+ * MoBooking Debug Helper for Booking Form Issues
+ * Add this to your functions.php file temporarily to debug the ZIP code issue
+ */
+
+// Debug AJAX requests
+function mobooking_debug_ajax_requests() {
+    if (!current_user_can('administrator') || !isset($_GET['mobooking_debug_ajax'])) {
+        return;
+    }
+    
+    echo '<div style="background: #f0f0f0; padding: 20px; margin: 20px; border-radius: 5px; font-family: monospace;">';
+    echo '<h2>MoBooking AJAX Debug Information</h2>';
+    
+    // Check if AJAX actions are registered
+    global $wp_filter;
+    
+    echo '<h3>Registered AJAX Actions:</h3>';
+    $ajax_actions = [
+        'wp_ajax_mobooking_check_zip_coverage',
+        'wp_ajax_nopriv_mobooking_check_zip_coverage',
+        'wp_ajax_mobooking_save_booking',
+        'wp_ajax_nopriv_mobooking_save_booking',
+        'wp_ajax_mobooking_validate_discount',
+        'wp_ajax_nopriv_mobooking_validate_discount'
+    ];
+    
+    foreach ($ajax_actions as $action) {
+        $registered = isset($wp_filter[$action]) && !empty($wp_filter[$action]);
+        echo '<p>' . $action . ': ' . ($registered ? '✅ REGISTERED' : '❌ NOT REGISTERED') . '</p>';
+        
+        if ($registered && isset($wp_filter[$action])) {
+            echo '<ul>';
+            foreach ($wp_filter[$action]->callbacks as $priority => $callbacks) {
+                foreach ($callbacks as $callback) {
+                    if (is_array($callback['function'])) {
+                        $class = is_object($callback['function'][0]) ? get_class($callback['function'][0]) : $callback['function'][0];
+                        $method = $callback['function'][1];
+                        echo '<li>Priority ' . $priority . ': ' . $class . '::' . $method . '</li>';
+                    } else {
+                        echo '<li>Priority ' . $priority . ': ' . $callback['function'] . '</li>';
+                    }
+                }
+            }
+            echo '</ul>';
+        }
+    }
+    
+    // Check database tables
+    echo '<h3>Database Tables:</h3>';
+    global $wpdb;
+    
+    $tables_to_check = [
+        $wpdb->prefix . 'mobooking_areas',
+        $wpdb->prefix . 'mobooking_services',
+        $wpdb->prefix . 'mobooking_bookings',
+        $wpdb->prefix . 'mobooking_settings'
+    ];
+    
+    foreach ($tables_to_check as $table) {
+        $exists = $wpdb->get_var("SHOW TABLES LIKE '$table'") == $table;
+        echo '<p>' . $table . ': ' . ($exists ? '✅ EXISTS' : '❌ MISSING') . '</p>';
+        
+        if ($exists) {
+            $count = $wpdb->get_var("SELECT COUNT(*) FROM $table");
+            echo '<p style="margin-left: 20px;">Records: ' . $count . '</p>';
+            
+            // Show sample data for areas table
+            if ($table == $wpdb->prefix . 'mobooking_areas') {
+                $sample = $wpdb->get_results("SELECT * FROM $table LIMIT 5");
+                if ($sample) {
+                    echo '<p style="margin-left: 20px;">Sample data:</p>';
+                    echo '<pre style="margin-left: 40px; font-size: 11px;">' . print_r($sample, true) . '</pre>';
+                }
+            }
+        }
+    }
+    
+    // Check current user and test data
+    echo '<h3>Current User Info:</h3>';
+    $current_user = wp_get_current_user();
+    echo '<p>User ID: ' . $current_user->ID . '</p>';
+    echo '<p>Username: ' . $current_user->user_login . '</p>';
+    echo '<p>Roles: ' . implode(', ', $current_user->roles) . '</p>';
+    
+    // Test nonce generation
+    echo '<h3>Nonce Test:</h3>';
+    $test_nonce = wp_create_nonce('mobooking-booking-nonce');
+    echo '<p>Generated nonce: ' . $test_nonce . '</p>';
+    echo '<p>Nonce verification: ' . (wp_verify_nonce($test_nonce, 'mobooking-booking-nonce') ? '✅ VALID' : '❌ INVALID') . '</p>';
+    
+    // Test ZIP coverage directly
+    echo '<h3>Direct ZIP Coverage Test:</h3>';
+    if (class_exists('\MoBooking\Geography\Manager')) {
+        $geography_manager = new \MoBooking\Geography\Manager();
+        
+        // Test with a sample ZIP code and current user
+        $test_zip = '12345';
+        $test_user_id = $current_user->ID;
+        
+        echo '<p>Testing ZIP: ' . $test_zip . ' for User ID: ' . $test_user_id . '</p>';
+        
+        $is_covered = $geography_manager->is_zip_covered($test_zip, $test_user_id);
+        echo '<p>Coverage result: ' . ($is_covered ? '✅ COVERED' : '❌ NOT COVERED') . '</p>';
+        
+        // Show user's areas
+        $user_areas = $geography_manager->get_user_areas($test_user_id);
+        echo '<p>User areas (' . count($user_areas) . '):</p>';
+        if ($user_areas) {
+            echo '<ul>';
+            foreach ($user_areas as $area) {
+                echo '<li>ZIP: ' . $area->zip_code . ' (Active: ' . ($area->active ? 'Yes' : 'No') . ')</li>';
+            }
+            echo '</ul>';
+        } else {
+            echo '<p style="color: red;">No areas found for this user. Add some areas in the dashboard first!</p>';
+        }
+    }
+    
+    // Quick fix suggestions
+    echo '<h3>Quick Fix Actions:</h3>';
+    echo '<a href="' . add_query_arg('mobooking_add_test_area', '1') . '" style="background: #0073aa; color: white; padding: 10px 15px; text-decoration: none; border-radius: 3px; margin-right: 10px;">Add Test Area (12345)</a>';
+    echo '<a href="' . add_query_arg('mobooking_flush_debug', '1') . '" style="background: #d54e21; color: white; padding: 10px 15px; text-decoration: none; border-radius: 3px;">Flush Rewrite Rules</a>';
+    
+    echo '</div>';
+}
+add_action('wp_head', 'mobooking_debug_ajax_requests');
+
+// Quick fix: Add test area
+function mobooking_add_test_area() {
+    if (!current_user_can('administrator') || !isset($_GET['mobooking_add_test_area'])) {
+        return;
+    }
+    
+    global $wpdb;
+    $table_name = $wpdb->prefix . 'mobooking_areas';
+    $current_user_id = get_current_user_id();
+    
+    // Check if test area already exists
+    $exists = $wpdb->get_var($wpdb->prepare(
+        "SELECT COUNT(*) FROM $table_name WHERE zip_code = %s AND user_id = %d",
+        '12345', $current_user_id
+    ));
+    
+    if (!$exists) {
+        $wpdb->insert(
+            $table_name,
+            array(
+                'user_id' => $current_user_id,
+                'zip_code' => '12345',
+                'label' => 'Test Area',
+                'active' => 1
+            ),
+            array('%d', '%s', '%s', '%d')
+        );
+        
+        echo '<div class="notice notice-success"><p>Test area (12345) added successfully!</p></div>';
+    } else {
+        echo '<div class="notice notice-info"><p>Test area (12345) already exists.</p></div>';
+    }
+}
+add_action('admin_init', 'mobooking_add_test_area');
+
+// AJAX handler to test ZIP coverage directly
+function mobooking_test_zip_coverage_direct() {
+    // This mimics the exact AJAX call to test it
+    add_action('wp_ajax_mobooking_test_zip_direct', function() {
+        error_log('MoBooking: Direct ZIP test called');
+        
+        // Check nonce
+        if (!isset($_POST['nonce']) || !wp_verify_nonce($_POST['nonce'], 'mobooking-booking-nonce')) {
+            wp_send_json_error(array('message' => 'Security verification failed.'));
+            return;
+        }
+        
+        $zip_code = sanitize_text_field($_POST['zip_code']);
+        $user_id = absint($_POST['user_id']);
+        
+        error_log("MoBooking: Testing ZIP: {$zip_code} for User: {$user_id}");
+        
+        if (class_exists('\MoBooking\Geography\Manager')) {
+            $geography_manager = new \MoBooking\Geography\Manager();
+            $is_covered = $geography_manager->is_zip_covered($zip_code, $user_id);
+            
+            if ($is_covered) {
+                wp_send_json_success(array(
+                    'message' => 'Great! We provide services in your area.'
+                ));
+            } else {
+                wp_send_json_error(array(
+                    'message' => 'Sorry, we don\'t currently service this area.'
+                ));
+            }
+        } else {
+            wp_send_json_error(array(
+                'message' => 'Geography Manager class not found.'
+            ));
+        }
+    });
+    
+    add_action('wp_ajax_nopriv_mobooking_test_zip_direct', function() {
+        // Same as above for non-logged-in users
+        error_log('MoBooking: Direct ZIP test called (nopriv)');
+        
+        if (!isset($_POST['nonce']) || !wp_verify_nonce($_POST['nonce'], 'mobooking-booking-nonce')) {
+            wp_send_json_error(array('message' => 'Security verification failed.'));
+            return;
+        }
+        
+        $zip_code = sanitize_text_field($_POST['zip_code']);
+        $user_id = absint($_POST['user_id']);
+        
+        error_log("MoBooking: Testing ZIP: {$zip_code} for User: {$user_id}");
+        
+        if (class_exists('\MoBooking\Geography\Manager')) {
+            $geography_manager = new \MoBooking\Geography\Manager();
+            $is_covered = $geography_manager->is_zip_covered($zip_code, $user_id);
+            
+            if ($is_covered) {
+                wp_send_json_success(array(
+                    'message' => 'Great! We provide services in your area.'
+                ));
+            } else {
+                wp_send_json_error(array(
+                    'message' => 'Sorry, we don\'t currently service this area.'
+                ));
+            }
+        } else {
+            wp_send_json_error(array(
+                'message' => 'Geography Manager class not found.'
+            ));
+        }
+    });
+}
+mobooking_test_zip_coverage_direct();
+
+// Add debug console to admin bar
+function mobooking_add_debug_console() {
+    if (!current_user_can('administrator')) {
+        return;
+    }
+    
+    global $wp_admin_bar;
+    
+    $wp_admin_bar->add_menu(array(
+        'id' => 'mobooking-debug',
+        'title' => 'MoBooking Debug',
+        'href' => add_query_arg('mobooking_debug_ajax', '1', home_url()),
+    ));
+    
+    $wp_admin_bar->add_menu(array(
+        'parent' => 'mobooking-debug',
+        'id' => 'mobooking-test-ajax',
+        'title' => 'Test AJAX',
+        'href' => 'javascript:void(0)',
+        'meta' => array(
+            'onclick' => 'mobookingTestAjax()'
+        )
+    ));
+}
+add_action('wp_before_admin_bar_render', 'mobooking_add_debug_console');
+
+// Add debug JavaScript to footer
+function mobooking_add_debug_js() {
+    if (!current_user_can('administrator')) {
+        return;
+    }
+    ?>
+    <script>
+    function mobookingTestAjax() {
+        console.log('Testing MoBooking AJAX...');
+        
+        // Get current user ID (you might need to adjust this)
+        var userId = <?php echo get_current_user_id(); ?>;
+        var nonce = '<?php echo wp_create_nonce('mobooking-booking-nonce'); ?>';
+        
+        // Test ZIP coverage
+        jQuery.ajax({
+            url: '<?php echo admin_url('admin-ajax.php'); ?>',
+            type: 'POST',
+            data: {
+                action: 'mobooking_test_zip_direct',
+                zip_code: '12345',
+                user_id: userId,
+                nonce: nonce
+            },
+            success: function(response) {
+                console.log('AJAX Test Success:', response);
+                alert('AJAX Test Success: ' + JSON.stringify(response));
+            },
+            error: function(xhr, status, error) {
+                console.error('AJAX Test Error:', xhr, status, error);
+                console.error('Response Text:', xhr.responseText);
+                alert('AJAX Test Error: ' + xhr.status + ' - ' + xhr.responseText);
+            }
+        });
+    }
+    
+    // Auto-run debug on pages with booking form
+    jQuery(document).ready(function($) {
+        if ($('.mobooking-booking-form-container').length > 0) {
+            console.log('MoBooking Booking Form detected');
+            console.log('Config available:', typeof mobookingBooking !== 'undefined');
+            
+            if (typeof mobookingBooking !== 'undefined') {
+                console.log('MoBooking Config:', mobookingBooking);
+            } else {
+                console.error('MoBooking Config not loaded!');
+            }
+        }
+    });
+    </script>
+    <?php
+}
+add_action('wp_footer', 'mobooking_add_debug_js');
+
+// Log all AJAX requests for debugging
+function mobooking_log_ajax_requests() {
+    if (!defined('WP_DEBUG') || !WP_DEBUG) {
+        return;
+    }
+    
+    add_action('wp_ajax_mobooking_check_zip_coverage', function() {
+        error_log('MoBooking AJAX: mobooking_check_zip_coverage called (logged in)');
+        error_log('POST data: ' . print_r($_POST, true));
+    }, 1);
+    
+    add_action('wp_ajax_nopriv_mobooking_check_zip_coverage', function() {
+        error_log('MoBooking AJAX: mobooking_check_zip_coverage called (not logged in)');
+        error_log('POST data: ' . print_r($_POST, true));
+    }, 1);
+}
+mobooking_log_ajax_requests();
+
+/**
+ * Instructions for using this debug helper:
+ * 
+ * 1. Add this code to your functions.php file temporarily
+ * 2. Visit any page and add ?mobooking_debug_ajax=1 to the URL
+ * 3. Check the debug information displayed
+ * 4. Click "Add Test Area" to create a test ZIP code area
+ * 5. Use the admin bar "MoBooking Debug" -> "Test AJAX" to test AJAX calls
+ * 6. Check your error logs for detailed debugging information
+ * 7. Try the booking form with ZIP code 12345
+ * 
+ * Common issues and solutions:
+ * 
+ * 1. If AJAX actions show "NOT REGISTERED":
+ *    - Check if the Manager classes are being loaded properly
+ *    - Verify the autoloader is working
+ *    - Make sure the Manager constructors are being called
+ * 
+ * 2. If database tables are missing:
+ *    - Go to WP Admin -> Tools -> Flush MoBooking Rules
+ *    - Check if the Database Manager is creating tables properly
+ * 
+ * 3. If no areas found for user:
+ *    - Go to Dashboard -> Service Areas and add some ZIP codes
+ *    - Or click "Add Test Area" button in the debug interface
+ * 
+ * 4. If nonce verification fails:
+ *    - Check if the correct nonce is being passed from JavaScript
+ *    - Verify the nonce action name matches between JS and PHP
+ * 
+ * 5. If 400 Bad Request error:
+ *    - Check error logs for specific PHP errors
+ *    - Verify all required POST parameters are being sent
+ *    - Check if classes are loaded and methods exist
+ */
