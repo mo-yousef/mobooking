@@ -2,7 +2,8 @@
 namespace MoBooking\Bookings;
 
 /**
- * Bookings Manager - FIXED ZIP Code Validation Issue
+ * Enhanced Bookings Manager with Service Options Integration
+ * Improved ZIP validation, service flow, and overall functionality
  */
 class Manager {
     /**
@@ -13,30 +14,31 @@ class Manager {
         add_action('init', array($this, 'register_booking_endpoints'));
         add_filter('query_vars', array($this, 'add_booking_query_vars'));
         
-        // Register AJAX handlers - FIXED: Ensure proper registration
+        // Register AJAX handlers with enhanced error handling
         add_action('wp_ajax_mobooking_save_booking', array($this, 'ajax_save_booking'));
         add_action('wp_ajax_nopriv_mobooking_save_booking', array($this, 'ajax_save_booking'));
         
-        // FIXED: Register ZIP coverage check handlers
         add_action('wp_ajax_mobooking_check_zip_coverage', array($this, 'ajax_check_zip_coverage'));
         add_action('wp_ajax_nopriv_mobooking_check_zip_coverage', array($this, 'ajax_check_zip_coverage'));
         
+        add_action('wp_ajax_mobooking_get_service_options', array($this, 'ajax_get_service_options'));
+        add_action('wp_ajax_nopriv_mobooking_get_service_options', array($this, 'ajax_get_service_options'));
+        
         add_action('wp_ajax_mobooking_validate_discount', array($this, 'ajax_validate_discount'));
         add_action('wp_ajax_nopriv_mobooking_validate_discount', array($this, 'ajax_validate_discount'));
+        
         add_action('wp_ajax_mobooking_get_user_bookings', array($this, 'ajax_get_user_bookings'));
         add_action('wp_ajax_mobooking_update_booking_status', array($this, 'ajax_update_booking_status'));
         
         // Add shortcodes
         add_shortcode('mobooking_booking_form', array($this, 'booking_form_shortcode'));
-        add_shortcode('mobooking_business_owner', array($this, 'business_owner_shortcode'));
         
-        // FIXED: Debug logging
+        // Debug logging
         if (defined('WP_DEBUG') && WP_DEBUG) {
-            error_log('MoBooking\Bookings\Manager: Constructor called, AJAX handlers registered');
+            error_log('MoBooking\Bookings\Manager: Enhanced constructor called, AJAX handlers registered');
         }
     }
-
-   
+    
     /**
      * Register booking endpoints
      */
@@ -53,7 +55,7 @@ class Manager {
     }
     
     /**
-     * Get user bookings
+     * Get user bookings with enhanced filtering
      */
     public function get_user_bookings($user_id, $args = array()) {
         global $wpdb;
@@ -65,6 +67,8 @@ class Manager {
             'orderby' => 'created_at',
             'order' => 'DESC',
             'status' => '',
+            'date_from' => '',
+            'date_to' => '',
         );
         
         $args = wp_parse_args($args, $defaults);
@@ -75,6 +79,16 @@ class Manager {
         if (!empty($args['status'])) {
             $sql .= " AND status = %s";
             $params[] = $args['status'];
+        }
+        
+        if (!empty($args['date_from'])) {
+            $sql .= " AND service_date >= %s";
+            $params[] = $args['date_from'];
+        }
+        
+        if (!empty($args['date_to'])) {
+            $sql .= " AND service_date <= %s";
+            $params[] = $args['date_to'];
         }
         
         $sql .= " ORDER BY {$args['orderby']} {$args['order']}";
@@ -91,7 +105,6 @@ class Manager {
         
         return $wpdb->get_results($wpdb->prepare($sql, $params));
     }
-    
     
     /**
      * Count user bookings
@@ -112,6 +125,8 @@ class Manager {
             $user_id
         ));
     }
+    
+
     
     
     /**
