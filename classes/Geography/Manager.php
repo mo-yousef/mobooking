@@ -2,7 +2,7 @@
 namespace MoBooking\Geography;
 
 /**
- * Geography Manager class - COMPLETELY FIXED ZIP Code Validation
+ * Geography Manager class - Enhanced with Area Name Support
  */
 class Manager {
     /**
@@ -14,15 +14,11 @@ class Manager {
         add_action('wp_ajax_mobooking_delete_area', array($this, 'ajax_delete_area'));
         add_action('wp_ajax_mobooking_get_areas', array($this, 'ajax_get_areas'));
         
-        // FIXED: DO NOT register ZIP coverage handler here since Bookings\Manager handles it
-        // This prevents duplicate handler registration which causes the 400 error
-        
         // Add shortcodes
         add_shortcode('mobooking_area_list', array($this, 'area_list_shortcode'));
         
-        // FIXED: Add debug logging to verify constructor is called
         if (defined('WP_DEBUG') && WP_DEBUG) {
-            error_log('MoBooking\Geography\Manager: Constructor called, AJAX handlers registered');
+            error_log('MoBooking\Geography\Manager: Constructor called with area name support');
         }
     }
     
@@ -57,7 +53,6 @@ class Manager {
         $table_name = $wpdb->prefix . 'mobooking_areas';
         
         if ($user_id) {
-            // Get area only if it belongs to the user
             return $wpdb->get_row($wpdb->prepare(
                 "SELECT * FROM $table_name WHERE id = %d AND user_id = %d",
                 $area_id, $user_id
@@ -71,13 +66,13 @@ class Manager {
     }
     
     /**
-     * Check if a ZIP code is covered by a user - COMPLETELY FIXED with comprehensive debugging
+     * Check if a ZIP code is covered by a user - ENHANCED with area details
      */
     public function is_zip_covered($zip_code, $user_id) {
         global $wpdb;
         $table_name = $wpdb->prefix . 'mobooking_areas';
         
-        // FIXED: Comprehensive input validation
+        // Input validation
         if (empty($zip_code) || empty($user_id)) {
             if (defined('WP_DEBUG') && WP_DEBUG) {
                 error_log("MoBooking: Invalid parameters - ZIP: '{$zip_code}', User ID: '{$user_id}'");
@@ -85,7 +80,7 @@ class Manager {
             return false;
         }
         
-        // FIXED: Sanitize inputs
+        // Sanitize inputs
         $zip_code = sanitize_text_field(trim($zip_code));
         $user_id = absint($user_id);
         
@@ -99,10 +94,9 @@ class Manager {
         // Debug logging
         if (defined('WP_DEBUG') && WP_DEBUG) {
             error_log("MoBooking: Checking ZIP coverage for ZIP: '{$zip_code}', User ID: {$user_id}");
-            error_log("MoBooking: Using table: {$table_name}");
         }
         
-        // FIXED: Check if table exists first
+        // Check if table exists first
         $table_exists = $wpdb->get_var("SHOW TABLES LIKE '$table_name'") == $table_name;
         if (!$table_exists) {
             if (defined('WP_DEBUG') && WP_DEBUG) {
@@ -111,17 +105,17 @@ class Manager {
             return false;
         }
         
-        // FIXED: More robust query with better error handling
-        $sql = "SELECT COUNT(*) FROM $table_name WHERE zip_code = %s AND user_id = %d AND active = 1";
+        // Get the area details (not just count)
+        $sql = "SELECT * FROM $table_name WHERE zip_code = %s AND user_id = %d AND active = 1";
         $prepared_query = $wpdb->prepare($sql, $zip_code, $user_id);
         
         if (defined('WP_DEBUG') && WP_DEBUG) {
             error_log("MoBooking: Executing query: {$prepared_query}");
         }
         
-        $result = $wpdb->get_var($prepared_query);
+        $area = $wpdb->get_row($prepared_query);
         
-        // FIXED: Check for database errors
+        // Check for database errors
         if ($wpdb->last_error) {
             if (defined('WP_DEBUG') && WP_DEBUG) {
                 error_log("MoBooking: Database error in ZIP coverage check: " . $wpdb->last_error);
@@ -129,45 +123,39 @@ class Manager {
             return false;
         }
         
-        $is_covered = intval($result) > 0;
+        $is_covered = !empty($area);
         
         // Debug logging with additional context
         if (defined('WP_DEBUG') && WP_DEBUG) {
             error_log("MoBooking: ZIP coverage result: " . ($is_covered ? 'COVERED' : 'NOT COVERED'));
-            error_log("MoBooking: Query returned: " . $result);
-            
-            // FIXED: Also log what areas exist for this user for debugging
-            $all_user_areas = $wpdb->get_results($wpdb->prepare(
-                "SELECT id, zip_code, active, label FROM $table_name WHERE user_id = %d ORDER BY zip_code",
-                $user_id
-            ));
-            
-            if ($all_user_areas) {
-                error_log("MoBooking: User {$user_id} has " . count($all_user_areas) . " areas:");
-                foreach ($all_user_areas as $area) {
-                    error_log("  - ZIP: {$area->zip_code}, Active: {$area->active}, Label: " . ($area->label ?: 'none'));
-                }
-            } else {
-                error_log("MoBooking: User {$user_id} has NO areas configured!");
-            }
-            
-            // FIXED: Check for exact matches to help with debugging
-            $exact_matches = $wpdb->get_results($wpdb->prepare(
-                "SELECT * FROM $table_name WHERE zip_code = %s AND user_id = %d",
-                $zip_code, $user_id
-            ));
-            
-            if ($exact_matches) {
-                error_log("MoBooking: Found " . count($exact_matches) . " exact ZIP matches:");
-                foreach ($exact_matches as $match) {
-                    error_log("  - ID: {$match->id}, ZIP: {$match->zip_code}, Active: {$match->active}, User: {$match->user_id}");
-                }
-            } else {
-                error_log("MoBooking: NO exact ZIP matches found for '{$zip_code}' and user {$user_id}");
+            if ($area) {
+                error_log("MoBooking: Found area - ID: {$area->id}, ZIP: {$area->zip_code}, Label: " . ($area->label ?: 'none'));
             }
         }
         
-        return $is_covered;
+        return $is_covered ? $area : false;
+    }
+    
+    /**
+     * Get area details by ZIP code - NEW method for enhanced response
+     */
+    public function get_area_by_zip($zip_code, $user_id) {
+        global $wpdb;
+        $table_name = $wpdb->prefix . 'mobooking_areas';
+        
+        $zip_code = sanitize_text_field(trim($zip_code));
+        $user_id = absint($user_id);
+        
+        if (empty($zip_code) || $user_id <= 0) {
+            return false;
+        }
+        
+        $area = $wpdb->get_row($wpdb->prepare(
+            "SELECT * FROM $table_name WHERE zip_code = %s AND user_id = %d AND active = 1",
+            $zip_code, $user_id
+        ));
+        
+        return $area ?: false;
     }
     
     /**
@@ -181,6 +169,7 @@ class Manager {
         return $wpdb->get_results($wpdb->prepare(
             "SELECT 
                 a.user_id,
+                a.label as area_label,
                 u.display_name,
                 s.company_name,
                 s.primary_color
@@ -198,14 +187,14 @@ class Manager {
     }
     
     /**
-     * Save an area - FIXED with better error handling
+     * Save an area
      */
     public function save_area($data) {
         global $wpdb;
         $table_name = $wpdb->prefix . 'mobooking_areas';
         
         try {
-            // FIXED: Enhanced data validation
+            // Enhanced data validation
             if (empty($data['user_id']) || empty($data['zip_code'])) {
                 if (defined('WP_DEBUG') && WP_DEBUG) {
                     error_log('MoBooking: Missing required data for save_area');
@@ -221,7 +210,7 @@ class Manager {
                 'active' => isset($data['active']) ? (bool) $data['active'] : true
             );
             
-            // FIXED: Validate ZIP code format
+            // Validate ZIP code format
             if (!preg_match('/^\d{5}(-\d{4})?$/', $area_data['zip_code'])) {
                 if (defined('WP_DEBUG') && WP_DEBUG) {
                     error_log('MoBooking: Invalid ZIP code format: ' . $area_data['zip_code']);
@@ -229,7 +218,7 @@ class Manager {
                 return false;
             }
             
-            // FIXED: Check if user exists and is valid
+            // Check if user exists and is valid
             $user = get_userdata($area_data['user_id']);
             if (!$user) {
                 if (defined('WP_DEBUG') && WP_DEBUG) {
@@ -261,7 +250,7 @@ class Manager {
                 // Update existing area
                 $area_id = absint($data['id']);
                 
-                // FIXED: Verify ownership before updating
+                // Verify ownership before updating
                 $existing_area = $this->get_area($area_id, $area_data['user_id']);
                 if (!$existing_area) {
                     if (defined('WP_DEBUG') && WP_DEBUG) {
@@ -394,7 +383,7 @@ class Manager {
                 wp_send_json_error(__('ZIP code is required.', 'mobooking'));
             }
             
-            // FIXED: Enhanced ZIP code validation
+            // Enhanced ZIP code validation
             if (!preg_match('/^\d{5}(-\d{4})?$/', $area_data['zip_code'])) {
                 wp_send_json_error(__('Please enter a valid ZIP code (e.g., 12345 or 12345-6789).', 'mobooking'));
             }
@@ -542,67 +531,5 @@ class Manager {
         </div>
         <?php
         return ob_get_clean();
-    }
-    
-    /**
-     * FIXED: Utility method to create test data for debugging
-     */
-    public function create_test_area($user_id, $zip_code = '12345', $label = 'Test Area') {
-        if (!defined('WP_DEBUG') || !WP_DEBUG) {
-            return false;
-        }
-        
-        $area_data = array(
-            'user_id' => $user_id,
-            'zip_code' => $zip_code,
-            'label' => $label,
-            'active' => true
-        );
-        
-        $result = $this->save_area($area_data);
-        
-        if ($result) {
-            error_log("MoBooking: Created test area {$result} for user {$user_id} with ZIP {$zip_code}");
-        } else {
-            error_log("MoBooking: Failed to create test area for user {$user_id} with ZIP {$zip_code}");
-        }
-        
-        return $result;
-    }
-    
-    /**
-     * FIXED: Debug method to check database table structure
-     */
-    public function debug_table_structure() {
-        if (!defined('WP_DEBUG') || !WP_DEBUG) {
-            return;
-        }
-        
-        global $wpdb;
-        $table_name = $wpdb->prefix . 'mobooking_areas';
-        
-        // Check if table exists
-        $table_exists = $wpdb->get_var("SHOW TABLES LIKE '$table_name'") == $table_name;
-        error_log("MoBooking Debug: Table {$table_name} exists: " . ($table_exists ? 'YES' : 'NO'));
-        
-        if ($table_exists) {
-            // Get table structure
-            $columns = $wpdb->get_results("SHOW COLUMNS FROM $table_name");
-            error_log("MoBooking Debug: Table structure:");
-            foreach ($columns as $column) {
-                error_log("  - {$column->Field}: {$column->Type} (Null: {$column->Null}, Default: {$column->Default})");
-            }
-            
-            // Get sample data
-            $sample_data = $wpdb->get_results("SELECT * FROM $table_name LIMIT 5");
-            error_log("MoBooking Debug: Sample data (" . count($sample_data) . " records):");
-            foreach ($sample_data as $row) {
-                error_log("  - ID: {$row->id}, User: {$row->user_id}, ZIP: {$row->zip_code}, Active: {$row->active}");
-            }
-            
-            // Get total count
-            $total_count = $wpdb->get_var("SELECT COUNT(*) FROM $table_name");
-            error_log("MoBooking Debug: Total records in table: {$total_count}");
-        }
     }
 }

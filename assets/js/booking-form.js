@@ -1,6 +1,6 @@
 /**
- * MoBooking Enhanced Frontend Booking Form Handler with Auto-Progression
- * Complete booking form with improved ZIP validation, service flow, and automatic step advancement
+ * MoBooking Enhanced Frontend Booking Form Handler - Manual Navigation Version
+ * Features: Area name display, single service selection, manual navigation
  */
 
 (function ($) {
@@ -14,13 +14,14 @@
       nonces: mobookingBooking?.nonces || {},
       strings: mobookingBooking?.strings || {},
       currency: mobookingBooking?.currency || { symbol: "$", position: "left" },
-      autoAdvance: mobookingBooking?.autoAdvance || {
-        enabled: true,
-        delay: 1500,
-        zipSuccess: true,
-        serviceSelection: true,
-        optionsComplete: true,
-        customerComplete: true,
+      // Disable auto-advance features
+      autoAdvance: {
+        enabled: false,
+        delay: 0,
+        zipSuccess: false,
+        serviceSelection: false,
+        optionsComplete: false,
+        customerComplete: false,
       },
       zipDebounceDelay: 800,
     },
@@ -30,7 +31,7 @@
       currentStep: 1,
       totalSteps: 6,
       isProcessing: false,
-      selectedServices: [],
+      selectedService: null, // Changed from array to single value
       serviceOptions: {},
       servicesData: {},
       pricing: {
@@ -41,7 +42,7 @@
       customerData: {},
       isZipValid: false,
       zipDebounceTimer: null,
-      autoProgressTimer: null,
+      validatedArea: null, // Store area information
       debugMode: false,
     },
 
@@ -53,7 +54,7 @@
 
       this.state.debugMode = window.location.search.includes("debug=1");
       this.log(
-        "🚀 Enhanced Booking Form with Auto-Progression initializing..."
+        "🚀 Enhanced Booking Form with Manual Navigation initializing..."
       );
 
       if (!this.validateConfig()) {
@@ -64,7 +65,6 @@
       this.loadServicesData();
       this.attachEventListeners();
       this.initializeForm();
-      this.createAutoProgressIndicator();
       this.log("✅ Enhanced Booking Form initialized");
     },
 
@@ -112,9 +112,9 @@
         zipResult: $(".zip-result"),
         zipValidationIcon: null, // Will be created
 
-        // Step 2 - Services
+        // Step 2 - Services (Changed to radio buttons)
         serviceCards: $(".service-card"),
-        serviceCheckboxes: $('input[name="selected_services[]"]'),
+        serviceRadios: $('input[name="selected_service"]'), // Changed from checkboxes
         servicesGrid: $(".services-grid"),
 
         // Step 3 - Service Options
@@ -152,29 +152,6 @@
       this.createZipValidationUI();
     },
 
-    // Create auto-progress indicator
-    createAutoProgressIndicator: function () {
-      if ($("#auto-progress-indicator").length === 0) {
-        const $indicator = $(`
-          <div id="auto-progress-indicator" class="auto-progress-indicator" style="display: none;">
-            <div class="progress-content">
-              <div class="progress-spinner"></div>
-              <span class="progress-text">Processing...</span>
-              <button class="progress-cancel" type="button">Cancel</button>
-            </div>
-          </div>
-        `);
-
-        this.elements.container.append($indicator);
-        this.elements.autoProgressIndicator = $indicator;
-
-        // Handle cancel button
-        $indicator.find(".progress-cancel").on("click", () => {
-          this.cancelAutoProgress();
-        });
-      }
-    },
-
     // Create ZIP validation UI
     createZipValidationUI: function () {
       const $zipGroup = this.elements.zipInputGroup;
@@ -206,7 +183,7 @@
           name: $card.find("h3").text().trim(),
           price: parseFloat($card.data("service-price")) || 0,
           hasOptions:
-            $card.find('input[type="checkbox"]').data("has-options") === 1,
+            $card.find('input[type="radio"]').data("has-options") === 1, // Changed from checkbox
           description: $card.find(".service-description").text().trim(),
           duration: $card.find(".service-duration").text().trim(),
         };
@@ -235,12 +212,12 @@
         }
       });
 
-      // Service selection with immediate validation and auto-advance
-      this.elements.serviceCheckboxes.on("change", function () {
+      // Service selection with single selection (radio buttons)
+      $(document).on("change", 'input[name="selected_service"]', function () {
         self.handleServiceSelection($(this));
       });
 
-      // Navigation with validation
+      // Manual navigation - user controls when to move
       this.elements.nextBtns.on("click", function (e) {
         e.preventDefault();
         const currentStep = $(this).closest(".booking-step").index() + 1;
@@ -259,7 +236,6 @@
         ".option-field input, .option-field select, .option-field textarea",
         function () {
           self.updatePricing();
-          self.checkAutoAdvanceOptions();
         }
       );
 
@@ -282,16 +258,14 @@
         self.submitBooking();
       });
 
-      // Customer info validation with auto-advance
+      // Customer info validation
       Object.values(this.elements.customerForm).forEach((field) => {
         field.on("blur", function () {
           self.validateField($(this));
-          self.checkAutoAdvanceCustomer();
         });
 
         field.on("change", function () {
           self.updateCustomerData();
-          self.checkAutoAdvanceCustomer();
         });
       });
 
@@ -316,7 +290,7 @@
       this.updateNavigationButtons();
     },
 
-    // Enhanced ZIP code handling with auto-progression
+    // Enhanced ZIP code handling with area name display
     handleZipInput: function () {
       const zipCode = this.elements.zipInput.val().trim();
 
@@ -325,6 +299,7 @@
 
       // Reset validation state
       this.state.isZipValid = false;
+      this.state.validatedArea = null;
       this.updateZipValidationIcon("checking");
 
       // Clear results
@@ -365,7 +340,7 @@
       }
     },
 
-    // Enhanced ZIP validation with auto-progression
+    // Enhanced ZIP validation with area name display
     validateZipCode: function () {
       const zipCode = this.elements.zipInput.val().trim();
 
@@ -411,23 +386,29 @@
 
           if (response && response.success) {
             this.state.isZipValid = true;
+            this.state.validatedArea = response.data?.area || null;
             this.updateZipValidationIcon("success");
+
+            // Enhanced success message with area name
+            let successMessage = "✓ Service available in your area!";
+            if (this.state.validatedArea && this.state.validatedArea.label) {
+              successMessage = `✓ Service available in ${this.state.validatedArea.label}!`;
+            } else if (
+              this.state.validatedArea &&
+              this.state.validatedArea.zip_code
+            ) {
+              successMessage = `✓ Service available in ZIP ${this.state.validatedArea.zip_code}!`;
+            }
+
             this.showMessage(
               this.elements.zipResult,
-              response.data?.message || "✓ Service available in your area!",
+              successMessage,
               "success"
             );
             this.updateNavigationButtons();
-
-            // Auto-advance if enabled
-            if (
-              this.config.autoAdvance.enabled &&
-              this.config.autoAdvance.zipSuccess
-            ) {
-              this.autoAdvanceToNextStep(1, "ZIP code validated successfully!");
-            }
           } else {
             this.state.isZipValid = false;
+            this.state.validatedArea = null;
             this.updateZipValidationIcon("error");
             const errorMessage =
               response?.data?.message ||
@@ -439,6 +420,7 @@
         error: (xhr, status, error) => {
           this.log("ZIP validation error:", xhr.status, error);
           this.state.isZipValid = false;
+          this.state.validatedArea = null;
           this.updateZipValidationIcon("error");
 
           let errorMessage = "Unable to verify ZIP code. Please try again.";
@@ -472,177 +454,37 @@
       }
     },
 
-    // Enhanced service selection with auto-progression
-    handleServiceSelection: function ($checkbox) {
-      const serviceId = parseInt($checkbox.val());
-      const $serviceCard = $checkbox.closest(".service-card");
+    // Enhanced service selection - single selection only
+    handleServiceSelection: function ($radio) {
+      const serviceId = parseInt($radio.val());
+      const $serviceCard = $radio.closest(".service-card");
+
+      // Clear all previous selections
+      this.elements.serviceCards.removeClass("selected");
+
+      // Set current selection
+      this.state.selectedService = serviceId;
+      $serviceCard.addClass("selected");
 
       // Add selection animation
       $serviceCard.addClass("selecting");
       setTimeout(() => $serviceCard.removeClass("selecting"), 600);
 
-      if ($checkbox.is(":checked")) {
-        $serviceCard.addClass("selected");
-        if (!this.state.selectedServices.includes(serviceId)) {
-          this.state.selectedServices.push(serviceId);
-        }
-      } else {
-        $serviceCard.removeClass("selected");
-        const index = this.state.selectedServices.indexOf(serviceId);
-        if (index > -1) {
-          this.state.selectedServices.splice(index, 1);
-        }
-        delete this.state.serviceOptions[serviceId];
-      }
+      // Clear previous service options since we're changing service
+      this.state.serviceOptions = {};
 
       this.updatePricing();
       this.updateNavigationButtons();
-      this.log("Selected services updated:", this.state.selectedServices);
+      this.log("Selected service:", serviceId);
 
-      // Auto-advance if enabled and services selected
-      if (
-        this.config.autoAdvance.enabled &&
-        this.config.autoAdvance.serviceSelection &&
-        this.state.selectedServices.length > 0
-      ) {
-        this.autoAdvanceToNextStep(2, "Services selected!");
-      }
+      // Show a brief confirmation message
+      this.showNotification(
+        `Selected: ${this.state.servicesData[serviceId]?.name}`,
+        "success"
+      );
     },
 
-    // Auto-advance functionality
-    autoAdvanceToNextStep: function (fromStep, message = null) {
-      if (this.state.isProcessing || this.state.autoProgressTimer) {
-        return;
-      }
-
-      // Show progress indicator
-      this.showAutoProgressIndicator(message || "Advancing to next step...");
-
-      this.state.autoProgressTimer = setTimeout(() => {
-        this.hideAutoProgressIndicator();
-        this.nextStep(fromStep);
-        this.state.autoProgressTimer = null;
-      }, this.config.autoAdvance.delay);
-    },
-
-    // Show auto-progress indicator
-    showAutoProgressIndicator: function (message) {
-      this.elements.autoProgressIndicator.find(".progress-text").text(message);
-      this.elements.autoProgressIndicator.fadeIn(300);
-    },
-
-    // Hide auto-progress indicator
-    hideAutoProgressIndicator: function () {
-      this.elements.autoProgressIndicator.fadeOut(300);
-    },
-
-    // Cancel auto-progress
-    cancelAutoProgress: function () {
-      if (this.state.autoProgressTimer) {
-        clearTimeout(this.state.autoProgressTimer);
-        this.state.autoProgressTimer = null;
-        this.hideAutoProgressIndicator();
-        this.log("Auto-progress cancelled by user");
-      }
-    },
-
-    // Check if options step should auto-advance
-    checkAutoAdvanceOptions: function () {
-      if (
-        !this.config.autoAdvance.enabled ||
-        !this.config.autoAdvance.optionsComplete
-      ) {
-        return;
-      }
-
-      if (this.state.currentStep !== 3) {
-        return;
-      }
-
-      // Check if all required options are filled
-      let allRequiredFilled = true;
-      $(".option-field").each(function () {
-        const $field = $(this);
-        const $input = $field.find("input, select, textarea");
-        const isRequired = $input.prop("required") || $input.data("required");
-
-        if (isRequired) {
-          let value = "";
-          if ($input.is('input[type="checkbox"]')) {
-            value = $input.is(":checked") ? "1" : "";
-          } else if ($input.is('input[type="radio"]')) {
-            value = $field.find('input[type="radio"]:checked').val() || "";
-          } else {
-            value = $input.val() || "";
-          }
-
-          if (!value || value.trim() === "") {
-            allRequiredFilled = false;
-            return false; // Break loop
-          }
-        }
-      });
-
-      if (allRequiredFilled) {
-        this.autoAdvanceToNextStep(3, "Options configured!");
-      }
-    },
-
-    // Check if customer step should auto-advance
-    checkAutoAdvanceCustomer: function () {
-      if (
-        !this.config.autoAdvance.enabled ||
-        !this.config.autoAdvance.customerComplete
-      ) {
-        return;
-      }
-
-      if (this.state.currentStep !== 4) {
-        return;
-      }
-
-      // Check if all required customer fields are valid
-      const requiredFields = [
-        this.elements.customerForm.name,
-        this.elements.customerForm.email,
-        this.elements.customerForm.address,
-        this.elements.customerForm.date,
-      ];
-
-      let allValid = true;
-      requiredFields.forEach((field) => {
-        if (
-          !field.val() ||
-          field.val().trim() === "" ||
-          field.hasClass("error")
-        ) {
-          allValid = false;
-        }
-      });
-
-      // Email validation
-      const email = this.elements.customerForm.email.val();
-      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-      if (email && !emailRegex.test(email)) {
-        allValid = false;
-      }
-
-      if (allValid) {
-        this.autoAdvanceToNextStep(4, "Information complete!");
-      }
-    },
-
-    // Set minimum date/time for service
-    setMinDateTime: function () {
-      const tomorrow = new Date();
-      tomorrow.setDate(tomorrow.getDate() + 1);
-      tomorrow.setHours(8, 0, 0, 0);
-
-      const minDateTime = tomorrow.toISOString().slice(0, 16);
-      this.elements.customerForm.date.attr("min", minDateTime);
-    },
-
-    // Enhanced navigation with proper validation and step transitions
+    // Manual navigation - user controlled
     nextStep: function (currentStep) {
       if (this.state.isProcessing) return;
 
@@ -682,13 +524,6 @@
 
     prevStep: function (currentStep) {
       if (this.state.isProcessing) return;
-
-      // Clear any auto-advance timers
-      if (this.state.autoProgressTimer) {
-        clearTimeout(this.state.autoProgressTimer);
-        this.state.autoProgressTimer = null;
-        this.hideAutoProgressIndicator();
-      }
 
       this.log(`Going back from step ${currentStep} to ${currentStep - 1}`);
 
@@ -775,8 +610,8 @@
     },
 
     validateServicesStep: function () {
-      if (this.state.selectedServices.length === 0) {
-        this.showNotification("Please select at least one service", "error");
+      if (!this.state.selectedService) {
+        this.showNotification("Please select a service", "error");
         this.elements.servicesGrid[0].scrollIntoView({ behavior: "smooth" });
         return false;
       }
@@ -903,38 +738,28 @@
       return isValid;
     },
 
-    // FIXED: Enhanced prepareServiceOptions function
+    // Enhanced prepareServiceOptions function for single service
     prepareServiceOptions: function () {
       console.log("🔧 Preparing service options...");
       this.elements.optionsContainer.empty();
 
-      if (this.state.selectedServices.length === 0) {
-        console.warn("No services selected for options preparation");
+      if (!this.state.selectedService) {
+        console.warn("No service selected for options preparation");
         this.showNoOptionsMessage();
         return;
       }
 
-      // Get services that have options
-      const servicesWithOptions = this.state.selectedServices.filter(
-        (serviceId) => {
-          const serviceData = this.state.servicesData[serviceId];
-          const hasOptions = serviceData && serviceData.hasOptions;
-          console.log(`Service ${serviceId} has options:`, hasOptions);
-          return hasOptions;
-        }
+      const serviceData = this.state.servicesData[this.state.selectedService];
+      const hasOptions = serviceData && serviceData.hasOptions;
+
+      console.log(
+        `Service ${this.state.selectedService} has options:`,
+        hasOptions
       );
 
-      console.log("Services with options:", servicesWithOptions);
-
-      if (servicesWithOptions.length === 0) {
-        console.log(
-          "No services with options found, showing auto-advance message"
-        );
+      if (!hasOptions) {
+        console.log("Selected service has no options, showing message");
         this.showNoOptionsMessage();
-        // Auto-advance if no options needed
-        if (this.config.autoAdvance.enabled) {
-          this.autoAdvanceToNextStep(3, "No additional options needed");
-        }
         return;
       }
 
@@ -944,29 +769,17 @@
             <div class="loading-spinner"></div>
             <p>Loading service options...</p>
         </div>
-    `);
+      `);
 
-      // Load options for each service
-      let loadedCount = 0;
-      const totalCount = servicesWithOptions.length;
-
-      servicesWithOptions.forEach((serviceId) => {
-        this.loadServiceOptions(serviceId, () => {
-          loadedCount++;
-          console.log(
-            `Loaded options for service ${serviceId} (${loadedCount}/${totalCount})`
-          );
-
-          if (loadedCount === totalCount) {
-            console.log("✅ All service options loaded");
-            this.elements.optionsContainer.find(".options-loading").remove();
-            this.initializeAllOptionHandlers();
-          }
-        });
+      // Load options for the selected service
+      this.loadServiceOptions(this.state.selectedService, () => {
+        console.log("✅ Service options loaded");
+        this.elements.optionsContainer.find(".options-loading").remove();
+        this.initializeAllOptionHandlers();
       });
     },
 
-    // FIXED: Enhanced loadServiceOptions function with callback
+    // Load service options
     loadServiceOptions: function (serviceId, callback) {
       console.log(`🔄 Loading options for service ${serviceId}`);
 
@@ -989,7 +802,7 @@
         url: this.config.ajaxUrl,
         type: "POST",
         data: data,
-        timeout: 30000, // 30 second timeout
+        timeout: 30000,
         success: (response) => {
           console.log(
             `✅ Service options response for ${serviceId}:`,
@@ -1006,12 +819,14 @@
                 );
               } else {
                 console.log(`Service ${serviceId} has no options configured`);
+                this.showNoOptionsMessage();
               }
             } else {
               console.warn(
                 `Invalid options data structure for service ${serviceId}:`,
                 response.data
               );
+              this.showNoOptionsMessage();
             }
           } else {
             console.error(
@@ -1046,7 +861,7 @@
       });
     },
 
-    // FIXED: Enhanced renderServiceOptions function
+    // Enhanced renderServiceOptions function
     renderServiceOptions: function (serviceId, serviceData, options) {
       console.log(
         `🎨 Rendering ${options.length} options for service ${serviceId}:`,
@@ -1055,6 +870,7 @@
 
       if (!options || options.length === 0) {
         console.log(`No options to render for service ${serviceId}`);
+        this.showNoOptionsMessage();
         return;
       }
 
@@ -1076,7 +892,7 @@
                 ${this.generateOptionsHTML(options)}
             </div>
         </div>
-    `);
+      `);
 
       this.elements.optionsContainer.append($section);
 
@@ -1086,7 +902,684 @@
       console.log(`✅ Service options section rendered for ${serviceId}`);
     },
 
-    // FIXED: Enhanced generateOptionsHTML function
+    // Show no options message
+    showNoOptionsMessage: function () {
+      this.elements.optionsContainer.html(`
+        <div class="no-options-message">
+          <div class="no-options-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2ZM8 12l2 2 4-4"/>
+            </svg>
+          </div>
+          <h3>No Additional Options Needed</h3>
+          <p>Your selected service is ready to book as-is. Click "Continue" to proceed with your booking details.</p>
+        </div>
+      `);
+    },
+
+    // Set minimum date/time for service
+    setMinDateTime: function () {
+      const tomorrow = new Date();
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      tomorrow.setHours(8, 0, 0, 0);
+
+      const minDateTime = tomorrow.toISOString().slice(0, 16);
+      this.elements.customerForm.date.attr("min", minDateTime);
+    },
+
+    // Enhanced navigation button updates
+    updateNavigationButtons: function () {
+      const $currentStep = $(`.booking-step.step-${this.state.currentStep}`);
+      const $nextBtn = $currentStep.find(".next-step");
+      const $prevBtn = $currentStep.find(".prev-step");
+
+      // Update previous button - always show except on first step
+      if (this.state.currentStep <= 1) {
+        $prevBtn.hide();
+      } else {
+        $prevBtn.show();
+      }
+
+      // Update next button based on step validation
+      switch (this.state.currentStep) {
+        case 1:
+          if (this.state.isZipValid) {
+            $nextBtn.prop("disabled", false).text("Continue to Services");
+          } else {
+            $nextBtn.prop("disabled", true).text("Enter Valid ZIP Code");
+          }
+          break;
+        case 2:
+          if (this.state.selectedService) {
+            $nextBtn.prop("disabled", false).text("Continue to Options");
+          } else {
+            $nextBtn.prop("disabled", true).text("Select a Service");
+          }
+          break;
+        case 3:
+          $nextBtn.prop("disabled", false).text("Continue to Details");
+          break;
+        case 4:
+          $nextBtn.prop("disabled", false).text("Review Booking");
+          break;
+        case 5:
+          // This is handled by the confirm button, not next button
+          $nextBtn.hide();
+          break;
+        default:
+          $nextBtn.prop("disabled", false).text("Continue");
+      }
+    },
+
+    // Enhanced pricing calculations for single service
+    updatePricing: function () {
+      let subtotal = 0;
+
+      // Calculate base service price
+      if (
+        this.state.selectedService &&
+        this.state.servicesData[this.state.selectedService]
+      ) {
+        subtotal += this.state.servicesData[this.state.selectedService].price;
+      }
+
+      // Calculate option pricing
+      $(".option-field").each(function () {
+        const $field = $(this);
+        const priceType = $field.data("price-type") || "fixed";
+        const priceImpact = parseFloat($field.data("price-impact")) || 0;
+
+        if (priceImpact === 0) return;
+
+        const $input = $field.find("input, select, textarea");
+        let shouldApply = false;
+        let multiplier = 1;
+
+        if ($input.is('input[type="checkbox"]')) {
+          shouldApply = $input.is(":checked");
+        } else if ($input.is('input[type="radio"]')) {
+          const $checked = $field.find('input[type="radio"]:checked');
+          if ($checked.length) {
+            shouldApply = true;
+            const choicePrice = parseFloat($checked.data("price")) || 0;
+            if (choicePrice > 0) {
+              subtotal += choicePrice;
+              return; // Skip standard price impact calculation
+            }
+          }
+        } else if ($input.is("select")) {
+          const $selected = $input.find("option:selected");
+          if ($selected.val()) {
+            shouldApply = true;
+            const choicePrice = parseFloat($selected.data("price")) || 0;
+            if (choicePrice > 0) {
+              subtotal += choicePrice;
+              return; // Skip standard price impact calculation
+            }
+          }
+        } else if (
+          $input.is('input[type="number"]') &&
+          priceType === "multiply"
+        ) {
+          const value = parseFloat($input.val()) || 0;
+          if (value > 0) {
+            shouldApply = true;
+            multiplier = value;
+          }
+        } else if ($input.val()) {
+          shouldApply = true;
+        }
+
+        if (shouldApply) {
+          switch (priceType) {
+            case "percentage":
+              subtotal += (subtotal * priceImpact) / 100;
+              break;
+            case "multiply":
+              subtotal += priceImpact * multiplier;
+              break;
+            default: // fixed
+              subtotal += priceImpact;
+          }
+        }
+      });
+
+      this.state.pricing.subtotal = Math.max(0, subtotal);
+      this.state.pricing.total =
+        this.state.pricing.subtotal - this.state.pricing.discount;
+
+      this.updatePricingDisplay();
+    },
+
+    // Update pricing display
+    updatePricingDisplay: function () {
+      const pricing = this.state.pricing;
+
+      $(".pricing-summary .subtotal .amount").text(
+        this.formatPrice(pricing.subtotal)
+      );
+      $(".pricing-summary .total .amount").text(
+        this.formatPrice(pricing.total)
+      );
+
+      this.elements.totalPriceField.val(pricing.total);
+
+      if (pricing.discount > 0) {
+        $(".pricing-summary .discount").show();
+        $(".pricing-summary .discount .amount").text(
+          "-" + this.formatPrice(pricing.discount)
+        );
+        this.elements.discountAmountField.val(pricing.discount);
+      } else {
+        $(".pricing-summary .discount").hide();
+        this.elements.discountAmountField.val(0);
+      }
+    },
+
+    // Collect service options data for single service
+    collectServiceOptions: function () {
+      const optionsData = {};
+
+      if (this.state.selectedService) {
+        optionsData[this.state.selectedService] = {};
+
+        $(
+          `.service-options-section[data-service-id="${this.state.selectedService}"] .option-field`
+        ).each(function () {
+          const optionId = $(this).data("option-id");
+          const $input = $(this).find("input, select, textarea");
+
+          let value = null;
+          if ($input.is('input[type="checkbox"]')) {
+            value = $input.is(":checked") ? "1" : "0";
+          } else if ($input.is('input[type="radio"]')) {
+            value = $(this).find('input[type="radio"]:checked').val() || "";
+          } else {
+            value = $input.val() || "";
+          }
+
+          optionsData[this.state.selectedService][optionId] = value;
+        });
+      }
+
+      this.state.serviceOptions = optionsData;
+      this.elements.serviceOptionsField.val(JSON.stringify(optionsData));
+      this.log("Collected service options:", optionsData);
+    },
+
+    // Build order summary for single service
+    buildOrderSummary: function () {
+      this.buildServiceSummary();
+      this.buildCustomerSummary();
+      this.updatePricing();
+      this.showDiscountSection();
+    },
+
+    // Build service summary for single service
+    buildServiceSummary: function () {
+      let html = "";
+
+      if (this.state.selectedService) {
+        const serviceData = this.state.servicesData[this.state.selectedService];
+        if (serviceData) {
+          html += `
+            <div class="service-summary-item">
+              <div class="service-info">
+                <h4>${serviceData.name}</h4>
+                ${
+                  serviceData.description
+                    ? `<p class="service-description">${serviceData.description}</p>`
+                    : ""
+                }
+                ${this.buildServiceOptionsHTML(this.state.selectedService)}
+              </div>
+              <div class="service-price">${this.formatPrice(
+                serviceData.price
+              )}</div>
+            </div>
+          `;
+        }
+      }
+
+      this.elements.selectedServicesList.html(html);
+    },
+
+    // Build service options HTML for summary
+    buildServiceOptionsHTML: function (serviceId) {
+      const options = this.state.serviceOptions[serviceId];
+      if (!options) return "";
+
+      let html = '<div class="service-options">';
+
+      Object.entries(options).forEach(([optionId, value]) => {
+        if (!value || value === "0") return;
+
+        const $optionField = $(`.option-field[data-option-id="${optionId}"]`);
+        if ($optionField.length === 0) return;
+
+        const optionName = $optionField
+          .find(".option-label")
+          .text()
+          .replace(/\*|\(.*\)/g, "")
+          .trim();
+
+        // Format value based on option type
+        let displayValue = value;
+        const $input = $optionField.find("input, select, textarea");
+
+        if ($input.is('input[type="checkbox"]') && value === "1") {
+          displayValue = "Yes";
+        } else if ($input.is("select") || $input.is('input[type="radio"]')) {
+          const $selected = $input.find(
+            `option[value="${value}"], input[value="${value}"]:checked`
+          );
+          if ($selected.length) {
+            displayValue = $selected.parent().is("label")
+              ? $selected.parent().find(".radio-text").text()
+              : $selected.text();
+          }
+        }
+
+        html += `
+          <div class="option-summary">
+            <span class="option-name">${optionName}:</span>
+            <span class="option-value">${displayValue}</span>
+          </div>
+        `;
+      });
+
+      html += "</div>";
+      return html;
+    },
+
+    // Build customer summary
+    buildCustomerSummary: function () {
+      const data = this.state.customerData;
+      const serviceDate = new Date(data.date);
+
+      $(".service-address").html(`
+        <strong>Service Address:</strong><br>
+        ${data.address}<br>
+        ZIP: ${this.elements.zipInput.val()}
+        ${
+          this.state.validatedArea && this.state.validatedArea.label
+            ? `<br><small>(${this.state.validatedArea.label})</small>`
+            : ""
+        }
+      `);
+
+      $(".service-datetime").html(`
+        <strong>Service Date & Time:</strong><br>
+        ${serviceDate.toLocaleDateString()} at ${serviceDate.toLocaleTimeString(
+        [],
+        {
+          hour: "2-digit",
+          minute: "2-digit",
+        }
+      )}
+      `);
+
+      $(".customer-info").html(`
+        <div><strong>Name:</strong> ${data.name}</div>
+        <div><strong>Email:</strong> ${data.email}</div>
+        ${data.phone ? `<div><strong>Phone:</strong> ${data.phone}</div>` : ""}
+        ${data.notes ? `<div><strong>Notes:</strong> ${data.notes}</div>` : ""}
+      `);
+    },
+
+    // Update customer data
+    updateCustomerData: function () {
+      this.state.customerData = {
+        name: this.elements.customerForm.name.val().trim(),
+        email: this.elements.customerForm.email.val().trim(),
+        phone: this.elements.customerForm.phone.val().trim(),
+        address: this.elements.customerForm.address.val().trim(),
+        date: this.elements.customerForm.date.val(),
+        notes: this.elements.customerForm.notes.val().trim(),
+      };
+    },
+
+    // Show discount section
+    showDiscountSection: function () {
+      $(".discount-section").show();
+    },
+
+    // Enhanced discount code handling
+    applyDiscountCode: function () {
+      const code = this.elements.discountInput.val().trim();
+
+      if (!code) {
+        this.showMessage(
+          $(".discount-message"),
+          "Please enter a discount code",
+          "error"
+        );
+        return;
+      }
+
+      if (this.elements.applyDiscountBtn.hasClass("loading")) {
+        return; // Prevent duplicate requests
+      }
+
+      this.setLoading(this.elements.applyDiscountBtn, true);
+
+      const data = {
+        action: "mobooking_validate_discount",
+        code: code,
+        user_id: this.config.userId,
+        total: this.state.pricing.subtotal,
+        nonce: this.config.nonces.booking,
+      };
+
+      $.ajax({
+        url: this.config.ajaxUrl,
+        type: "POST",
+        data: data,
+        success: (response) => {
+          if (response.success) {
+            this.state.pricing.discount =
+              parseFloat(response.data.discount_amount) || 0;
+            this.updatePricing();
+            this.showMessage(
+              $(".discount-message"),
+              response.data.message || "Discount applied successfully!",
+              "success"
+            );
+            this.elements.applyDiscountBtn
+              .text("Applied")
+              .prop("disabled", true);
+            this.elements.discountInput.prop("disabled", true);
+          } else {
+            this.showMessage(
+              $(".discount-message"),
+              response.data?.message || "Invalid discount code",
+              "error"
+            );
+          }
+        },
+        error: (xhr, status, error) => {
+          this.log("Discount validation error:", xhr, status, error);
+          this.showMessage(
+            $(".discount-message"),
+            "Error applying discount code. Please try again.",
+            "error"
+          );
+        },
+        complete: () => {
+          this.setLoading(this.elements.applyDiscountBtn, false);
+        },
+      });
+    },
+
+    // Enhanced booking submission for single service
+    submitBooking: function () {
+      if (this.state.isProcessing) return;
+
+      // Final validation
+      if (!this.validateStep(5)) {
+        return;
+      }
+
+      this.state.isProcessing = true;
+      this.setLoading(this.elements.confirmBtn, true);
+
+      // Collect all form data
+      const formData = new FormData(this.elements.form[0]);
+      formData.append("action", "mobooking_save_booking");
+      formData.append("nonce", this.config.nonces.booking);
+
+      // Add selected service (single selection)
+      if (this.state.selectedService) {
+        formData.append("selected_services[]", this.state.selectedService);
+      }
+
+      this.log("Submitting booking with data:", Object.fromEntries(formData));
+
+      $.ajax({
+        url: this.config.ajaxUrl,
+        type: "POST",
+        data: formData,
+        processData: false,
+        contentType: false,
+        timeout: 60000,
+        success: (response) => {
+          this.log("Booking submission response:", response);
+          if (response && response.success) {
+            $(".reference-number").text("#" + response.data.id);
+            this.showStep(6); // Success step
+            this.showNotification(
+              response.data.message || "Booking confirmed successfully!",
+              "success"
+            );
+          } else {
+            this.showNotification(
+              response?.data?.message || "Booking failed. Please try again.",
+              "error"
+            );
+          }
+        },
+        error: (xhr, status, error) => {
+          this.log("Booking submission error:", xhr, status, error);
+
+          let errorMessage = "An error occurred. Please try again.";
+          if (xhr.status === 0) {
+            errorMessage = "Network error. Please check your connection.";
+          } else if (xhr.status >= 500) {
+            errorMessage = "Server error. Please try again in a few minutes.";
+          } else if (xhr.responseText) {
+            try {
+              const errorData = JSON.parse(xhr.responseText);
+              errorMessage = errorData.data?.message || errorMessage;
+            } catch (e) {
+              // Not JSON response
+            }
+          }
+
+          this.showNotification(errorMessage, "error");
+        },
+        complete: () => {
+          this.state.isProcessing = false;
+          this.setLoading(this.elements.confirmBtn, false);
+        },
+      });
+    },
+
+    // UI Helper methods
+    updateProgressBar: function () {
+      const progress = Math.min(
+        100,
+        (this.state.currentStep / this.state.totalSteps) * 100
+      );
+      this.elements.progressBar.css("width", progress + "%");
+    },
+
+    updateProgressSteps: function () {
+      this.elements.progressSteps.each((index, el) => {
+        const $step = $(el);
+        const stepNum = index + 1;
+
+        $step.removeClass("active completed");
+
+        if (stepNum < this.state.currentStep) {
+          $step.addClass("completed");
+        } else if (stepNum === this.state.currentStep) {
+          $step.addClass("active");
+        }
+      });
+    },
+
+    // Field validation helpers
+    validateField: function ($field) {
+      const value = $field.val().trim();
+      const isRequired = $field.prop("required");
+
+      this.clearFieldError($field);
+
+      if (isRequired && !value) {
+        this.showFieldError($field, "This field is required");
+        return false;
+      }
+
+      // Email validation
+      if ($field.attr("type") === "email" && value) {
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(value)) {
+          this.showFieldError($field, "Please enter a valid email address");
+          return false;
+        }
+      }
+
+      return true;
+    },
+
+    showFieldError: function ($field, message) {
+      $field.addClass("error");
+      $field.siblings(".field-error").remove();
+      $field.after(`<div class="field-error">${message}</div>`);
+    },
+
+    clearFieldError: function ($field) {
+      $field.removeClass("error");
+      $field.siblings(".field-error").remove();
+    },
+
+    clearFieldErrors: function () {
+      $(".error").removeClass("error");
+      $(".field-error").remove();
+    },
+
+    setLoading: function ($btn, loading) {
+      if (loading) {
+        $btn.addClass("loading").prop("disabled", true);
+        const loadingText = $btn.find(".btn-loading").text() || "Loading...";
+        $btn.data("original-text", $btn.text()).text(loadingText);
+      } else {
+        $btn.removeClass("loading").prop("disabled", false);
+        if ($btn.data("original-text")) {
+          $btn.text($btn.data("original-text"));
+        }
+      }
+    },
+
+    showMessage: function ($container, message, type) {
+      $container
+        .removeClass("success error info warning")
+        .addClass(type)
+        .html(
+          `
+        <div class="message ${type}">
+          <span class="message-text">${message}</span>
+        </div>
+      `
+        )
+        .show();
+    },
+
+    // Initialize all option handlers
+    initializeAllOptionHandlers: function () {
+      console.log("🔧 Initializing all option handlers");
+      $(".service-options-section").each((index, section) => {
+        this.initializeOptionHandlers($(section));
+      });
+    },
+
+    // Initialize option handlers
+    initializeOptionHandlers: function ($section) {
+      console.log("🔧 Initializing option handlers for section");
+
+      // Clear previous handlers to avoid duplicates
+      $section.find(".option-input-field").off(".optionHandler");
+
+      // Add change handlers for real-time updates
+      $section
+        .find(".option-input-field")
+        .on("change.optionHandler input.optionHandler", (e) => {
+          console.log("Option value changed:", e.target.name, e.target.value);
+          this.updatePricing();
+          this.validateOptionField($(e.target));
+        });
+
+      // Handle range inputs with display updates
+      $section
+        .find('input[type="range"]')
+        .on("input.optionHandler", function () {
+          const $this = $(this);
+          let $display = $this.siblings(".range-display");
+          if ($display.length === 0) {
+            $display = $('<span class="range-display"></span>');
+            $this.after($display);
+          }
+          $display.text($this.val() + ($this.data("unit") || ""));
+        });
+
+      // Clear validation errors on focus
+      $section
+        .find(".option-input-field")
+        .on("focus.optionHandler", function () {
+          $(this).removeClass("error");
+          $(this).siblings(".field-error").remove();
+        });
+
+      console.log("✅ Option handlers initialized");
+    },
+
+    // Validate individual option field
+    validateOptionField: function ($field) {
+      const isRequired = $field.prop("required") || $field.data("required");
+      let value = "";
+
+      if ($field.is('input[type="checkbox"]')) {
+        value = $field.is(":checked") ? "1" : "";
+      } else if ($field.is('input[type="radio"]')) {
+        value =
+          $field
+            .closest(".option-field")
+            .find('input[type="radio"]:checked')
+            .val() || "";
+      } else {
+        value = $field.val() || "";
+      }
+
+      if (isRequired && (!value || value.trim() === "")) {
+        this.showFieldError($field, "This field is required");
+        return false;
+      }
+
+      this.clearFieldError($field);
+      return true;
+    },
+
+    // Show options loading error
+    showOptionsError: function (serviceId, message) {
+      const serviceData = this.state.servicesData[serviceId];
+      const serviceName = serviceData
+        ? serviceData.name
+        : `Service ${serviceId}`;
+
+      const $errorSection = $(`
+        <div class="service-options-section error" data-service-id="${serviceId}">
+            <div class="service-options-header">
+                <h3 class="service-options-title">${serviceName} Options</h3>
+            </div>
+            <div class="options-error">
+                <p class="error-message">⚠️ ${message}</p>
+                <button type="button" class="retry-options-btn" data-service-id="${serviceId}">
+                    Try Again
+                </button>
+            </div>
+        </div>
+      `);
+
+      this.elements.optionsContainer.append($errorSection);
+
+      // Add retry handler
+      $errorSection.find(".retry-options-btn").on("click", () => {
+        $errorSection.remove();
+        this.loadServiceOptions(serviceId);
+      });
+    },
+
+    // Generate options HTML
     generateOptionsHTML: function (options) {
       console.log("🏗️ Generating HTML for options:", options);
 
@@ -1143,7 +1636,7 @@
       return html;
     },
 
-    // FIXED: Enhanced generateOptionInput function
+    // Generate option input
     generateOptionInput: function (option, isRequired) {
       console.log(
         `🎛️ Generating input for option: ${option.name} (${option.type})`
@@ -1343,685 +1836,36 @@
       return choices;
     },
 
-    // FIXED: Enhanced initializeOptionHandlers function
-    initializeOptionHandlers: function ($section) {
-      console.log("🔧 Initializing option handlers for section");
-
-      // Clear previous handlers to avoid duplicates
-      $section.find(".option-input-field").off(".optionHandler");
-
-      // Add change handlers for real-time updates
-      $section
-        .find(".option-input-field")
-        .on("change.optionHandler input.optionHandler", (e) => {
-          console.log("Option value changed:", e.target.name, e.target.value);
-          this.updatePricing();
-          this.validateOptionField($(e.target));
-          this.checkAutoAdvanceOptions();
-        });
-
-      // Handle range inputs with display updates
-      $section
-        .find('input[type="range"]')
-        .on("input.optionHandler", function () {
-          const $this = $(this);
-          let $display = $this.siblings(".range-display");
-          if ($display.length === 0) {
-            $display = $('<span class="range-display"></span>');
-            $this.after($display);
-          }
-          $display.text($this.val() + ($this.data("unit") || ""));
-        });
-
-      // Clear validation errors on focus
-      $section
-        .find(".option-input-field")
-        .on("focus.optionHandler", function () {
-          $(this).removeClass("error");
-          $(this).siblings(".field-error").remove();
-        });
-
-      console.log("✅ Option handlers initialized");
-    },
-
-    // Collect service options data
-    collectServiceOptions: function () {
-      const optionsData = {};
-
-      $(".service-options-section").each(function () {
-        const serviceId = $(this).data("service-id");
-        optionsData[serviceId] = {};
-
-        $(this)
-          .find(".option-field")
-          .each(function () {
-            const optionId = $(this).data("option-id");
-            const $input = $(this).find("input, select, textarea");
-
-            let value = null;
-            if ($input.is('input[type="checkbox"]')) {
-              value = $input.is(":checked") ? "1" : "0";
-            } else if ($input.is('input[type="radio"]')) {
-              value = $(this).find('input[type="radio"]:checked').val() || "";
-            } else {
-              value = $input.val() || "";
-            }
-
-            optionsData[serviceId][optionId] = value;
-          });
-      });
-
-      this.state.serviceOptions = optionsData;
-      this.elements.serviceOptionsField.val(JSON.stringify(optionsData));
-      this.log("Collected service options:", optionsData);
-    },
-
-    // Update customer data
-    updateCustomerData: function () {
-      this.state.customerData = {
-        name: this.elements.customerForm.name.val().trim(),
-        email: this.elements.customerForm.email.val().trim(),
-        phone: this.elements.customerForm.phone.val().trim(),
-        address: this.elements.customerForm.address.val().trim(),
-        date: this.elements.customerForm.date.val(),
-        notes: this.elements.customerForm.notes.val().trim(),
-      };
-    },
-
-    // Build order summary for review step
-    buildOrderSummary: function () {
-      this.buildServicesSummary();
-      this.buildCustomerSummary();
-      this.updatePricing();
-      this.showDiscountSection();
-    },
-
-    // Build services summary
-    buildServicesSummary: function () {
-      let html = "";
-
-      this.state.selectedServices.forEach((serviceId) => {
-        const serviceData = this.state.servicesData[serviceId];
-        if (!serviceData) return;
-
-        html += `
-          <div class="service-summary-item">
-            <div class="service-info">
-              <h4>${serviceData.name}</h4>
-              ${
-                serviceData.description
-                  ? `<p class="service-description">${serviceData.description}</p>`
-                  : ""
-              }
-              ${this.buildServiceOptionsHTML(serviceId)}
-            </div>
-            <div class="service-price">${this.formatPrice(
-              serviceData.price
-            )}</div>
-          </div>
-        `;
-      });
-
-      this.elements.selectedServicesList.html(html);
-    },
-
-    // Build service options HTML for summary
-    buildServiceOptionsHTML: function (serviceId) {
-      const options = this.state.serviceOptions[serviceId];
-      if (!options) return "";
-
-      let html = '<div class="service-options">';
-
-      Object.entries(options).forEach(([optionId, value]) => {
-        if (!value || value === "0") return;
-
-        const $optionField = $(`.option-field[data-option-id="${optionId}"]`);
-        if ($optionField.length === 0) return;
-
-        const optionName = $optionField
-          .find(".option-label")
-          .text()
-          .replace(/\*|\(.*\)/g, "")
-          .trim();
-
-        // Format value based on option type
-        let displayValue = value;
-        const $input = $optionField.find("input, select, textarea");
-
-        if ($input.is('input[type="checkbox"]') && value === "1") {
-          displayValue = "Yes";
-        } else if ($input.is("select") || $input.is('input[type="radio"]')) {
-          const $selected = $input.find(
-            `option[value="${value}"], input[value="${value}"]:checked`
-          );
-          if ($selected.length) {
-            displayValue = $selected.parent().is("label")
-              ? $selected.parent().find(".radio-text").text()
-              : $selected.text();
-          }
-        }
-
-        html += `
-          <div class="option-summary">
-            <span class="option-name">${optionName}:</span>
-            <span class="option-value">${displayValue}</span>
-          </div>
-        `;
-      });
-
-      html += "</div>";
-      return html;
-    },
-
-    // Build customer summary
-    buildCustomerSummary: function () {
-      const data = this.state.customerData;
-      const serviceDate = new Date(data.date);
-
-      $(".service-address").html(`
-        <strong>Service Address:</strong><br>
-        ${data.address}<br>
-        ZIP: ${this.elements.zipInput.val()}
-      `);
-
-      $(".service-datetime").html(`
-        <strong>Service Date & Time:</strong><br>
-        ${serviceDate.toLocaleDateString()} at ${serviceDate.toLocaleTimeString(
-        [],
-        {
-          hour: "2-digit",
-          minute: "2-digit",
-        }
-      )}
-      `);
-
-      $(".customer-info").html(`
-        <div><strong>Name:</strong> ${data.name}</div>
-        <div><strong>Email:</strong> ${data.email}</div>
-        ${data.phone ? `<div><strong>Phone:</strong> ${data.phone}</div>` : ""}
-        ${data.notes ? `<div><strong>Notes:</strong> ${data.notes}</div>` : ""}
-      `);
-    },
-
-    // Show discount section
-    showDiscountSection: function () {
-      $(".discount-section").show();
-    },
-
-    // Enhanced pricing calculations
-    updatePricing: function () {
-      let subtotal = 0;
-
-      // Calculate base service prices
-      this.state.selectedServices.forEach((serviceId) => {
-        const serviceData = this.state.servicesData[serviceId];
-        if (serviceData) {
-          subtotal += serviceData.price;
-        }
-      });
-
-      // Calculate option pricing
-      $(".option-field").each(function () {
-        const $field = $(this);
-        const priceType = $field.data("price-type") || "fixed";
-        const priceImpact = parseFloat($field.data("price-impact")) || 0;
-
-        if (priceImpact === 0) return;
-
-        const $input = $field.find("input, select, textarea");
-        let shouldApply = false;
-        let multiplier = 1;
-
-        if ($input.is('input[type="checkbox"]')) {
-          shouldApply = $input.is(":checked");
-        } else if ($input.is('input[type="radio"]')) {
-          const $checked = $field.find('input[type="radio"]:checked');
-          if ($checked.length) {
-            shouldApply = true;
-            const choicePrice = parseFloat($checked.data("price")) || 0;
-            if (choicePrice > 0) {
-              subtotal += choicePrice;
-              return; // Skip standard price impact calculation
-            }
-          }
-        } else if ($input.is("select")) {
-          const $selected = $input.find("option:selected");
-          if ($selected.val()) {
-            shouldApply = true;
-            const choicePrice = parseFloat($selected.data("price")) || 0;
-            if (choicePrice > 0) {
-              subtotal += choicePrice;
-              return; // Skip standard price impact calculation
-            }
-          }
-        } else if (
-          $input.is('input[type="number"]') &&
-          priceType === "multiply"
-        ) {
-          const value = parseFloat($input.val()) || 0;
-          if (value > 0) {
-            shouldApply = true;
-            multiplier = value;
-          }
-        } else if ($input.val()) {
-          shouldApply = true;
-        }
-
-        if (shouldApply) {
-          switch (priceType) {
-            case "percentage":
-              subtotal += (subtotal * priceImpact) / 100;
-              break;
-            case "multiply":
-              subtotal += priceImpact * multiplier;
-              break;
-            default: // fixed
-              subtotal += priceImpact;
-          }
-        }
-      });
-
-      this.state.pricing.subtotal = Math.max(0, subtotal);
-      this.state.pricing.total =
-        this.state.pricing.subtotal - this.state.pricing.discount;
-
-      this.updatePricingDisplay();
-    },
-
-    // Update pricing display
-    updatePricingDisplay: function () {
-      const pricing = this.state.pricing;
-
-      $(".pricing-summary .subtotal .amount").text(
-        this.formatPrice(pricing.subtotal)
-      );
-      $(".pricing-summary .total .amount").text(
-        this.formatPrice(pricing.total)
-      );
-
-      this.elements.totalPriceField.val(pricing.total);
-
-      if (pricing.discount > 0) {
-        $(".pricing-summary .discount").show();
-        $(".pricing-summary .discount .amount").text(
-          "-" + this.formatPrice(pricing.discount)
-        );
-        this.elements.discountAmountField.val(pricing.discount);
-      } else {
-        $(".pricing-summary .discount").hide();
-        this.elements.discountAmountField.val(0);
-      }
-    },
-
-    // Enhanced discount code handling
-    applyDiscountCode: function () {
-      const code = this.elements.discountInput.val().trim();
-
-      if (!code) {
-        this.showMessage(
-          $(".discount-message"),
-          "Please enter a discount code",
-          "error"
-        );
-        return;
-      }
-
-      if (this.elements.applyDiscountBtn.hasClass("loading")) {
-        return; // Prevent duplicate requests
-      }
-
-      this.setLoading(this.elements.applyDiscountBtn, true);
-
-      const data = {
-        action: "mobooking_validate_discount",
-        code: code,
-        user_id: this.config.userId,
-        total: this.state.pricing.subtotal,
-        nonce: this.config.nonces.booking,
-      };
-
-      $.ajax({
-        url: this.config.ajaxUrl,
-        type: "POST",
-        data: data,
-        success: (response) => {
-          if (response.success) {
-            this.state.pricing.discount =
-              parseFloat(response.data.discount_amount) || 0;
-            this.updatePricing();
-            this.showMessage(
-              $(".discount-message"),
-              response.data.message || "Discount applied successfully!",
-              "success"
-            );
-            this.elements.applyDiscountBtn
-              .text("Applied")
-              .prop("disabled", true);
-            this.elements.discountInput.prop("disabled", true);
-          } else {
-            this.showMessage(
-              $(".discount-message"),
-              response.data?.message || "Invalid discount code",
-              "error"
-            );
-          }
-        },
-        error: (xhr, status, error) => {
-          this.log("Discount validation error:", xhr, status, error);
-          this.showMessage(
-            $(".discount-message"),
-            "Error applying discount code. Please try again.",
-            "error"
-          );
-        },
-        complete: () => {
-          this.setLoading(this.elements.applyDiscountBtn, false);
-        },
-      });
-    },
-
-    // Enhanced booking submission
-    submitBooking: function () {
-      if (this.state.isProcessing) return;
-
-      // Final validation
-      if (!this.validateStep(5)) {
-        return;
-      }
-
-      this.state.isProcessing = true;
-      this.setLoading(this.elements.confirmBtn, true);
-
-      // Collect all form data
-      const formData = new FormData(this.elements.form[0]);
-      formData.append("action", "mobooking_save_booking");
-      formData.append("nonce", this.config.nonces.booking);
-
-      // Add selected services as array
-      this.state.selectedServices.forEach((serviceId) => {
-        formData.append("selected_services[]", serviceId);
-      });
-
-      this.log("Submitting booking with data:", Object.fromEntries(formData));
-
-      $.ajax({
-        url: this.config.ajaxUrl,
-        type: "POST",
-        data: formData,
-        processData: false,
-        contentType: false,
-        timeout: 60000,
-        success: (response) => {
-          this.log("Booking submission response:", response);
-          if (response && response.success) {
-            $(".reference-number").text("#" + response.data.id);
-            this.showStep(6); // Success step
-            this.showNotification(
-              response.data.message || "Booking confirmed successfully!",
-              "success"
-            );
-          } else {
-            this.showNotification(
-              response?.data?.message || "Booking failed. Please try again.",
-              "error"
-            );
-          }
-        },
-        error: (xhr, status, error) => {
-          this.log("Booking submission error:", xhr, status, error);
-
-          let errorMessage = "An error occurred. Please try again.";
-          if (xhr.status === 0) {
-            errorMessage = "Network error. Please check your connection.";
-          } else if (xhr.status >= 500) {
-            errorMessage = "Server error. Please try again in a few minutes.";
-          } else if (xhr.responseText) {
-            try {
-              const errorData = JSON.parse(xhr.responseText);
-              errorMessage = errorData.data?.message || errorMessage;
-            } catch (e) {
-              // Not JSON response
-            }
-          }
-
-          this.showNotification(errorMessage, "error");
-        },
-        complete: () => {
-          this.state.isProcessing = false;
-          this.setLoading(this.elements.confirmBtn, false);
-        },
-      });
-    },
-
-    // Enhanced navigation button updates
-    updateNavigationButtons: function () {
-      const $currentStep = $(`.booking-step.step-${this.state.currentStep}`);
-      const $nextBtn = $currentStep.find(".next-step");
-      const $prevBtn = $currentStep.find(".prev-step");
-
-      // Update previous button
-      if (this.state.currentStep <= 1) {
-        $prevBtn.hide();
-      } else {
-        $prevBtn.show();
-      }
-
-      // Update next button based on step validation
-      switch (this.state.currentStep) {
-        case 1:
-          if (this.state.isZipValid) {
-            $nextBtn.prop("disabled", false).text("Continue");
-          } else {
-            $nextBtn.prop("disabled", true).text("Enter ZIP Code");
-          }
-          break;
-        case 2:
-          if (this.state.selectedServices.length > 0) {
-            $nextBtn.prop("disabled", false).text("Continue");
-          } else {
-            $nextBtn.prop("disabled", true).text("Select Services");
-          }
-          break;
-        case 3:
-          $nextBtn.prop("disabled", false).text("Continue");
-          break;
-        case 4:
-          $nextBtn.prop("disabled", false).text("Review Booking");
-          break;
-        case 5:
-          // This is handled by the confirm button, not next button
-          $nextBtn.hide();
-          break;
-        default:
-          $nextBtn.prop("disabled", false).text("Continue");
-      }
-    },
-
-    // UI Helper methods
-    updateProgressBar: function () {
-      const progress = Math.min(
-        100,
-        (this.state.currentStep / this.state.totalSteps) * 100
-      );
-      this.elements.progressBar.css("width", progress + "%");
-    },
-
-    updateProgressSteps: function () {
-      this.elements.progressSteps.each((index, el) => {
-        const $step = $(el);
-        const stepNum = index + 1;
-
-        $step.removeClass("active completed");
-
-        if (stepNum < this.state.currentStep) {
-          $step.addClass("completed");
-        } else if (stepNum === this.state.currentStep) {
-          $step.addClass("active");
-        }
-      });
-    },
-
-    // Field validation helpers
-    validateField: function ($field) {
-      const value = $field.val().trim();
-      const isRequired = $field.prop("required");
-
-      this.clearFieldError($field);
-
-      if (isRequired && !value) {
-        this.showFieldError($field, "This field is required");
-        return false;
-      }
-
-      // Email validation
-      if ($field.attr("type") === "email" && value) {
-        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-        if (!emailRegex.test(value)) {
-          this.showFieldError($field, "Please enter a valid email address");
-          return false;
-        }
-      }
-
-      return true;
-    },
-
-    showFieldError: function ($field, message) {
-      $field.addClass("error");
-      $field.siblings(".field-error").remove();
-      $field.after(`<div class="field-error">${message}</div>`);
-    },
-
-    clearFieldError: function ($field) {
-      $field.removeClass("error");
-      $field.siblings(".field-error").remove();
-    },
-
-    clearFieldErrors: function () {
-      $(".error").removeClass("error");
-      $(".field-error").remove();
-    },
-
-    setLoading: function ($btn, loading) {
-      if (loading) {
-        $btn.addClass("loading").prop("disabled", true);
-        const loadingText = $btn.find(".btn-loading").text() || "Loading...";
-        $btn.data("original-text", $btn.text()).text(loadingText);
-      } else {
-        $btn.removeClass("loading").prop("disabled", false);
-        if ($btn.data("original-text")) {
-          $btn.text($btn.data("original-text"));
-        }
-      }
-    },
-
-    showMessage: function ($container, message, type) {
-      $container
-        .removeClass("success error info warning")
-        .addClass(type)
-        .html(
-          `
-        <div class="message ${type}">
-          <span class="message-text">${message}</span>
-        </div>
-      `
-        )
-        .show();
-    },
-
-    // NEW: Initialize all option handlers
-    initializeAllOptionHandlers: function () {
-      console.log("🔧 Initializing all option handlers");
-      $(".service-options-section").each((index, section) => {
-        this.initializeOptionHandlers($(section));
-      });
-    },
-
-    // NEW: Validate individual option field
-    validateOptionField: function ($field) {
-      const isRequired = $field.prop("required") || $field.data("required");
-      let value = "";
-
-      if ($field.is('input[type="checkbox"]')) {
-        value = $field.is(":checked") ? "1" : "";
-      } else if ($field.is('input[type="radio"]')) {
-        value =
-          $field
-            .closest(".option-field")
-            .find('input[type="radio"]:checked')
-            .val() || "";
-      } else {
-        value = $field.val() || "";
-      }
-
-      if (isRequired && (!value || value.trim() === "")) {
-        this.showFieldError($field, "This field is required");
-        return false;
-      }
-
-      this.clearFieldError($field);
-      return true;
-    },
-
-    // NEW: Show options loading error
-    showOptionsError: function (serviceId, message) {
-      const serviceData = this.state.servicesData[serviceId];
-      const serviceName = serviceData
-        ? serviceData.name
-        : `Service ${serviceId}`;
-
-      const $errorSection = $(`
-        <div class="service-options-section error" data-service-id="${serviceId}">
-            <div class="service-options-header">
-                <h3 class="service-options-title">${serviceName} Options</h3>
-            </div>
-            <div class="options-error">
-                <p class="error-message">⚠️ ${message}</p>
-                <button type="button" class="retry-options-btn" data-service-id="${serviceId}">
-                    Try Again
-                </button>
-            </div>
-        </div>
-    `);
-
-      this.elements.optionsContainer.append($errorSection);
-
-      // Add retry handler
-      $errorSection.find(".retry-options-btn").on("click", () => {
-        $errorSection.remove();
-        this.loadServiceOptions(serviceId);
-      });
-    },
-
     showNotification: function (message, type = "info") {
       // Remove existing notifications
       $(".booking-notification").remove();
 
-      const $notification = $(`
-        <div class="booking-notification ${type}">
-          <span class="notification-message">${message}</span>
-          <button class="notification-close" aria-label="Close">&times;</button>
-        </div>
+      const colors = {
+        success: "#22c55e",
+        error: "#ef4444",
+        warning: "#f59e0b",
+        info: "#3b82f6",
+      };
+
+      const notification = $(`
+        <div class="booking-notification notification-${type}" style="
+          position: fixed; top: 24px; right: 24px; z-index: 1000;
+          display: flex; align-items: center; gap: 12px;
+          padding: 16px 20px; border-radius: 8px;
+          background: ${colors[type]}; color: white;
+          box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+          font-weight: 500; max-width: 400px;
+          animation: slideIn 0.3s ease;
+        ">${message}</div>
       `);
 
-      $("body").append($notification);
-
-      // Handle close button
-      $notification.find(".notification-close").on("click", function () {
-        $notification.removeClass("show");
-        setTimeout(() => $notification.remove(), 300);
-      });
+      $("body").append(notification);
 
       setTimeout(() => {
-        $notification.addClass("show");
-      }, 100);
-
-      // Auto-hide after 5 seconds for non-error messages
-      if (type !== "error") {
-        setTimeout(() => {
-          $notification.removeClass("show");
-          setTimeout(() => $notification.remove(), 300);
-        }, 5000);
-      }
+        notification.fadeOut(300, function () {
+          $(this).remove();
+        });
+      }, 4000);
     },
 
     formatPrice: function (amount) {
@@ -2042,94 +1886,89 @@
   // Export for debugging
   window.BookingForm = BookingForm;
 
-  // Add auto-progress indicator styles
-  if (!document.getElementById("auto-progress-styles")) {
+  // Add custom styles for enhanced UI
+  if (!document.getElementById("manual-booking-styles")) {
     $("<style>")
-      .attr("id", "auto-progress-styles")
+      .attr("id", "manual-booking-styles")
       .prop("type", "text/css")
       .html(
         `
-        .auto-progress-indicator {
-          position: fixed;
-          top: 50%;
-          left: 50%;
-          transform: translate(-50%, -50%);
-          background: rgba(255, 255, 255, 0.95);
-          backdrop-filter: blur(10px);
-          border-radius: 12px;
-          padding: 2rem;
-          box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
-          z-index: 10000;
-          min-width: 300px;
-          text-align: center;
+        @keyframes slideIn {
+          from { transform: translateX(100%); opacity: 0; }
+          to { transform: translateX(0); opacity: 1; }
         }
-
-        .progress-content {
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-          gap: 1rem;
-        }
-
-        .progress-spinner {
-          width: 2rem;
-          height: 2rem;
-          border: 3px solid rgba(59, 130, 246, 0.2);
-          border-top-color: #3b82f6;
-          border-radius: 50%;
-          animation: spin 1s linear infinite;
-        }
-
-        .progress-text {
-          font-weight: 600;
-          color: #374151;
-          font-size: 1rem;
-        }
-
-        .progress-cancel {
-          background: #f3f4f6;
-          border: 1px solid #d1d5db;
-          color: #6b7280;
-          padding: 0.5rem 1rem;
-          border-radius: 6px;
+        
+        .service-card {
           cursor: pointer;
-          font-size: 0.875rem;
+          transition: all 0.3s ease;
+          border: 2px solid #e5e7eb;
+        }
+        
+        .service-card:hover {
+          border-color: #3b82f6;
+          transform: translateY(-2px);
+          box-shadow: 0 8px 25px rgba(59, 130, 246, 0.15);
+        }
+        
+        .service-card.selected {
+          border-color: #3b82f6;
+          background: rgba(59, 130, 246, 0.05);
+          transform: translateY(-2px);
+          box-shadow: 0 8px 25px rgba(59, 130, 246, 0.25);
+        }
+        
+        .service-card.selecting {
+          animation: cardPulse 0.6s ease-out;
+        }
+        
+        @keyframes cardPulse {
+          0% { transform: scale(1); }
+          50% { transform: scale(1.05); }
+          100% { transform: scale(1.02); }
+        }
+        
+        .service-radio {
+          position: absolute;
+          opacity: 0;
+          pointer-events: none;
+        }
+        
+        .service-selector {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          width: 24px;
+          height: 24px;
+          border: 2px solid #d1d5db;
+          border-radius: 50%;
           transition: all 0.2s ease;
         }
-
-        .progress-cancel:hover {
-          background: #e5e7eb;
-          border-color: #9ca3af;
+        
+        .service-card.selected .service-selector {
+          border-color: #3b82f6;
+          background: #3b82f6;
         }
-
-        .selecting {
-          transform: scale(1.02);
-          transition: transform 0.3s ease;
+        
+        .service-card.selected .service-selector:after {
+          content: '●';
+          color: white;
+          font-size: 12px;
+          font-weight: bold;
         }
-
-        .service-card.entering {
-          opacity: 0;
-          transform: translateY(20px);
-          transition: all 0.4s ease;
-        }
-
-        .service-card.entering.active {
-          opacity: 1;
-          transform: translateY(0);
-        }
-
+        
         .no-options-message {
           text-align: center;
           padding: 3rem 2rem;
-          background: linear-gradient(135deg, #f0f9ff, #e0f2fe);
+          background: linear-gradient(135deg, rgba(16, 185, 129, 0.1), rgba(16, 185, 129, 0.05));
+          border: 2px dashed rgba(16, 185, 129, 0.3);
           border-radius: 12px;
-          border: 2px dashed rgba(59, 130, 246, 0.3);
+          color: #059669;
         }
-
+        
         .no-options-icon {
           width: 4rem;
           height: 4rem;
-          background: #3b82f6;
+          background: #10b981;
           border-radius: 50%;
           display: flex;
           align-items: center;
@@ -2137,28 +1976,114 @@
           margin: 0 auto 1.5rem;
           color: white;
         }
-
+        
         .no-options-icon svg {
           width: 2rem;
           height: 2rem;
         }
-
+        
         .no-options-message h3 {
-          color: #1f2937;
+          color: #065f46;
           margin: 0 0 0.5rem 0;
           font-size: 1.25rem;
           font-weight: 600;
         }
-
+        
         .no-options-message p {
-          color: #6b7280;
+          color: #047857;
           margin: 0;
           font-size: 1rem;
+          line-height: 1.5;
         }
-
+        
+        .btn-primary:disabled {
+          background: #9ca3af;
+          cursor: not-allowed;
+          transform: none;
+        }
+        
+        .btn-primary:not(:disabled):hover {
+          transform: translateY(-2px);
+          box-shadow: 0 8px 25px rgba(59, 130, 246, 0.25);
+        }
+        
+        .zip-validation-icon.success {
+          color: #10b981;
+          font-weight: bold;
+          font-size: 18px;
+        }
+        
+        .zip-validation-icon.error {
+          color: #ef4444;
+          font-weight: bold;
+          font-size: 18px;
+        }
+        
+        .zip-validation-icon .spinner {
+          width: 16px;
+          height: 16px;
+          border: 2px solid #d1d5db;
+          border-top-color: #3b82f6;
+          border-radius: 50%;
+          animation: spin 1s linear infinite;
+        }
+        
         @keyframes spin {
-          to {
-            transform: rotate(360deg);
+          to { transform: rotate(360deg); }
+        }
+        
+        .zip-result .message.success {
+          background: rgba(16, 185, 129, 0.1);
+          color: #065f46;
+          border: 1px solid rgba(16, 185, 129, 0.3);
+          padding: 12px 16px;
+          border-radius: 8px;
+          font-weight: 500;
+          display: flex;
+          align-items: center;
+          gap: 8px;
+        }
+        
+        .zip-result .message.error {
+          background: rgba(239, 68, 68, 0.1);
+          color: #991b1b;
+          border: 1px solid rgba(239, 68, 68, 0.3);
+          padding: 12px 16px;
+          border-radius: 8px;
+          font-weight: 500;
+          display: flex;
+          align-items: center;
+          gap: 8px;
+        }
+        
+        .step-actions {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          margin-top: 2rem;
+          gap: 1rem;
+        }
+        
+        .step-actions .btn-secondary {
+          background: #f3f4f6;
+          color: #374151;
+          border: 1px solid #d1d5db;
+        }
+        
+        .step-actions .btn-secondary:hover {
+          background: #e5e7eb;
+          transform: translateY(-1px);
+        }
+        
+        @media (max-width: 768px) {
+          .step-actions {
+            flex-direction: column-reverse;
+            gap: 0.75rem;
+          }
+          
+          .step-actions .btn-primary,
+          .step-actions .btn-secondary {
+            width: 100%;
           }
         }
       `
