@@ -11,7 +11,8 @@ class Manager {
      */
     public function __construct() {
         // Register hooks
-        add_action('init', array($this, 'register_booking_endpoints'));
+
+                add_action('init', array($this, 'register_booking_endpoints'));
         add_filter('query_vars', array($this, 'add_booking_query_vars'));
         
         // Register AJAX handlers with enhanced error handling
