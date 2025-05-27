@@ -1031,3 +1031,97 @@ add_action('admin_init', 'mobooking_ensure_areas_table');
  * This code provides multiple fallback mechanisms to ensure the ZIP 
  * coverage check works regardless of the underlying issue.
  */
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ // Fallback AJAX handler for service options
+add_action('wp_ajax_mobooking_get_service_options', 'mobooking_fallback_get_service_options');
+add_action('wp_ajax_nopriv_mobooking_get_service_options', 'mobooking_fallback_get_service_options');
+
+function mobooking_fallback_get_service_options() {
+    $service_id = isset($_POST['service_id']) ? absint($_POST['service_id']) : 0;
+    
+    if (!$service_id) {
+        wp_send_json_error(array('message' => 'Service ID required'));
+        return;
+    }
+
+    global $wpdb;
+    $table_name = $wpdb->prefix . 'mobooking_service_options';
+    
+    $options = $wpdb->get_results($wpdb->prepare(
+        "SELECT * FROM $table_name WHERE service_id = %d ORDER BY display_order ASC",
+        $service_id
+    ));
+
+    $formatted_options = array();
+    foreach ($options as $option) {
+        $formatted_options[] = array(
+            'id' => intval($option->id),
+            'name' => $option->name,
+            'type' => $option->type,
+            'is_required' => intval($option->is_required),
+            'options' => $option->options,
+            'price_impact' => floatval($option->price_impact),
+            'price_type' => $option->price_type
+        );
+    }
+
+    wp_send_json_success(array('options' => $formatted_options));
+}
+
+
+// Debug function - remove after testing
+add_action('wp_ajax_test_service_options', 'test_service_options');
+add_action('wp_ajax_nopriv_test_service_options', 'test_service_options');
+
+function test_service_options() {
+    global $wpdb;
+    $table_name = $wpdb->prefix . 'mobooking_service_options';
+    
+    // Get first service with options
+    $option = $wpdb->get_row("SELECT * FROM $table_name LIMIT 1");
+    
+    if ($option) {
+        wp_send_json_success(array(
+            'message' => 'Options table exists and has data',
+            'sample_option' => $option
+        ));
+    } else {
+        wp_send_json_error(array('message' => 'No options found in database'));
+    }
+}

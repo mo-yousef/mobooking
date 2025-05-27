@@ -41,165 +41,58 @@ class Manager {
         }
     }
     
-/**
- * FIXED: AJAX handler to get service options - Enhanced with flexible nonce checking
- */
 public function ajax_get_service_options() {
-    try {
-        // Enhanced debug logging 
-        if (defined('WP_DEBUG') && WP_DEBUG) {
-            error_log('MoBooking: ajax_get_service_options called');
-            error_log('POST data: ' . print_r($_POST, true));
-        }
-
-        // FIXED: Check if request is properly formatted
-        if (empty($_POST)) {
-            error_log('MoBooking: Empty POST data received');
-            wp_send_json_error(array('message' => __('No data received.', 'mobooking')));
-            return;
-        }
-
-        // FIXED: Flexible nonce checking - accept both booking and service nonces
-        $nonce_valid = false;
-        if (isset($_POST['nonce'])) {
-            // Try booking nonce first (sent by frontend)
-            $nonce_valid = wp_verify_nonce($_POST['nonce'], 'mobooking-booking-nonce');
-            
-            // If that fails, try service nonce (used in dashboard)
-            if (!$nonce_valid) {
-                $nonce_valid = wp_verify_nonce($_POST['nonce'], 'mobooking-service-nonce');
-            }
-        }
-
-        if (!$nonce_valid) {
-            if (defined('WP_DEBUG') && WP_DEBUG) {
-                error_log('MoBooking: Nonce verification failed');
-                error_log('Provided nonce: ' . ($_POST['nonce'] ?? 'none'));
-                error_log('Expected: mobooking-booking-nonce or mobooking-service-nonce');
-            }
-            wp_send_json_error(array('message' => __('Security verification failed.', 'mobooking')));
-            return;
-        }
-        
-        // FIXED: Better service ID validation
-        if (!isset($_POST['service_id'])) {
-            wp_send_json_error(array('message' => __('Service ID parameter missing.', 'mobooking')));
-            return;
-        }
-
-        $service_id = absint($_POST['service_id']);
-        if ($service_id <= 0) {
-            wp_send_json_error(array('message' => __('Invalid service ID provided.', 'mobooking')));
-            return;
-        }
-        
-        if (defined('WP_DEBUG') && WP_DEBUG) {
-            error_log("MoBooking: Processing service ID: {$service_id}");
-        }
-        
-        // FIXED: Verify service exists first
-        global $wpdb;
-        $services_table = $wpdb->prefix . 'mobooking_services';
-        $service_exists = $wpdb->get_var($wpdb->prepare(
-            "SELECT COUNT(*) FROM $services_table WHERE id = %d",
-            $service_id
-        ));
-
-        if (!$service_exists) {
-            wp_send_json_error(array('message' => __('Service not found.', 'mobooking')));
-            return;
-        }
-        
-        // FIXED: Check if ServiceOptionsManager class exists and load it properly
-        if (!class_exists('\MoBooking\Services\ServiceOptionsManager')) {
-            // Try to load the class manually
-            $class_file = MOBOOKING_PATH . '/classes/Services/ServiceOptionsManager.php';
-            if (file_exists($class_file)) {
-                require_once $class_file;
-            }
-            
-            if (!class_exists('\MoBooking\Services\ServiceOptionsManager')) {
-                error_log('MoBooking: ServiceOptionsManager class not found');
-                wp_send_json_error(array('message' => __('Service options system not available.', 'mobooking')));
-                return;
-            }
-        }
-        
-        // FIXED: Initialize manager and get options
-        $options_manager = new \MoBooking\Services\ServiceOptionsManager();
-        $options = $options_manager->get_service_options($service_id);
-        
-        if (defined('WP_DEBUG') && WP_DEBUG) {
-            error_log("MoBooking: Retrieved " . count($options) . " options for service {$service_id}");
-            if (!empty($options)) {
-                error_log("MoBooking: First option structure: " . print_r($options[0], true));
-            }
-        }
-        
-        // FIXED: Ensure options is always an array
-        if (!is_array($options)) {
-            $options = array();
-        }
-        
-        // FIXED: Format options with complete data structure
-        $formatted_options = array();
-        foreach ($options as $option) {
-            // Ensure we have all required properties
-            $formatted_option = array(
-                'id' => isset($option->id) ? intval($option->id) : 0,
-                'service_id' => isset($option->service_id) ? intval($option->service_id) : $service_id,
-                'name' => isset($option->name) ? sanitize_text_field($option->name) : '',
-                'description' => isset($option->description) ? sanitize_textarea_field($option->description) : '',
-                'type' => isset($option->type) ? sanitize_text_field($option->type) : 'text',
-                'is_required' => isset($option->is_required) ? intval($option->is_required) : 0,
-                'default_value' => isset($option->default_value) ? sanitize_text_field($option->default_value) : '',
-                'placeholder' => isset($option->placeholder) ? sanitize_text_field($option->placeholder) : '',
-                'min_value' => isset($option->min_value) ? floatval($option->min_value) : null,
-                'max_value' => isset($option->max_value) ? floatval($option->max_value) : null,
-                'price_impact' => isset($option->price_impact) ? floatval($option->price_impact) : 0,
-                'price_type' => isset($option->price_type) ? sanitize_text_field($option->price_type) : 'fixed',
-                'options' => isset($option->options) ? sanitize_textarea_field($option->options) : '',
-                'option_label' => isset($option->option_label) ? sanitize_text_field($option->option_label) : '',
-                'step' => isset($option->step) ? sanitize_text_field($option->step) : '1',
-                'unit' => isset($option->unit) ? sanitize_text_field($option->unit) : '',
-                'min_length' => isset($option->min_length) ? intval($option->min_length) : null,
-                'max_length' => isset($option->max_length) ? intval($option->max_length) : null,
-                'rows' => isset($option->rows) ? intval($option->rows) : 3,
-                'display_order' => isset($option->display_order) ? intval($option->display_order) : 0
-            );
-
-            $formatted_options[] = $formatted_option;
-        }
-
-        // FIXED: Sort options by display order
-        usort($formatted_options, function($a, $b) {
-            return $a['display_order'] - $b['display_order'];
-        });
-
-        // FIXED: Always send successful response with consistent structure
-        $response_data = array(
-            'options' => $formatted_options,
-            'service_id' => $service_id,
-            'count' => count($formatted_options),
-            'has_options' => count($formatted_options) > 0
-        );
-
-        if (defined('WP_DEBUG') && WP_DEBUG) {
-            error_log('MoBooking: Sending response: ' . print_r($response_data, true));
-        }
-
-        wp_send_json_success($response_data);
-        
-    } catch (Exception $e) {
-        if (defined('WP_DEBUG') && WP_DEBUG) {
-            error_log('MoBooking: Exception in ajax_get_service_options: ' . $e->getMessage());
-            error_log('MoBooking: Stack trace: ' . $e->getTraceAsString());
-        }
-        wp_send_json_error(array(
-            'message' => __('Error loading service options.', 'mobooking'),
-            'debug' => defined('WP_DEBUG') && WP_DEBUG ? $e->getMessage() : null
-        ));
+    // Simple nonce check - accept any valid mobooking nonce
+    $nonce_valid = false;
+    if (isset($_POST['nonce'])) {
+        $nonce_valid = wp_verify_nonce($_POST['nonce'], 'mobooking-booking-nonce') || 
+                      wp_verify_nonce($_POST['nonce'], 'mobooking-service-nonce');
     }
+
+    if (!$nonce_valid) {
+        wp_send_json_error(array('message' => 'Security verification failed'));
+        return;
+    }
+
+    $service_id = isset($_POST['service_id']) ? absint($_POST['service_id']) : 0;
+    if (!$service_id) {
+        wp_send_json_error(array('message' => 'Service ID required'));
+        return;
+    }
+
+    // Get options directly from database
+    global $wpdb;
+    $table_name = $wpdb->prefix . 'mobooking_service_options';
+    
+    $options = $wpdb->get_results($wpdb->prepare(
+        "SELECT * FROM $table_name WHERE service_id = %d ORDER BY display_order ASC",
+        $service_id
+    ));
+
+    // Format options for frontend
+    $formatted_options = array();
+    foreach ($options as $option) {
+        $formatted_options[] = array(
+            'id' => intval($option->id),
+            'service_id' => intval($option->service_id),
+            'name' => $option->name,
+            'description' => $option->description,
+            'type' => $option->type,
+            'is_required' => intval($option->is_required),
+            'price_impact' => floatval($option->price_impact),
+            'price_type' => $option->price_type,
+            'options' => $option->options,
+            'default_value' => $option->default_value,
+            'placeholder' => $option->placeholder,
+            'min_value' => $option->min_value,
+            'max_value' => $option->max_value,
+            'step' => $option->step,
+            'unit' => $option->unit,
+            'rows' => intval($option->rows)
+        );
+    }
+
+    wp_send_json_success(array('options' => $formatted_options));
 }
 
     
