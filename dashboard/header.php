@@ -12,6 +12,9 @@ get_header();
 // wp_enqueue_style('mobooking-dashboard-service-options-style', MOBOOKING_URL . '/assets/css/service-options.css', array(), MOBOOKING_VERSION);
 wp_enqueue_script('mobooking-dashboard-script', MOBOOKING_URL . '/assets/js/dashboard.js', array('jquery'), MOBOOKING_VERSION, true);
 
+
+
+
 // Localize dashboard script
 wp_localize_script('mobooking-dashboard-script', 'mobooking_dashboard', array(
     'ajax_url' => admin_url('admin-ajax.php'),
