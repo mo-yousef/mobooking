@@ -1,6 +1,6 @@
 /**
- * MoBooking Enhanced Frontend Booking Form Handler - Manual Navigation Version
- * Features: Area name display, single service selection, manual navigation
+ * MoBooking Enhanced Frontend Booking Form Handler - FIXED VERSION
+ * Fixed issues: ZIP validation, service selection, step progression
  */
 
 (function ($) {
@@ -14,15 +14,6 @@
       nonces: mobookingBooking?.nonces || {},
       strings: mobookingBooking?.strings || {},
       currency: mobookingBooking?.currency || { symbol: "$", position: "left" },
-      // Disable auto-advance features
-      autoAdvance: {
-        enabled: false,
-        delay: 0,
-        zipSuccess: false,
-        serviceSelection: false,
-        optionsComplete: false,
-        customerComplete: false,
-      },
       zipDebounceDelay: 800,
     },
 
@@ -31,7 +22,7 @@
       currentStep: 1,
       totalSteps: 6,
       isProcessing: false,
-      selectedService: null, // Changed from array to single value
+      selectedServices: [], // Changed back to array to support multiple services
       serviceOptions: {},
       servicesData: {},
       pricing: {
@@ -42,7 +33,7 @@
       customerData: {},
       isZipValid: false,
       zipDebounceTimer: null,
-      validatedArea: null, // Store area information
+      validatedArea: null,
       debugMode: false,
     },
 
@@ -52,10 +43,11 @@
         return;
       }
 
-      this.state.debugMode = window.location.search.includes("debug=1");
-      this.log(
-        "🚀 Enhanced Booking Form with Manual Navigation initializing..."
-      );
+      this.state.debugMode =
+        window.location.search.includes("debug=1") ||
+        (typeof mobookingBooking !== "undefined" && mobookingBooking.debug);
+
+      this.log("🚀 Fixed Booking Form initializing...");
 
       if (!this.validateConfig()) {
         return;
@@ -65,7 +57,7 @@
       this.loadServicesData();
       this.attachEventListeners();
       this.initializeForm();
-      this.log("✅ Enhanced Booking Form initialized");
+      this.log("✅ Fixed Booking Form initialized");
     },
 
     // Validate configuration
@@ -97,7 +89,7 @@
       }
     },
 
-    // Cache DOM elements
+    // Cache DOM elements - FIXED
     cacheElements: function () {
       this.elements = {
         container: $(".mobooking-booking-form-container"),
@@ -112,9 +104,11 @@
         zipResult: $(".zip-result"),
         zipValidationIcon: null, // Will be created
 
-        // Step 2 - Services (Changed to radio buttons)
+        // Step 2 - Services - FIXED to support both checkbox and radio
         serviceCards: $(".service-card"),
-        serviceRadios: $('input[name="selected_service"]'), // Changed from checkboxes
+        serviceInputs: $(
+          'input[name="selected_services[]"], input[name="selected_service"]'
+        ),
         servicesGrid: $(".services-grid"),
 
         // Step 3 - Service Options
@@ -152,24 +146,26 @@
       this.createZipValidationUI();
     },
 
-    // Create ZIP validation UI
+    // Create ZIP validation UI - FIXED
     createZipValidationUI: function () {
-      const $zipGroup = this.elements.zipInputGroup;
       const $zipInput = this.elements.zipInput;
 
-      // Style the input for inline validation
+      // Only create if not already exists
+      if ($zipInput.parent().hasClass("zip-input-wrapper")) {
+        this.elements.zipValidationIcon = $zipInput
+          .parent()
+          .find(".zip-validation-icon");
+        return;
+      }
+
+      // Create wrapper and validation icon
       $zipInput.wrap('<div class="zip-input-wrapper"></div>');
       const $wrapper = $zipInput.parent();
       $wrapper.append('<div class="zip-validation-icon"></div>');
 
       this.elements.zipValidationIcon = $wrapper.find(".zip-validation-icon");
 
-      // Add help text
-      if (!$zipGroup.find(".zip-help").length) {
-        $zipGroup.append(
-          '<p class="zip-help">Enter your ZIP code to check service availability</p>'
-        );
-      }
+      this.log("ZIP validation UI created");
     },
 
     // Load services data on initialization
@@ -183,7 +179,9 @@
           name: $card.find("h3").text().trim(),
           price: parseFloat($card.data("service-price")) || 0,
           hasOptions:
-            $card.find('input[type="radio"]').data("has-options") === 1, // Changed from checkbox
+            $card
+              .find('input[type="checkbox"], input[type="radio"]')
+              .data("has-options") === 1,
           description: $card.find(".service-description").text().trim(),
           duration: $card.find(".service-duration").text().trim(),
         };
@@ -192,11 +190,11 @@
       this.log("Services data loaded:", this.state.servicesData);
     },
 
-    // Attach event listeners
+    // Attach event listeners - FIXED
     attachEventListeners: function () {
       const self = this;
 
-      // Enhanced ZIP Code validation with debouncing
+      // ZIP Code validation with debouncing
       this.elements.zipInput.on("input", function () {
         self.handleZipInput();
       });
@@ -212,27 +210,29 @@
         }
       });
 
-      // Service selection with single selection (radio buttons)
-      $(document).on("change", 'input[name="selected_service"]', function () {
-        self.handleServiceSelection($(this));
-      });
+      // Service selection - FIXED to handle both checkbox and radio
+      $(document).on(
+        "change",
+        'input[name="selected_services[]"], input[name="selected_service"]',
+        function () {
+          self.handleServiceSelection($(this));
+        }
+      );
 
-      // Manual navigation - user controls when to move
+      // Manual navigation
       this.elements.nextBtns.on("click", function (e) {
         e.preventDefault();
-        const currentStep = $(this).closest(".booking-step").index() + 1;
-        self.nextStep(currentStep);
+        self.handleNextStep($(this));
       });
 
       this.elements.prevBtns.on("click", function (e) {
         e.preventDefault();
-        const currentStep = $(this).closest(".booking-step").index() + 1;
-        self.prevStep(currentStep);
+        self.handlePrevStep($(this));
       });
 
-      // Service options change with real-time pricing
+      // Service options change
       $(document).on(
-        "change",
+        "change input",
         ".option-field input, .option-field select, .option-field textarea",
         function () {
           self.updatePricing();
@@ -243,13 +243,6 @@
       this.elements.applyDiscountBtn.on("click", function (e) {
         e.preventDefault();
         self.applyDiscountCode();
-      });
-
-      this.elements.discountInput.on("keypress", function (e) {
-        if (e.which === 13) {
-          e.preventDefault();
-          self.applyDiscountCode();
-        }
       });
 
       // Form submission
@@ -269,18 +262,7 @@
         });
       });
 
-      // Keyboard navigation
-      $(document).on("keydown", function (e) {
-        if (e.altKey) {
-          if (e.key === "ArrowRight") {
-            e.preventDefault();
-            self.nextStep(self.state.currentStep);
-          } else if (e.key === "ArrowLeft") {
-            e.preventDefault();
-            self.prevStep(self.state.currentStep);
-          }
-        }
-      });
+      this.log("Event listeners attached");
     },
 
     // Initialize form
@@ -288,11 +270,13 @@
       this.updateProgressBar();
       this.setMinDateTime();
       this.updateNavigationButtons();
+      this.log("Form initialized");
     },
 
-    // Enhanced ZIP code handling with area name display
+    // Enhanced ZIP code handling - FIXED
     handleZipInput: function () {
       const zipCode = this.elements.zipInput.val().trim();
+      this.log("ZIP input changed:", zipCode);
 
       // Clear previous timer
       clearTimeout(this.state.zipDebounceTimer);
@@ -300,7 +284,6 @@
       // Reset validation state
       this.state.isZipValid = false;
       this.state.validatedArea = null;
-      this.updateZipValidationIcon("checking");
 
       // Clear results
       this.elements.zipResult.empty();
@@ -326,6 +309,9 @@
         return;
       }
 
+      // Show checking state immediately for valid format
+      this.updateZipValidationIcon("checking");
+
       // Debounce the validation
       this.state.zipDebounceTimer = setTimeout(() => {
         this.validateZipCode();
@@ -340,9 +326,10 @@
       }
     },
 
-    // Enhanced ZIP validation with area name display
+    // Enhanced ZIP validation - FIXED
     validateZipCode: function () {
       const zipCode = this.elements.zipInput.val().trim();
+      this.log("Validating ZIP code:", zipCode);
 
       if (!zipCode) {
         this.updateZipValidationIcon("error");
@@ -351,6 +338,7 @@
           "Please enter a ZIP code",
           "error"
         );
+        this.updateNavigationButtons();
         return;
       }
 
@@ -362,6 +350,7 @@
           "Please enter a valid ZIP code (e.g., 12345)",
           "error"
         );
+        this.updateNavigationButtons();
         return;
       }
 
@@ -374,7 +363,7 @@
         nonce: this.config.nonces.booking,
       };
 
-      this.log("Validating ZIP code:", zipCode);
+      this.log("Sending ZIP validation request:", data);
 
       $.ajax({
         url: this.config.ajaxUrl,
@@ -386,18 +375,12 @@
 
           if (response && response.success) {
             this.state.isZipValid = true;
-            this.state.validatedArea = response.data?.area || null;
+            this.state.validatedArea = response.data || null;
             this.updateZipValidationIcon("success");
 
-            // Enhanced success message with area name
             let successMessage = "✓ Service available in your area!";
-            if (this.state.validatedArea && this.state.validatedArea.label) {
+            if (this.state.validatedArea?.label) {
               successMessage = `✓ Service available in ${this.state.validatedArea.label}!`;
-            } else if (
-              this.state.validatedArea &&
-              this.state.validatedArea.zip_code
-            ) {
-              successMessage = `✓ Service available in ZIP ${this.state.validatedArea.zip_code}!`;
             }
 
             this.showMessage(
@@ -405,6 +388,8 @@
               successMessage,
               "success"
             );
+
+            // CRITICAL FIX: Update navigation buttons after successful validation
             this.updateNavigationButtons();
           } else {
             this.state.isZipValid = false;
@@ -426,6 +411,8 @@
           let errorMessage = "Unable to verify ZIP code. Please try again.";
           if (xhr.status === 0) {
             errorMessage = "Network error. Please check your connection.";
+          } else if (xhr.status === 400) {
+            errorMessage = "Invalid request. Please check your ZIP code.";
           }
 
           this.showMessage(this.elements.zipResult, errorMessage, "error");
@@ -434,8 +421,13 @@
       });
     },
 
-    // Update ZIP validation icon
+    // Update ZIP validation icon - FIXED
     updateZipValidationIcon: function (state) {
+      if (!this.elements.zipValidationIcon) {
+        this.log("Warning: ZIP validation icon not found");
+        return;
+      }
+
       const $icon = this.elements.zipValidationIcon;
       $icon.removeClass("checking success error none");
 
@@ -454,45 +446,93 @@
       }
     },
 
-    // Enhanced service selection - single selection only
-    handleServiceSelection: function ($radio) {
-      const serviceId = parseInt($radio.val());
-      const $serviceCard = $radio.closest(".service-card");
+    // Enhanced service selection - FIXED
+    handleServiceSelection: function ($input) {
+      const serviceId = parseInt($input.val());
+      const $serviceCard = $input.closest(".service-card");
+      const isCheckbox = $input.attr("type") === "checkbox";
 
-      // Clear all previous selections
-      this.elements.serviceCards.removeClass("selected");
+      this.log(
+        "Service selection changed:",
+        serviceId,
+        "checked:",
+        $input.is(":checked")
+      );
 
-      // Set current selection
-      this.state.selectedService = serviceId;
-      $serviceCard.addClass("selected");
+      if (isCheckbox) {
+        // Multiple selection with checkboxes
+        if ($input.is(":checked")) {
+          if (!this.state.selectedServices.includes(serviceId)) {
+            this.state.selectedServices.push(serviceId);
+            $serviceCard.addClass("selected");
+          }
+        } else {
+          this.state.selectedServices = this.state.selectedServices.filter(
+            (id) => id !== serviceId
+          );
+          $serviceCard.removeClass("selected");
+        }
+      } else {
+        // Single selection with radio buttons
+        this.elements.serviceCards.removeClass("selected");
+        this.state.selectedServices = [serviceId];
+        $serviceCard.addClass("selected");
+      }
 
       // Add selection animation
       $serviceCard.addClass("selecting");
       setTimeout(() => $serviceCard.removeClass("selecting"), 600);
 
-      // Clear previous service options since we're changing service
-      this.state.serviceOptions = {};
-
       this.updatePricing();
       this.updateNavigationButtons();
-      this.log("Selected service:", serviceId);
 
-      // Show a brief confirmation message
+      this.log("Selected services:", this.state.selectedServices);
+
+      // Show confirmation
+      const serviceName =
+        this.state.servicesData[serviceId]?.name || `Service ${serviceId}`;
       this.showNotification(
-        `Selected: ${this.state.servicesData[serviceId]?.name}`,
+        isCheckbox
+          ? $input.is(":checked")
+            ? `Added: ${serviceName}`
+            : `Removed: ${serviceName}`
+          : `Selected: ${serviceName}`,
         "success"
       );
     },
 
-    // Manual navigation - user controlled
+    // Manual navigation handlers - FIXED
+    handleNextStep: function ($button) {
+      const $currentStep = $button.closest(".booking-step");
+      const stepIndex = this.elements.steps.index($currentStep);
+      const currentStep = stepIndex + 1;
+
+      this.log("Next step requested from step", currentStep);
+      this.nextStep(currentStep);
+    },
+
+    handlePrevStep: function ($button) {
+      const $currentStep = $button.closest(".booking-step");
+      const stepIndex = this.elements.steps.index($currentStep);
+      const currentStep = stepIndex + 1;
+
+      this.log("Previous step requested from step", currentStep);
+      this.prevStep(currentStep);
+    },
+
+    // Manual navigation - FIXED
     nextStep: function (currentStep) {
-      if (this.state.isProcessing) return;
+      if (this.state.isProcessing) {
+        this.log("Cannot proceed - form is processing");
+        return;
+      }
 
       this.log(
         `Attempting to go from step ${currentStep} to ${currentStep + 1}`
       );
 
       if (!this.validateStep(currentStep)) {
+        this.log("Step validation failed for step", currentStep);
         return;
       }
 
@@ -515,7 +555,7 @@
           this.buildOrderSummary();
           break;
         case 5:
-          this.log("Moving to Success (should not happen via nextStep)");
+          this.log("Should not reach here - step 5 uses submit button");
           return;
       }
 
@@ -533,21 +573,18 @@
     },
 
     showStep: function (stepNumber) {
-      if (stepNumber < 1 || stepNumber > this.state.totalSteps) return;
+      if (stepNumber < 1 || stepNumber > this.state.totalSteps) {
+        this.log("Invalid step number:", stepNumber);
+        return;
+      }
 
       this.log(`Showing step ${stepNumber}`);
 
       this.state.currentStep = stepNumber;
 
-      // Add transition classes
-      this.elements.steps.removeClass("active entering");
-      const $newStep = $(`.booking-step.step-${stepNumber}`);
-
-      // Smooth transition
-      $newStep.addClass("entering");
-      setTimeout(() => {
-        $newStep.addClass("active");
-      }, 50);
+      // Update step visibility
+      this.elements.steps.removeClass("active");
+      $(`.booking-step.step-${stepNumber}`).addClass("active");
 
       this.updateProgressBar();
       this.updateProgressSteps();
@@ -559,19 +596,22 @@
         block: "start",
       });
 
-      // Focus on first input in the step
+      // Focus management
       setTimeout(() => {
         const $activeStep = $(`.booking-step.step-${stepNumber}`);
-        const $firstInput = $activeStep.find("input, select, textarea").first();
-        if ($firstInput.length && $firstInput.is(":visible")) {
+        const $firstInput = $activeStep
+          .find("input:visible, select:visible, textarea:visible")
+          .first();
+        if ($firstInput.length) {
           $firstInput.focus();
         }
-      }, 500);
+      }, 300);
     },
 
-    // Enhanced step validation
+    // Enhanced step validation - FIXED
     validateStep: function (stepNumber) {
       this.clearFieldErrors();
+      this.log("Validating step", stepNumber);
 
       switch (stepNumber) {
         case 1:
@@ -583,7 +623,7 @@
         case 4:
           return this.validateCustomerStep();
         case 5:
-          return true; // Review step doesn't need validation
+          return true;
         default:
           return true;
       }
@@ -591,9 +631,16 @@
 
     validateZipStep: function () {
       const zipCode = this.elements.zipInput.val().trim();
+      this.log(
+        "Validating ZIP step. ZIP:",
+        zipCode,
+        "Valid:",
+        this.state.isZipValid
+      );
 
       if (!zipCode) {
         this.showFieldError(this.elements.zipInput, "Please enter a ZIP code");
+        this.showNotification("Please enter a ZIP code", "error");
         return false;
       }
 
@@ -610,8 +657,16 @@
     },
 
     validateServicesStep: function () {
-      if (!this.state.selectedService) {
-        this.showNotification("Please select a service", "error");
+      this.log(
+        "Validating services step. Selected:",
+        this.state.selectedServices
+      );
+
+      if (
+        !this.state.selectedServices ||
+        this.state.selectedServices.length === 0
+      ) {
+        this.showNotification("Please select at least one service", "error");
         this.elements.servicesGrid[0].scrollIntoView({ behavior: "smooth" });
         return false;
       }
@@ -619,6 +674,7 @@
     },
 
     validateServiceOptionsStep: function () {
+      // Service options validation
       let isValid = true;
       const errors = [];
 
@@ -714,226 +770,22 @@
           "Please select a service date and time"
         );
         isValid = false;
-      } else {
-        const selectedDate = new Date(serviceDate);
-        const now = new Date();
-        if (selectedDate <= now) {
-          this.showFieldError(
-            this.elements.customerForm.date,
-            "Please select a future date and time"
-          );
-          isValid = false;
-        }
       }
 
       if (!isValid && errors.length > 0) {
         this.showNotification(`Please fill in: ${errors.join(", ")}`, "error");
-        // Focus on first error field
-        const $firstError = $(".error").first();
-        if ($firstError.length) {
-          $firstError.focus();
-        }
       }
 
       return isValid;
     },
 
-    // Enhanced prepareServiceOptions function for single service
-    prepareServiceOptions: function () {
-      console.log("🔧 Preparing service options...");
-      this.elements.optionsContainer.empty();
-
-      if (!this.state.selectedService) {
-        console.warn("No service selected for options preparation");
-        this.showNoOptionsMessage();
-        return;
-      }
-
-      const serviceData = this.state.servicesData[this.state.selectedService];
-      const hasOptions = serviceData && serviceData.hasOptions;
-
-      console.log(
-        `Service ${this.state.selectedService} has options:`,
-        hasOptions
-      );
-
-      if (!hasOptions) {
-        console.log("Selected service has no options, showing message");
-        this.showNoOptionsMessage();
-        return;
-      }
-
-      // Show loading indicator
-      this.elements.optionsContainer.html(`
-        <div class="options-loading">
-            <div class="loading-spinner"></div>
-            <p>Loading service options...</p>
-        </div>
-      `);
-
-      // Load options for the selected service
-      this.loadServiceOptions(this.state.selectedService, () => {
-        console.log("✅ Service options loaded");
-        this.elements.optionsContainer.find(".options-loading").remove();
-        this.initializeAllOptionHandlers();
-      });
-    },
-
-    // Load service options
-    loadServiceOptions: function (serviceId, callback) {
-      console.log(`🔄 Loading options for service ${serviceId}`);
-
-      const serviceData = this.state.servicesData[serviceId];
-      if (!serviceData) {
-        console.error(`Service data not found for ID: ${serviceId}`);
-        if (callback) callback();
-        return;
-      }
-
-      const data = {
-        action: "mobooking_get_service_options",
-        service_id: serviceId,
-        nonce: this.config.nonces.booking,
-      };
-
-      console.log("AJAX request data:", data);
-
-      $.ajax({
-        url: this.config.ajaxUrl,
-        type: "POST",
-        data: data,
-        timeout: 30000,
-        success: (response) => {
-          console.log(
-            `✅ Service options response for ${serviceId}:`,
-            response
-          );
-
-          if (response && response.success) {
-            if (response.data && Array.isArray(response.data.options)) {
-              if (response.data.options.length > 0) {
-                this.renderServiceOptions(
-                  serviceId,
-                  serviceData,
-                  response.data.options
-                );
-              } else {
-                console.log(`Service ${serviceId} has no options configured`);
-                this.showNoOptionsMessage();
-              }
-            } else {
-              console.warn(
-                `Invalid options data structure for service ${serviceId}:`,
-                response.data
-              );
-              this.showNoOptionsMessage();
-            }
-          } else {
-            console.error(
-              `Failed to load options for service ${serviceId}:`,
-              response
-            );
-            this.showOptionsError(
-              serviceId,
-              response?.data?.message || "Failed to load options"
-            );
-          }
-
-          if (callback) callback();
-        },
-        error: (xhr, status, error) => {
-          console.error(
-            `❌ AJAX error loading options for service ${serviceId}:`,
-            {
-              status: xhr.status,
-              statusText: xhr.statusText,
-              error: error,
-              responseText: xhr.responseText,
-            }
-          );
-
-          this.showOptionsError(
-            serviceId,
-            `Error loading options (${xhr.status}): ${error}`
-          );
-          if (callback) callback();
-        },
-      });
-    },
-
-    // Enhanced renderServiceOptions function
-    renderServiceOptions: function (serviceId, serviceData, options) {
-      console.log(
-        `🎨 Rendering ${options.length} options for service ${serviceId}:`,
-        serviceData.name
-      );
-
-      if (!options || options.length === 0) {
-        console.log(`No options to render for service ${serviceId}`);
-        this.showNoOptionsMessage();
-        return;
-      }
-
-      // Remove any existing section for this service
-      $(`.service-options-section[data-service-id="${serviceId}"]`).remove();
-
-      const $section = $(`
-        <div class="service-options-section" data-service-id="${serviceId}">
-            <div class="service-options-header">
-                <h3 class="service-options-title">
-                    <span class="service-icon">⚙️</span>
-                    ${serviceData.name} Options
-                </h3>
-                <p class="service-options-subtitle">Customize your ${
-                  serviceData.name
-                } service</p>
-            </div>
-            <div class="service-options-fields">
-                ${this.generateOptionsHTML(options)}
-            </div>
-        </div>
-      `);
-
-      this.elements.optionsContainer.append($section);
-
-      // Initialize handlers for this section
-      this.initializeOptionHandlers($section);
-
-      console.log(`✅ Service options section rendered for ${serviceId}`);
-    },
-
-    // Show no options message
-    showNoOptionsMessage: function () {
-      this.elements.optionsContainer.html(`
-        <div class="no-options-message">
-          <div class="no-options-icon">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2ZM8 12l2 2 4-4"/>
-            </svg>
-          </div>
-          <h3>No Additional Options Needed</h3>
-          <p>Your selected service is ready to book as-is. Click "Continue" to proceed with your booking details.</p>
-        </div>
-      `);
-    },
-
-    // Set minimum date/time for service
-    setMinDateTime: function () {
-      const tomorrow = new Date();
-      tomorrow.setDate(tomorrow.getDate() + 1);
-      tomorrow.setHours(8, 0, 0, 0);
-
-      const minDateTime = tomorrow.toISOString().slice(0, 16);
-      this.elements.customerForm.date.attr("min", minDateTime);
-    },
-
-    // Enhanced navigation button updates
+    // Enhanced navigation button updates - FIXED
     updateNavigationButtons: function () {
       const $currentStep = $(`.booking-step.step-${this.state.currentStep}`);
       const $nextBtn = $currentStep.find(".next-step");
       const $prevBtn = $currentStep.find(".prev-step");
 
-      // Update previous button - always show except on first step
+      // Update previous button
       if (this.state.currentStep <= 1) {
         $prevBtn.hide();
       } else {
@@ -945,15 +797,22 @@
         case 1:
           if (this.state.isZipValid) {
             $nextBtn.prop("disabled", false).text("Continue to Services");
+            this.log("Step 1: Next button enabled - ZIP is valid");
           } else {
             $nextBtn.prop("disabled", true).text("Enter Valid ZIP Code");
+            this.log("Step 1: Next button disabled - ZIP not valid");
           }
           break;
         case 2:
-          if (this.state.selectedService) {
+          if (
+            this.state.selectedServices &&
+            this.state.selectedServices.length > 0
+          ) {
             $nextBtn.prop("disabled", false).text("Continue to Options");
+            this.log("Step 2: Next button enabled - services selected");
           } else {
             $nextBtn.prop("disabled", true).text("Select a Service");
+            this.log("Step 2: Next button disabled - no services selected");
           }
           break;
         case 3:
@@ -963,7 +822,6 @@
           $nextBtn.prop("disabled", false).text("Review Booking");
           break;
         case 5:
-          // This is handled by the confirm button, not next button
           $nextBtn.hide();
           break;
         default:
@@ -971,17 +829,16 @@
       }
     },
 
-    // Enhanced pricing calculations for single service
+    // Enhanced pricing calculations - FIXED
     updatePricing: function () {
       let subtotal = 0;
 
-      // Calculate base service price
-      if (
-        this.state.selectedService &&
-        this.state.servicesData[this.state.selectedService]
-      ) {
-        subtotal += this.state.servicesData[this.state.selectedService].price;
-      }
+      // Calculate base service prices
+      this.state.selectedServices.forEach((serviceId) => {
+        if (this.state.servicesData[serviceId]) {
+          subtotal += this.state.servicesData[serviceId].price;
+        }
+      });
 
       // Calculate option pricing
       $(".option-field").each(function () {
@@ -999,24 +856,9 @@
           shouldApply = $input.is(":checked");
         } else if ($input.is('input[type="radio"]')) {
           const $checked = $field.find('input[type="radio"]:checked');
-          if ($checked.length) {
-            shouldApply = true;
-            const choicePrice = parseFloat($checked.data("price")) || 0;
-            if (choicePrice > 0) {
-              subtotal += choicePrice;
-              return; // Skip standard price impact calculation
-            }
-          }
+          shouldApply = $checked.length > 0;
         } else if ($input.is("select")) {
-          const $selected = $input.find("option:selected");
-          if ($selected.val()) {
-            shouldApply = true;
-            const choicePrice = parseFloat($selected.data("price")) || 0;
-            if (choicePrice > 0) {
-              subtotal += choicePrice;
-              return; // Skip standard price impact calculation
-            }
-          }
+          shouldApply = $input.val() !== "";
         } else if (
           $input.is('input[type="number"]') &&
           priceType === "multiply"
@@ -1076,15 +918,391 @@
       }
     },
 
-    // Collect service options data for single service
+    // Prepare service options - FIXED
+    prepareServiceOptions: function () {
+      this.log(
+        "🔧 Preparing service options for services:",
+        this.state.selectedServices
+      );
+      this.elements.optionsContainer.empty();
+
+      if (
+        !this.state.selectedServices ||
+        this.state.selectedServices.length === 0
+      ) {
+        this.log("No services selected for options preparation");
+        this.showNoOptionsMessage();
+        return;
+      }
+
+      let hasAnyOptions = false;
+      let optionsLoaded = 0;
+      const totalServices = this.state.selectedServices.length;
+
+      this.state.selectedServices.forEach((serviceId) => {
+        const serviceData = this.state.servicesData[serviceId];
+        if (serviceData && serviceData.hasOptions) {
+          hasAnyOptions = true;
+          this.loadServiceOptions(serviceId, () => {
+            optionsLoaded++;
+            if (optionsLoaded === totalServices) {
+              this.log("All service options loaded");
+            }
+          });
+        }
+      });
+
+      if (!hasAnyOptions) {
+        this.log("No selected services have options");
+        this.showNoOptionsMessage();
+      }
+    },
+
+    // Load service options - FIXED
+    loadServiceOptions: function (serviceId, callback) {
+      this.log(`🔄 Loading options for service ${serviceId}`);
+
+      const serviceData = this.state.servicesData[serviceId];
+      if (!serviceData) {
+        this.log(`Service data not found for ID: ${serviceId}`);
+        if (callback) callback();
+        return;
+      }
+
+      const data = {
+        action: "mobooking_get_service_options",
+        service_id: serviceId,
+        nonce: this.config.nonces.booking,
+      };
+
+      $.ajax({
+        url: this.config.ajaxUrl,
+        type: "POST",
+        data: data,
+        timeout: 30000,
+        success: (response) => {
+          this.log(`Service options response for ${serviceId}:`, response);
+
+          if (response && response.success) {
+            if (response.data && Array.isArray(response.data.options)) {
+              if (response.data.options.length > 0) {
+                this.renderServiceOptions(
+                  serviceId,
+                  serviceData,
+                  response.data.options
+                );
+              } else {
+                this.log(`Service ${serviceId} has no options configured`);
+              }
+            }
+          } else {
+            this.log(
+              `Failed to load options for service ${serviceId}:`,
+              response
+            );
+            this.showOptionsError(
+              serviceId,
+              response?.data?.message || "Failed to load options"
+            );
+          }
+
+          if (callback) callback();
+        },
+        error: (xhr, status, error) => {
+          this.log(`AJAX error loading options for service ${serviceId}:`, {
+            status: xhr.status,
+            error: error,
+          });
+
+          this.showOptionsError(serviceId, `Error loading options: ${error}`);
+          if (callback) callback();
+        },
+      });
+    },
+
+    // Render service options - FIXED
+    renderServiceOptions: function (serviceId, serviceData, options) {
+      this.log(
+        `🎨 Rendering ${options.length} options for service ${serviceId}`
+      );
+
+      if (!options || options.length === 0) {
+        return;
+      }
+
+      const $section = $(`
+        <div class="service-options-section" data-service-id="${serviceId}">
+            <div class="service-options-header">
+                <h3 class="service-options-title">
+                    ${serviceData.name} Options
+                </h3>
+                <p class="service-options-subtitle">Customize your ${
+                  serviceData.name
+                } service</p>
+            </div>
+            <div class="service-options-fields">
+                ${this.generateOptionsHTML(options)}
+            </div>
+        </div>
+      `);
+
+      this.elements.optionsContainer.append($section);
+      this.initializeOptionHandlers($section);
+    },
+
+    // Show no options message
+    showNoOptionsMessage: function () {
+      this.elements.optionsContainer.html(`
+        <div class="no-options-message">
+          <div class="no-options-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2ZM8 12l2 2 4-4"/>
+            </svg>
+          </div>
+          <h3>No Additional Options Needed</h3>
+          <p>Your selected services are ready to book. Click "Continue" to proceed.</p>
+        </div>
+      `);
+    },
+
+    // Generate options HTML
+    generateOptionsHTML: function (options) {
+      if (!Array.isArray(options) || options.length === 0) {
+        return '<p class="no-options">No additional options for this service.</p>';
+      }
+
+      let html = "";
+
+      options.forEach((option) => {
+        const isRequired = option.is_required == 1;
+        const requiredMark = isRequired
+          ? ' <span class="required">*</span>'
+          : "";
+        const priceImpact =
+          option.price_impact > 0
+            ? ` <span class="price-impact">(+${this.formatPrice(
+                option.price_impact
+              )})</span>`
+            : "";
+
+        html += `
+          <div class="option-field" 
+               data-option-id="${option.id}" 
+               data-option-type="${option.type}"
+               data-price-type="${option.price_type}" 
+               data-price-impact="${option.price_impact}"
+               data-service-id="${option.service_id}">
+              <label class="option-label">
+                  ${option.name}${requiredMark}${priceImpact}
+              </label>
+              ${
+                option.description
+                  ? `<p class="option-description">${option.description}</p>`
+                  : ""
+              }
+              <div class="option-input">
+                  ${this.generateOptionInput(option, isRequired)}
+              </div>
+          </div>
+        `;
+      });
+
+      return html;
+    },
+
+    // Generate option input
+    generateOptionInput: function (option, isRequired) {
+      const requiredAttr = isRequired ? 'required data-required="true"' : "";
+      const placeholderAttr = option.placeholder
+        ? `placeholder="${option.placeholder}"`
+        : "";
+      const optionId = `option_${option.id}`;
+
+      switch (option.type) {
+        case "text":
+          return `<input type="text" id="${optionId}" name="${optionId}" 
+                       ${requiredAttr} ${placeholderAttr} 
+                       value="${option.default_value || ""}" 
+                       class="option-input-field">`;
+
+        case "textarea":
+          return `<textarea id="${optionId}" name="${optionId}" 
+                       ${requiredAttr} ${placeholderAttr} 
+                       rows="${option.rows || 3}"
+                       class="option-input-field">${
+                         option.default_value || ""
+                       }</textarea>`;
+
+        case "number":
+        case "quantity":
+          return `<input type="number" id="${optionId}" name="${optionId}" 
+                    ${requiredAttr} ${placeholderAttr}
+                    ${
+                      option.min_value !== null
+                        ? `min="${option.min_value}"`
+                        : ""
+                    }
+                    ${
+                      option.max_value !== null
+                        ? `max="${option.max_value}"`
+                        : ""
+                    }
+                    step="${option.step || 1}" 
+                    value="${option.default_value || ""}" 
+                    class="option-input-field">`;
+
+        case "select":
+          const selectOptions = this.parseChoices(option.options);
+          let selectHTML = `<select id="${optionId}" name="${optionId}" ${requiredAttr} class="option-input-field">`;
+
+          if (!isRequired) {
+            selectHTML += '<option value="">Choose an option...</option>';
+          }
+
+          selectOptions.forEach((choice) => {
+            const selected =
+              choice.value === option.default_value ? "selected" : "";
+            selectHTML += `<option value="${choice.value}" ${selected}>
+                             ${choice.label}${
+              choice.price > 0
+                ? " (+" + this.formatPrice(choice.price) + ")"
+                : ""
+            }
+                           </option>`;
+          });
+          selectHTML += "</select>";
+          return selectHTML;
+
+        case "radio":
+          const radioOptions = this.parseChoices(option.options);
+          let radioHTML = '<div class="radio-group">';
+
+          radioOptions.forEach((choice, index) => {
+            const radioId = `${optionId}_${index}`;
+            const checked =
+              choice.value === option.default_value ? "checked" : "";
+
+            radioHTML += `
+              <label class="radio-label" for="${radioId}">
+                  <input type="radio" id="${radioId}" 
+                         name="${optionId}" value="${choice.value}" 
+                         ${checked} ${requiredAttr} class="option-input-field">
+                  <span class="radio-text">${choice.label}</span>
+                  ${
+                    choice.price > 0
+                      ? `<span class="choice-price">+${this.formatPrice(
+                          choice.price
+                        )}</span>`
+                      : ""
+                  }
+              </label>
+            `;
+          });
+          radioHTML += "</div>";
+          return radioHTML;
+
+        case "checkbox":
+          const checked = option.default_value == "1" ? "checked" : "";
+          return `
+            <label class="checkbox-label">
+                <input type="checkbox" id="${optionId}" name="${optionId}" 
+                       value="1" ${checked} class="option-input-field">
+                <span class="checkbox-text">${
+                  option.option_label || "Yes"
+                }</span>
+            </label>
+          `;
+
+        default:
+          return `<input type="text" id="${optionId}" name="${optionId}" 
+                       ${requiredAttr} ${placeholderAttr} 
+                       value="${
+                         option.default_value || ""
+                       }" class="option-input-field">`;
+      }
+    },
+
+    // Parse option choices
+    parseChoices: function (choicesString) {
+      if (!choicesString) return [];
+
+      const choices = [];
+      const lines = choicesString.split("\n");
+
+      lines.forEach((line) => {
+        line = line.trim();
+        if (!line) return;
+
+        const parts = line.split("|");
+        const value = parts[0].trim();
+        let label = value;
+        let price = 0;
+
+        if (parts[1]) {
+          const labelPrice = parts[1].split(":");
+          label = labelPrice[0].trim();
+          if (labelPrice[1]) {
+            price = parseFloat(labelPrice[1]) || 0;
+          }
+        }
+
+        choices.push({ value, label, price });
+      });
+
+      return choices;
+    },
+
+    // Initialize option handlers
+    initializeOptionHandlers: function ($section) {
+      const self = this;
+
+      $section.find(".option-input-field").off(".optionHandler");
+
+      $section
+        .find(".option-input-field")
+        .on("change.optionHandler input.optionHandler", function () {
+          self.updatePricing();
+        });
+    },
+
+    // Show options error
+    showOptionsError: function (serviceId, message) {
+      const serviceData = this.state.servicesData[serviceId];
+      const serviceName = serviceData
+        ? serviceData.name
+        : `Service ${serviceId}`;
+
+      const $errorSection = $(`
+        <div class="service-options-section error" data-service-id="${serviceId}">
+            <div class="service-options-header">
+                <h3 class="service-options-title">${serviceName} Options</h3>
+            </div>
+            <div class="options-error">
+                <p class="error-message">⚠️ ${message}</p>
+                <button type="button" class="retry-options-btn" data-service-id="${serviceId}">
+                    Try Again
+                </button>
+            </div>
+        </div>
+      `);
+
+      this.elements.optionsContainer.append($errorSection);
+
+      $errorSection.find(".retry-options-btn").on("click", () => {
+        $errorSection.remove();
+        this.loadServiceOptions(serviceId);
+      });
+    },
+
+    // Collect service options data
     collectServiceOptions: function () {
       const optionsData = {};
 
-      if (this.state.selectedService) {
-        optionsData[this.state.selectedService] = {};
+      this.state.selectedServices.forEach((serviceId) => {
+        optionsData[serviceId] = {};
 
         $(
-          `.service-options-section[data-service-id="${this.state.selectedService}"] .option-field`
+          `.service-options-section[data-service-id="${serviceId}"] .option-field`
         ).each(function () {
           const optionId = $(this).data("option-id");
           const $input = $(this).find("input, select, textarea");
@@ -1098,16 +1316,38 @@
             value = $input.val() || "";
           }
 
-          optionsData[this.state.selectedService][optionId] = value;
+          optionsData[serviceId][optionId] = value;
         });
-      }
+      });
 
       this.state.serviceOptions = optionsData;
       this.elements.serviceOptionsField.val(JSON.stringify(optionsData));
       this.log("Collected service options:", optionsData);
     },
 
-    // Build order summary for single service
+    // Set minimum date/time
+    setMinDateTime: function () {
+      const tomorrow = new Date();
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      tomorrow.setHours(8, 0, 0, 0);
+
+      const minDateTime = tomorrow.toISOString().slice(0, 16);
+      this.elements.customerForm.date.attr("min", minDateTime);
+    },
+
+    // Update customer data
+    updateCustomerData: function () {
+      this.state.customerData = {
+        name: this.elements.customerForm.name.val().trim(),
+        email: this.elements.customerForm.email.val().trim(),
+        phone: this.elements.customerForm.phone.val().trim(),
+        address: this.elements.customerForm.address.val().trim(),
+        date: this.elements.customerForm.date.val(),
+        notes: this.elements.customerForm.notes.val().trim(),
+      };
+    },
+
+    // Build order summary
     buildOrderSummary: function () {
       this.buildServiceSummary();
       this.buildCustomerSummary();
@@ -1115,12 +1355,12 @@
       this.showDiscountSection();
     },
 
-    // Build service summary for single service
+    // Build service summary
     buildServiceSummary: function () {
       let html = "";
 
-      if (this.state.selectedService) {
-        const serviceData = this.state.servicesData[this.state.selectedService];
+      this.state.selectedServices.forEach((serviceId) => {
+        const serviceData = this.state.servicesData[serviceId];
         if (serviceData) {
           html += `
             <div class="service-summary-item">
@@ -1131,7 +1371,7 @@
                     ? `<p class="service-description">${serviceData.description}</p>`
                     : ""
                 }
-                ${this.buildServiceOptionsHTML(this.state.selectedService)}
+                ${this.buildServiceOptionsHTML(serviceId)}
               </div>
               <div class="service-price">${this.formatPrice(
                 serviceData.price
@@ -1139,7 +1379,7 @@
             </div>
           `;
         }
-      }
+      });
 
       this.elements.selectedServicesList.html(html);
     },
@@ -1163,7 +1403,6 @@
           .replace(/\*|\(.*\)/g, "")
           .trim();
 
-        // Format value based on option type
         let displayValue = value;
         const $input = $optionField.find("input, select, textarea");
 
@@ -1227,24 +1466,12 @@
       `);
     },
 
-    // Update customer data
-    updateCustomerData: function () {
-      this.state.customerData = {
-        name: this.elements.customerForm.name.val().trim(),
-        email: this.elements.customerForm.email.val().trim(),
-        phone: this.elements.customerForm.phone.val().trim(),
-        address: this.elements.customerForm.address.val().trim(),
-        date: this.elements.customerForm.date.val(),
-        notes: this.elements.customerForm.notes.val().trim(),
-      };
-    },
-
     // Show discount section
     showDiscountSection: function () {
       $(".discount-section").show();
     },
 
-    // Enhanced discount code handling
+    // Apply discount code
     applyDiscountCode: function () {
       const code = this.elements.discountInput.val().trim();
 
@@ -1258,7 +1485,7 @@
       }
 
       if (this.elements.applyDiscountBtn.hasClass("loading")) {
-        return; // Prevent duplicate requests
+        return;
       }
 
       this.setLoading(this.elements.applyDiscountBtn, true);
@@ -1297,8 +1524,7 @@
             );
           }
         },
-        error: (xhr, status, error) => {
-          this.log("Discount validation error:", xhr, status, error);
+        error: () => {
           this.showMessage(
             $(".discount-message"),
             "Error applying discount code. Please try again.",
@@ -1311,11 +1537,10 @@
       });
     },
 
-    // Enhanced booking submission for single service
+    // Submit booking
     submitBooking: function () {
       if (this.state.isProcessing) return;
 
-      // Final validation
       if (!this.validateStep(5)) {
         return;
       }
@@ -1323,17 +1548,14 @@
       this.state.isProcessing = true;
       this.setLoading(this.elements.confirmBtn, true);
 
-      // Collect all form data
       const formData = new FormData(this.elements.form[0]);
       formData.append("action", "mobooking_save_booking");
       formData.append("nonce", this.config.nonces.booking);
 
-      // Add selected service (single selection)
-      if (this.state.selectedService) {
-        formData.append("selected_services[]", this.state.selectedService);
-      }
-
-      this.log("Submitting booking with data:", Object.fromEntries(formData));
+      // Add selected services
+      this.state.selectedServices.forEach((serviceId) => {
+        formData.append("selected_services[]", serviceId);
+      });
 
       $.ajax({
         url: this.config.ajaxUrl,
@@ -1343,10 +1565,9 @@
         contentType: false,
         timeout: 60000,
         success: (response) => {
-          this.log("Booking submission response:", response);
           if (response && response.success) {
             $(".reference-number").text("#" + response.data.id);
-            this.showStep(6); // Success step
+            this.showStep(6);
             this.showNotification(
               response.data.message || "Booking confirmed successfully!",
               "success"
@@ -1358,23 +1579,13 @@
             );
           }
         },
-        error: (xhr, status, error) => {
-          this.log("Booking submission error:", xhr, status, error);
-
+        error: (xhr) => {
           let errorMessage = "An error occurred. Please try again.";
           if (xhr.status === 0) {
             errorMessage = "Network error. Please check your connection.";
           } else if (xhr.status >= 500) {
             errorMessage = "Server error. Please try again in a few minutes.";
-          } else if (xhr.responseText) {
-            try {
-              const errorData = JSON.parse(xhr.responseText);
-              errorMessage = errorData.data?.message || errorMessage;
-            } catch (e) {
-              // Not JSON response
-            }
           }
-
           this.showNotification(errorMessage, "error");
         },
         complete: () => {
@@ -1420,7 +1631,6 @@
         return false;
       }
 
-      // Email validation
       if ($field.attr("type") === "email" && value) {
         const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
         if (!emailRegex.test(value)) {
@@ -1466,378 +1676,12 @@
         .removeClass("success error info warning")
         .addClass(type)
         .html(
-          `
-        <div class="message ${type}">
-          <span class="message-text">${message}</span>
-        </div>
-      `
+          `<div class="message ${type}"><span class="message-text">${message}</span></div>`
         )
         .show();
     },
 
-    // Initialize all option handlers
-    initializeAllOptionHandlers: function () {
-      console.log("🔧 Initializing all option handlers");
-      $(".service-options-section").each((index, section) => {
-        this.initializeOptionHandlers($(section));
-      });
-    },
-
-    // Initialize option handlers
-    initializeOptionHandlers: function ($section) {
-      console.log("🔧 Initializing option handlers for section");
-
-      // Clear previous handlers to avoid duplicates
-      $section.find(".option-input-field").off(".optionHandler");
-
-      // Add change handlers for real-time updates
-      $section
-        .find(".option-input-field")
-        .on("change.optionHandler input.optionHandler", (e) => {
-          console.log("Option value changed:", e.target.name, e.target.value);
-          this.updatePricing();
-          this.validateOptionField($(e.target));
-        });
-
-      // Handle range inputs with display updates
-      $section
-        .find('input[type="range"]')
-        .on("input.optionHandler", function () {
-          const $this = $(this);
-          let $display = $this.siblings(".range-display");
-          if ($display.length === 0) {
-            $display = $('<span class="range-display"></span>');
-            $this.after($display);
-          }
-          $display.text($this.val() + ($this.data("unit") || ""));
-        });
-
-      // Clear validation errors on focus
-      $section
-        .find(".option-input-field")
-        .on("focus.optionHandler", function () {
-          $(this).removeClass("error");
-          $(this).siblings(".field-error").remove();
-        });
-
-      console.log("✅ Option handlers initialized");
-    },
-
-    // Validate individual option field
-    validateOptionField: function ($field) {
-      const isRequired = $field.prop("required") || $field.data("required");
-      let value = "";
-
-      if ($field.is('input[type="checkbox"]')) {
-        value = $field.is(":checked") ? "1" : "";
-      } else if ($field.is('input[type="radio"]')) {
-        value =
-          $field
-            .closest(".option-field")
-            .find('input[type="radio"]:checked')
-            .val() || "";
-      } else {
-        value = $field.val() || "";
-      }
-
-      if (isRequired && (!value || value.trim() === "")) {
-        this.showFieldError($field, "This field is required");
-        return false;
-      }
-
-      this.clearFieldError($field);
-      return true;
-    },
-
-    // Show options loading error
-    showOptionsError: function (serviceId, message) {
-      const serviceData = this.state.servicesData[serviceId];
-      const serviceName = serviceData
-        ? serviceData.name
-        : `Service ${serviceId}`;
-
-      const $errorSection = $(`
-        <div class="service-options-section error" data-service-id="${serviceId}">
-            <div class="service-options-header">
-                <h3 class="service-options-title">${serviceName} Options</h3>
-            </div>
-            <div class="options-error">
-                <p class="error-message">⚠️ ${message}</p>
-                <button type="button" class="retry-options-btn" data-service-id="${serviceId}">
-                    Try Again
-                </button>
-            </div>
-        </div>
-      `);
-
-      this.elements.optionsContainer.append($errorSection);
-
-      // Add retry handler
-      $errorSection.find(".retry-options-btn").on("click", () => {
-        $errorSection.remove();
-        this.loadServiceOptions(serviceId);
-      });
-    },
-
-    // Generate options HTML
-    generateOptionsHTML: function (options) {
-      console.log("🏗️ Generating HTML for options:", options);
-
-      if (!Array.isArray(options) || options.length === 0) {
-        return '<p class="no-options">No additional options for this service.</p>';
-      }
-
-      let html = "";
-
-      options.forEach((option, index) => {
-        try {
-          const isRequired = option.is_required == 1;
-          const requiredMark = isRequired
-            ? ' <span class="required">*</span>'
-            : "";
-          const priceImpact =
-            option.price_impact > 0
-              ? ` <span class="price-impact">(+${this.formatPrice(
-                  option.price_impact
-                )})</span>`
-              : "";
-
-          html += `
-                <div class="option-field" 
-                     data-option-id="${option.id}" 
-                     data-option-type="${option.type}"
-                     data-price-type="${option.price_type}" 
-                     data-price-impact="${option.price_impact}"
-                     data-service-id="${option.service_id}">
-                    <label class="option-label">
-                        ${option.name}${requiredMark}${priceImpact}
-                    </label>
-                    ${
-                      option.description
-                        ? `<p class="option-description">${option.description}</p>`
-                        : ""
-                    }
-                    <div class="option-input">
-                        ${this.generateOptionInput(option, isRequired)}
-                    </div>
-                </div>
-            `;
-        } catch (error) {
-          console.error(
-            `Error generating HTML for option ${index}:`,
-            error,
-            option
-          );
-          // Continue with next option instead of breaking
-        }
-      });
-
-      console.log("Generated options HTML length:", html.length);
-      return html;
-    },
-
-    // Generate option input
-    generateOptionInput: function (option, isRequired) {
-      console.log(
-        `🎛️ Generating input for option: ${option.name} (${option.type})`
-      );
-
-      const requiredAttr = isRequired ? 'required data-required="true"' : "";
-      const placeholderAttr = option.placeholder
-        ? `placeholder="${option.placeholder}"`
-        : "";
-      const optionId = `option_${option.id}`;
-
-      try {
-        switch (option.type) {
-          case "text":
-            return `<input type="text" id="${optionId}" name="${optionId}" 
-                         ${requiredAttr} ${placeholderAttr} 
-                         ${
-                           option.min_length
-                             ? `minlength="${option.min_length}"`
-                             : ""
-                         }
-                         ${
-                           option.max_length
-                             ? `maxlength="${option.max_length}"`
-                             : ""
-                         } 
-                         value="${
-                           option.default_value || ""
-                         }" class="option-input-field">`;
-
-          case "textarea":
-            return `<textarea id="${optionId}" name="${optionId}" 
-                         ${requiredAttr} ${placeholderAttr} 
-                         rows="${option.rows || 3}"
-                         ${
-                           option.min_length
-                             ? `minlength="${option.min_length}"`
-                             : ""
-                         }
-                         ${
-                           option.max_length
-                             ? `maxlength="${option.max_length}"`
-                             : ""
-                         } 
-                         class="option-input-field">${
-                           option.default_value || ""
-                         }</textarea>`;
-
-          case "number":
-          case "quantity":
-            return `<div class="number-input-wrapper">
-                         <input type="number" id="${optionId}" name="${optionId}" 
-                          ${requiredAttr} ${placeholderAttr}
-                          ${
-                            option.min_value !== null
-                              ? `min="${option.min_value}"`
-                              : ""
-                          }
-                          ${
-                            option.max_value !== null
-                              ? `max="${option.max_value}"`
-                              : ""
-                          }
-                          step="${option.step || 1}" 
-                          value="${option.default_value || ""}" 
-                          class="option-input-field">
-                         ${
-                           option.unit
-                             ? `<span class="input-unit">${option.unit}</span>`
-                             : ""
-                         }
-                        </div>`;
-
-          case "select":
-            const selectOptions = this.parseChoices(option.options);
-            let selectHTML = `<select id="${optionId}" name="${optionId}" ${requiredAttr} class="option-input-field">`;
-
-            if (!isRequired) {
-              selectHTML += '<option value="">Choose an option...</option>';
-            }
-
-            selectOptions.forEach((choice) => {
-              const selected =
-                choice.value === option.default_value ? "selected" : "";
-              selectHTML += `<option value="${choice.value}" ${selected} 
-                                   ${
-                                     choice.price > 0
-                                       ? `data-price="${choice.price}"`
-                                       : ""
-                                   }>
-                                   ${choice.label}${
-                choice.price > 0
-                  ? " (+" + this.formatPrice(choice.price) + ")"
-                  : ""
-              }
-                                   </option>`;
-            });
-            selectHTML += "</select>";
-            return selectHTML;
-
-          case "radio":
-            const radioOptions = this.parseChoices(option.options);
-            let radioHTML = '<div class="radio-group">';
-
-            radioOptions.forEach((choice, index) => {
-              const radioId = `${optionId}_${index}`;
-              const checked =
-                choice.value === option.default_value ? "checked" : "";
-
-              radioHTML += `
-                        <label class="radio-label" for="${radioId}">
-                            <input type="radio" id="${radioId}" 
-                                   name="${optionId}" value="${choice.value}" 
-                                   ${checked} ${requiredAttr}
-                                   ${
-                                     choice.price > 0
-                                       ? `data-price="${choice.price}"`
-                                       : ""
-                                   } 
-                                   class="option-input-field">
-                            <span class="radio-text">${choice.label}</span>
-                            ${
-                              choice.price > 0
-                                ? `<span class="choice-price">+${this.formatPrice(
-                                    choice.price
-                                  )}</span>`
-                                : ""
-                            }
-                        </label>
-                    `;
-            });
-            radioHTML += "</div>";
-            return radioHTML;
-
-          case "checkbox":
-            const checked =
-              option.default_value == "1" || option.default_value === "true"
-                ? "checked"
-                : "";
-            return `
-                    <label class="checkbox-label">
-                        <input type="checkbox" id="${optionId}" name="${optionId}" 
-                               value="1" ${checked} class="option-input-field">
-                        <span class="checkbox-text">${
-                          option.option_label || "Yes"
-                        }</span>
-                    </label>
-                `;
-
-          default:
-            console.warn(
-              `Unknown option type: ${option.type}, defaulting to text input`
-            );
-            return `<input type="text" id="${optionId}" name="${optionId}" 
-                         ${requiredAttr} ${placeholderAttr} 
-                         value="${
-                           option.default_value || ""
-                         }" class="option-input-field">`;
-        }
-      } catch (error) {
-        console.error(
-          `Error generating input for option ${option.name}:`,
-          error
-        );
-        return `<p class="option-error">Error loading option input</p>`;
-      }
-    },
-
-    // Parse option choices
-    parseChoices: function (choicesString) {
-      if (!choicesString) return [];
-
-      const choices = [];
-      const lines = choicesString.split("\n");
-
-      lines.forEach((line) => {
-        line = line.trim();
-        if (!line) return;
-
-        const parts = line.split("|");
-        const value = parts[0].trim();
-
-        let label = value;
-        let price = 0;
-
-        if (parts[1]) {
-          const labelPrice = parts[1].split(":");
-          label = labelPrice[0].trim();
-          if (labelPrice[1]) {
-            price = parseFloat(labelPrice[1]) || 0;
-          }
-        }
-
-        choices.push({ value, label, price });
-      });
-
-      return choices;
-    },
-
     showNotification: function (message, type = "info") {
-      // Remove existing notifications
       $(".booking-notification").remove();
 
       const colors = {
@@ -1886,10 +1730,10 @@
   // Export for debugging
   window.BookingForm = BookingForm;
 
-  // Add custom styles for enhanced UI
-  if (!document.getElementById("manual-booking-styles")) {
+  // Add enhanced styles
+  if (!document.getElementById("fixed-booking-styles")) {
     $("<style>")
-      .attr("id", "manual-booking-styles")
+      .attr("id", "fixed-booking-styles")
       .prop("type", "text/css")
       .html(
         `
@@ -1898,10 +1742,54 @@
           to { transform: translateX(0); opacity: 1; }
         }
         
+        .zip-input-wrapper {
+          position: relative;
+          display: flex;
+          align-items: center;
+        }
+        
+        .zip-validation-icon {
+          position: absolute;
+          right: 1rem;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          width: 1.5rem;
+          height: 1.5rem;
+          pointer-events: none;
+        }
+        
+        .zip-validation-icon.success {
+          color: #10b981;
+          font-weight: bold;
+          font-size: 18px;
+        }
+        
+        .zip-validation-icon.error {
+          color: #ef4444;
+          font-weight: bold;
+          font-size: 18px;
+        }
+        
+        .zip-validation-icon .spinner {
+          width: 16px;
+          height: 16px;
+          border: 2px solid #d1d5db;
+          border-top-color: #3b82f6;
+          border-radius: 50%;
+          animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+          to { transform: rotate(360deg); }
+        }
+        
         .service-card {
           cursor: pointer;
           transition: all 0.3s ease;
           border: 2px solid #e5e7eb;
+          border-radius: 8px;
+          padding: 1.5rem;
         }
         
         .service-card:hover {
@@ -1925,35 +1813,6 @@
           0% { transform: scale(1); }
           50% { transform: scale(1.05); }
           100% { transform: scale(1.02); }
-        }
-        
-        .service-radio {
-          position: absolute;
-          opacity: 0;
-          pointer-events: none;
-        }
-        
-        .service-selector {
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          width: 24px;
-          height: 24px;
-          border: 2px solid #d1d5db;
-          border-radius: 50%;
-          transition: all 0.2s ease;
-        }
-        
-        .service-card.selected .service-selector {
-          border-color: #3b82f6;
-          background: #3b82f6;
-        }
-        
-        .service-card.selected .service-selector:after {
-          content: '●';
-          color: white;
-          font-size: 12px;
-          font-weight: bold;
         }
         
         .no-options-message {
@@ -1982,54 +1841,16 @@
           height: 2rem;
         }
         
-        .no-options-message h3 {
-          color: #065f46;
-          margin: 0 0 0.5rem 0;
-          font-size: 1.25rem;
-          font-weight: 600;
-        }
-        
-        .no-options-message p {
-          color: #047857;
-          margin: 0;
-          font-size: 1rem;
-          line-height: 1.5;
-        }
-        
         .btn-primary:disabled {
-          background: #9ca3af;
-          cursor: not-allowed;
-          transform: none;
+          background: #9ca3af !important;
+          cursor: not-allowed !important;
+          transform: none !important;
+          box-shadow: none !important;
         }
         
         .btn-primary:not(:disabled):hover {
           transform: translateY(-2px);
           box-shadow: 0 8px 25px rgba(59, 130, 246, 0.25);
-        }
-        
-        .zip-validation-icon.success {
-          color: #10b981;
-          font-weight: bold;
-          font-size: 18px;
-        }
-        
-        .zip-validation-icon.error {
-          color: #ef4444;
-          font-weight: bold;
-          font-size: 18px;
-        }
-        
-        .zip-validation-icon .spinner {
-          width: 16px;
-          height: 16px;
-          border: 2px solid #d1d5db;
-          border-top-color: #3b82f6;
-          border-radius: 50%;
-          animation: spin 1s linear infinite;
-        }
-        
-        @keyframes spin {
-          to { transform: rotate(360deg); }
         }
         
         .zip-result .message.success {
@@ -2056,35 +1877,23 @@
           gap: 8px;
         }
         
-        .step-actions {
+        .field-error {
+          color: #ef4444;
+          font-size: 0.75rem;
+          margin-top: 0.25rem;
           display: flex;
-          justify-content: space-between;
           align-items: center;
-          margin-top: 2rem;
-          gap: 1rem;
+          gap: 0.25rem;
         }
         
-        .step-actions .btn-secondary {
-          background: #f3f4f6;
-          color: #374151;
-          border: 1px solid #d1d5db;
+        .field-error::before {
+          content: '⚠';
+          font-size: 0.875rem;
         }
         
-        .step-actions .btn-secondary:hover {
-          background: #e5e7eb;
-          transform: translateY(-1px);
-        }
-        
-        @media (max-width: 768px) {
-          .step-actions {
-            flex-direction: column-reverse;
-            gap: 0.75rem;
-          }
-          
-          .step-actions .btn-primary,
-          .step-actions .btn-secondary {
-            width: 100%;
-          }
+        .error {
+          border-color: #ef4444 !important;
+          box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.2) !important;
         }
       `
       )
