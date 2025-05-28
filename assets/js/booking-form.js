@@ -547,7 +547,34 @@
       }
     },
 
-    // Enhanced service selection - Single selection
+    // Helper function to load service data from DOM if missing
+    loadServiceDataFromDOM: function (serviceId, $serviceCard) {
+      if (!$serviceCard || $serviceCard.length === 0) {
+        $serviceCard = $(`.service-card[data-service-id="${serviceId}"]`);
+      }
+
+      if ($serviceCard.length > 0) {
+        this.state.servicesData[serviceId] = {
+          id: serviceId,
+          name: $serviceCard.find("h3").text().trim() || `Service ${serviceId}`,
+          price: parseFloat($serviceCard.data("service-price")) || 0,
+          hasOptions:
+            $serviceCard.find('input[type="checkbox"]').data("has-options") ===
+            1,
+          description: $serviceCard.find(".service-description").text().trim(),
+          duration: $serviceCard.find(".service-duration").text().trim(),
+        };
+
+        this.log(
+          "Loaded service data from DOM:",
+          this.state.servicesData[serviceId]
+        );
+      } else {
+        this.log("⚠️ Could not find service card for ID:", serviceId);
+      }
+    },
+
+    // Enhanced version of handleServiceSelection to ensure state is properly set
     handleServiceSelection: function ($input) {
       const serviceId = parseInt($input.val());
       const $serviceCard = $input.closest(".service-card");
@@ -567,6 +594,16 @@
       if ($input.is(":checked")) {
         this.state.selectedService = serviceId;
         $serviceCard.addClass("selected");
+
+        // Ensure the service data is available
+        if (!this.state.servicesData[serviceId]) {
+          this.log(
+            "⚠️ Service data not found for ID:",
+            serviceId,
+            "Loading from DOM..."
+          );
+          this.loadServiceDataFromDOM(serviceId, $serviceCard);
+        }
       } else {
         this.state.selectedService = null;
       }
@@ -578,7 +615,8 @@
       this.updatePricing();
       this.updateNavigationButtons();
 
-      this.log("Selected service:", this.state.selectedService);
+      this.log("Selected service updated to:", this.state.selectedService);
+      this.log("Current services data:", this.state.servicesData);
 
       // Show confirmation
       if (this.state.selectedService) {
@@ -797,17 +835,34 @@
       return true;
     },
 
+    // Enhanced validateServicesStep to ensure selection is properly detected
     validateServicesStep: function () {
       this.log(
         "Validating services step. Selected:",
         this.state.selectedService
       );
 
+      // First try to get from state
+      if (!this.state.selectedService) {
+        // Try to get from DOM as fallback
+        const $selectedCheckbox = $(
+          'input[name="selected_services[]"]:checked'
+        );
+        if ($selectedCheckbox.length > 0) {
+          this.state.selectedService = parseInt($selectedCheckbox.val());
+          this.log(
+            "Found selected service from DOM during validation:",
+            this.state.selectedService
+          );
+        }
+      }
+
       if (!this.state.selectedService) {
         this.showNotification("Please select a service", "error");
         this.elements.servicesGrid[0].scrollIntoView({ behavior: "smooth" });
         return false;
       }
+
       return true;
     },
 
@@ -1522,37 +1577,143 @@
       });
     },
 
-    // Collect service options data
+    // Fixed collectServiceOptions function - COMPLETE VERSION
     collectServiceOptions: function () {
       const optionsData = {};
 
-      if (this.state.selectedService) {
-        optionsData[this.state.selectedService] = {};
+      this.log(
+        "🔧 Collecting service options. Selected service:",
+        this.state.selectedService
+      );
+      this.log("🔧 Services data:", this.state.servicesData);
 
-        $(
-          `.service-options-section[data-service-id="${this.state.selectedService}"] .option-field`
-        ).each(function () {
-          const optionId = $(this).data("option-id");
-          const $input = $(this).find(
-            "input, textarea, .custom-dropdown input[type='hidden']"
+      // Enhanced validation - check if we have a selected service
+      if (!this.state.selectedService) {
+        this.log(
+          "⚠️ No service selected - collecting options for all services with data"
+        );
+
+        // Fallback: try to get selected service from DOM
+        const $selectedCheckbox = $(
+          'input[name="selected_services[]"]:checked'
+        );
+        if ($selectedCheckbox.length > 0) {
+          this.state.selectedService = parseInt($selectedCheckbox.val());
+          this.log(
+            "🔧 Found selected service from DOM:",
+            this.state.selectedService
           );
-
-          let value = null;
-          if ($input.is('input[type="checkbox"]')) {
-            value = $input.is(":checked") ? "1" : "0";
-          } else if ($input.is('input[type="radio"]')) {
-            value = $(this).find('input[type="radio"]:checked').val() || "";
-          } else {
-            value = $input.val() || "";
+        } else {
+          // If still no service, check service cards
+          const $selectedCard = $(".service-card.selected");
+          if ($selectedCard.length > 0) {
+            this.state.selectedService = parseInt(
+              $selectedCard.data("service-id")
+            );
+            this.log(
+              "🔧 Found selected service from card:",
+              this.state.selectedService
+            );
           }
-
-          optionsData[this.state.selectedService][optionId] = value;
-        });
+        }
       }
 
+      // If we still don't have a selected service, return empty options
+      if (!this.state.selectedService) {
+        this.log(
+          "⚠️ No service selected after all attempts - returning empty options"
+        );
+        this.state.serviceOptions = {};
+        this.elements.serviceOptionsField.val("{}");
+        return;
+      }
+
+      // Ensure the service exists in our services data
+      if (!this.state.servicesData[this.state.selectedService]) {
+        this.log(
+          "⚠️ Selected service not found in services data:",
+          this.state.selectedService
+        );
+        this.state.serviceOptions = {};
+        this.elements.serviceOptionsField.val("{}");
+        return;
+      }
+
+      // Initialize options for the selected service
+      optionsData[this.state.selectedService] = {};
+
+      // Find options container for the selected service
+      const $serviceOptionsSection = $(
+        `.service-options-section[data-service-id="${this.state.selectedService}"]`
+      );
+
+      if ($serviceOptionsSection.length === 0) {
+        this.log(
+          "🔧 No options section found for service:",
+          this.state.selectedService
+        );
+        // This is okay - the service might not have options
+        this.state.serviceOptions = optionsData;
+        this.elements.serviceOptionsField.val(JSON.stringify(optionsData));
+        return;
+      }
+
+      this.log("🔧 Found options section, collecting options...");
+
+      // Collect options from the service options section
+      $serviceOptionsSection.find(".option-field").each(function () {
+        const $field = $(this);
+        const optionId = $field.data("option-id");
+
+        if (!optionId) {
+          console.warn("Option field missing option-id:", $field);
+          return; // Skip this field
+        }
+
+        // Find the input/select/textarea within this option field
+        const $input = $field.find(
+          'input, select, textarea, .custom-dropdown input[type="hidden"]'
+        );
+
+        if ($input.length === 0) {
+          console.warn("No input found for option:", optionId);
+          return; // Skip this field
+        }
+
+        let value = null;
+
+        // Handle different input types
+        if ($input.is('input[type="checkbox"]')) {
+          value = $input.is(":checked") ? "1" : "0";
+        } else if ($input.is('input[type="radio"]')) {
+          const $checkedRadio = $field.find('input[type="radio"]:checked');
+          value = $checkedRadio.length > 0 ? $checkedRadio.val() : "";
+        } else if ($input.hasClass("enhanced-radio-input")) {
+          // Handle enhanced radio inputs
+          const $checkedRadio = $field.find(".enhanced-radio-input:checked");
+          value = $checkedRadio.length > 0 ? $checkedRadio.val() : "";
+        } else if (
+          $input.is('input[type="hidden"]') &&
+          $input.closest(".custom-dropdown").length
+        ) {
+          // Handle custom dropdown
+          value = $input.val() || "";
+        } else {
+          // Handle text, number, textarea, etc.
+          value = $input.val() || "";
+        }
+
+        // Store the value
+        optionsData[this.state.selectedService][optionId] = value;
+
+        console.log(`Collected option ${optionId}:`, value);
+      });
+
+      // Update state and hidden field
       this.state.serviceOptions = optionsData;
       this.elements.serviceOptionsField.val(JSON.stringify(optionsData));
-      this.log("Collected service options:", optionsData);
+
+      this.log("✅ Service options collected:", optionsData);
     },
 
     // Set minimum date/time
