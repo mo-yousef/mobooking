@@ -1456,7 +1456,9 @@ wp_localize_script('mobooking-dashboard', 'mobookingDiscounts', $localize_data);
     opacity: 0;
     transition: all 0.3s ease;
 }
-
+.modal-content h3 {
+    margin-top: 0px;
+}
 .mobooking-modal:not([style*="display: none"]) .modal-content {
     transform: scale(1);
     opacity: 1;

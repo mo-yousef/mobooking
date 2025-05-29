@@ -370,7 +370,6 @@
       hsl(var(--primary)),
       hsl(var(--primary) / 0.8));
   color: white;
-  box-shadow: 0 4px 12px hsl(var(--primary) / 0.3);
 }
 
 .service-icon-default {

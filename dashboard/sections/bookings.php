@@ -911,29 +911,6 @@ jQuery(document).ready(function($) {
     overflow: hidden;
 }
 
-.stat-card::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    height: 3px;
-    background: linear-gradient(90deg, hsl(var(--primary)), hsl(var(--primary) / 0.6));
-    transform: scaleX(0);
-    transform-origin: left;
-    transition: transform 0.3s ease;
-}
-
-.stat-card:hover {
-    transform: translateY(-4px);
-    box-shadow: 0 12px 24px hsl(var(--primary) / 0.15);
-    border-color: hsl(var(--primary) / 0.3);
-}
-
-.stat-card:hover::before {
-    transform: scaleX(1);
-}
-
 .stat-card.has-alert {
     animation: pulse 2s infinite;
 }

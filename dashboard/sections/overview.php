@@ -1011,7 +1011,7 @@ jQuery(document).ready(function($) {
 
 .kpi-cards-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
     gap: 1.5rem;
 }
 
@@ -1038,15 +1038,15 @@ jQuery(document).ready(function($) {
     transition: transform 0.6s ease;
 }
 
-.kpi-card:hover::before {
-    transform: translateX(100%);
-}
+// .kpi-card:hover::before {
+//     transform: translateX(100%);
+// }
 
-.kpi-card:hover {
-    transform: translateY(-4px);
-    box-shadow: 0 12px 25px hsl(var(--primary) / 0.15);
-    border-color: hsl(var(--primary) / 0.3);
-}
+// .kpi-card:hover {
+//     transform: translateY(-4px);
+//     box-shadow: 0 12px 25px hsl(var(--primary) / 0.15);
+//     border-color: hsl(var(--primary) / 0.3);
+// }
 
 .kpi-card.hovered {
     transform: translateY(-4px) scale(1.02);
@@ -1119,8 +1119,7 @@ jQuery(document).ready(function($) {
 }
 
 .kpi-main-value {
-    font-size: 2.5rem;
-    font-weight: 700;
+    font-size: 28px;    font-weight: 700;
     color: hsl(var(--foreground));
     line-height: 1;
     margin-bottom: 0.5rem;
