@@ -1391,13 +1391,6 @@ jQuery(document).ready(function($) {
     margin-bottom: 2rem;
 }
 
-.tab-list {
-    display: flex;
-    gap: 0.25rem;
-    background: hsl(var(--muted));
-    padding: 0.25rem;
-    border-radius: var(--radius-lg);
-}
 
 .tab-button {
     display: flex;
