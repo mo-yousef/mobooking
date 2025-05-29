@@ -348,7 +348,7 @@ body {
 
 /* Main Content */
 .mobooking-dashboard-main {
-  max-width: 1100px;
+  /* max-width: 1100px; */
   margin: auto;
 
 }
