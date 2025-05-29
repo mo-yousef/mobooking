@@ -536,7 +536,7 @@ $options_manager = new \MoBooking\Services\ServiceOptionsManager();
     border-color: var(--booking-primary) !important;
 }
 
-.mobooking-booking-form-container input:focus,
+
 .mobooking-booking-form-container select:focus,
 .mobooking-booking-form-container textarea:focus {
     border-color: var(--booking-primary) !important;

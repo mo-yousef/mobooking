@@ -250,7 +250,6 @@ body {
 .sidebar-nav a:hover {
   color: hsl(var(--foreground));
   background-color: hsl(var(--accent));
-  transform: translateX(4px);
 }
 
 .sidebar-nav .active a {

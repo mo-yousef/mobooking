@@ -179,6 +179,7 @@
 }
 
 .step-header {
+  display: none;
   text-align: center;
   margin-bottom: 2rem;
 }
@@ -508,18 +509,9 @@
   gap: 2rem;
 }
 
-.service-options-section {
-  border: 1px solid var(--booking-gray-200);
-  border-radius: var(--booking-radius);
-  padding: 1.5rem;
-  background: var(--booking-gray-50);
-}
+.service-options-section {}
 
-.service-options-header {
-  margin-bottom: 1.5rem;
-  padding-bottom: 1rem;
-  border-bottom: 2px solid var(--booking-gray-200);
-}
+
 
 .service-options-title {
   font-size: 1.125rem;
@@ -539,19 +531,6 @@
 .service-options-fields {
   display: grid;
   gap: 1.5rem;
-}
-
-.option-field {
-  background: white;
-  padding: 1rem;
-  border-radius: var(--booking-radius);
-  border: 1px solid var(--booking-gray-200);
-  transition: var(--booking-transition);
-}
-
-.option-field:hover {
-  border-color: var(--booking-gray-300);
-  box-shadow: var(--booking-shadow);
 }
 
 .option-field:has(.error) {
@@ -674,7 +653,6 @@
 .choice-price {
   color: var(--booking-success);
   font-weight: 600;
-  margin-left: auto;
 }
 
 /* Enhanced Step 4: Customer Form */
@@ -1303,8 +1281,6 @@
 }
 
 /* Focus indicators for keyboard navigation */
-.service-card:focus-within,
-.option-field:focus-within,
 .btn-primary:focus,
 .btn-secondary:focus {
   outline: 2px solid var(--booking-primary);
@@ -1322,5 +1298,534 @@
 
   .booking-step {
     display: block !important;
+  }
+}
+
+
+
+
+/* Enhanced Input Styling */
+.enhanced-input,
+.enhanced-textarea,
+.enhanced-number-input {
+  width: 100%;
+  padding: 0.875rem 1rem;
+  border: 1.5px solid #e5e7eb;
+  border-radius: 8px;
+  background-color: white;
+  color: #1f2937;
+  font-size: 1rem;
+  transition: all 0.2s ease;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+}
+
+.enhanced-number-input {
+  height: 44px;
+}
+
+.enhanced-input:hover,
+.enhanced-textarea:hover,
+.enhanced-number-input:hover {
+  border-color: #d1d5db;
+}
+
+.enhanced-input:focus,
+.enhanced-textarea:focus {
+  border-color: var(--booking-primary);
+  box-shadow: 0 0 0 3px rgba(var(--booking-primary-rgb), 0.15);
+  outline: none;
+}
+
+.enhanced-textarea {
+  min-height: 100px;
+  resize: vertical;
+  line-height: 1.5;
+}
+
+/* Enhanced Quantity Inputs */
+.enhanced-quantity-input {
+  display: flex;
+  align-items: center;
+  max-width: 200px;
+  gap: 0;
+  position: relative;
+  border-radius: 8px;
+  overflow: hidden;
+  background: white;
+}
+
+.quantity-btn {
+  flex: 0 0 44px;
+  height: 44px;
+  background: white;
+  border: 1px solid #e5e7eb;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+  z-index: 5;
+}
+
+.quantity-decrement {
+  border-radius: 8px 0 0 8px;
+}
+
+.quantity-increment {
+  border-radius: 0 8px 8px 0;
+}
+
+.quantity-btn:hover:not(:disabled) {
+  background: rgba(var(--booking-primary-rgb), 0.05);
+  /* border-color: var(--booking-primary); */
+}
+
+.quantity-btn:active:not(:disabled) {
+  background: rgba(var(--booking-primary-rgb), 0.1);
+  transform: translateY(1px);
+}
+
+.quantity-btn svg {
+  width: 20px;
+  height: 20px;
+  stroke: #6b7280;
+  transition: stroke 0.2s ease;
+}
+
+.quantity-btn:hover:not(:disabled) svg {
+  stroke: var(--booking-primary);
+}
+
+.quantity-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.enhanced-number-input {
+  flex: 1;
+  text-align: center;
+  border-left: none;
+  border-right: none;
+  border-radius: 0;
+  padding: 0.75rem 0.5rem;
+  margin: 0;
+  -moz-appearance: textfield;
+  /* Firefox */
+}
+
+.enhanced-number-input::-webkit-outer-spin-button,
+.enhanced-number-input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.input-unit {
+  background: #f9fafb;
+  padding: 0.75rem;
+  border: 1px solid #e5e7eb;
+  border-left: none;
+  border-radius: 0 8px 8px 0;
+  color: #6b7280;
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+/* Enhanced Dropdown Styling */
+.custom-dropdown {
+  position: relative;
+  width: 100%;
+}
+
+.custom-dropdown-trigger {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.875rem 1rem;
+  border: 1.5px solid #e5e7eb;
+  border-radius: 8px;
+  background: white;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  color: #1f2937;
+  font-size: 1rem;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+}
+
+.custom-dropdown-trigger:hover {
+  border-color: #d1d5db;
+}
+
+.custom-dropdown.open .custom-dropdown-trigger {
+  border-color: var(--booking-primary);
+  box-shadow: 0 0 0 3px rgba(var(--booking-primary-rgb), 0.15);
+}
+
+.dropdown-arrow {
+  width: 16px;
+  height: 16px;
+  stroke: #9ca3af;
+  transition: all 0.3s ease;
+}
+
+.custom-dropdown.open .dropdown-arrow {
+  stroke: var(--booking-primary);
+  transform: rotate(180deg);
+}
+
+.custom-dropdown-menu {
+  position: absolute;
+  top: calc(100% + 5px);
+  left: 0;
+  right: 0;
+  max-height: 240px;
+  overflow-y: auto;
+  background: white;
+  border-radius: 8px;
+  border: 1px solid #e5e7eb;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+  z-index: 9999;
+  opacity: 0;
+  transform: translateY(-10px);
+  pointer-events: none;
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  scrollbar-width: thin;
+  scrollbar-color: #d1d5db transparent;
+}
+
+.custom-dropdown.open .custom-dropdown-menu {
+  opacity: 1;
+  transform: translateY(0);
+  pointer-events: all;
+}
+
+.custom-dropdown-option {
+  padding: 0.75rem 1rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border-bottom: 1px solid #f3f4f6;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.custom-dropdown-option:last-child {
+  border-bottom: none;
+}
+
+.custom-dropdown-option:hover {
+  background: rgba(var(--booking-primary-rgb), 0.05);
+}
+
+.custom-dropdown-option.selected {
+  background: rgba(var(--booking-primary-rgb), 0.1);
+  color: var(--booking-primary);
+  font-weight: 500;
+}
+
+.custom-dropdown-option.selected::after {
+  content: '✓';
+  margin-left: 0.5rem;
+  font-weight: bold;
+}
+
+/* Enhanced Radio & Checkbox Styling */
+.enhanced-radio-group {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0.75rem;
+}
+
+.enhanced-radio-option,
+.enhanced-checkbox-input {
+  position: relative;
+}
+
+.enhanced-radio-input,
+.enhanced-checkbox {
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.enhanced-radio-label,
+.enhanced-checkbox-label {
+  display: flex;
+  align-items: center;
+  padding: 1rem;
+  border: 1.5px solid #e5e7eb;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  background: white;
+}
+
+.enhanced-radio-label:hover,
+.enhanced-checkbox-label:hover {
+  border-color: #d1d5db;
+  background: #f9fafb;
+}
+
+.enhanced-radio-input:checked+.enhanced-radio-label,
+.enhanced-checkbox:checked+.enhanced-checkbox-label {
+  border-color: var(--booking-primary);
+  background: rgba(var(--booking-primary-rgb), 0.05);
+}
+
+.radio-indicator,
+.checkbox-indicator {
+  flex-shrink: 0;
+  width: 22px;
+  height: 22px;
+  border: 2px solid #d1d5db;
+  background: white;
+  margin-right: 12px;
+  position: relative;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.radio-indicator {
+  border-radius: 50%;
+}
+
+.checkbox-indicator {
+  border-radius: 4px;
+}
+
+.enhanced-radio-input:checked+.enhanced-radio-label .radio-indicator,
+.enhanced-checkbox:checked+.enhanced-checkbox-label .checkbox-indicator {
+  border-color: var(--booking-primary);
+  background: var(--booking-primary);
+}
+
+.checkbox-check {
+  width: 14px;
+  height: 14px;
+  stroke: white;
+  stroke-width: 3;
+  opacity: 0;
+  transform: scale(0.8);
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.enhanced-checkbox:checked+.enhanced-checkbox-label .checkbox-check {
+  opacity: 1;
+  transform: scale(1);
+}
+
+.radio-indicator::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%) scale(0);
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: white;
+  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.enhanced-radio-input:checked+.enhanced-radio-label .radio-indicator::after {
+  transform: translate(-50%, -50%) scale(1);
+}
+
+.radio-content {
+  display: flex;
+  flex-direction: column;
+}
+
+.radio-text {
+  font-weight: 500;
+  color: #1f2937;
+}
+
+.choice-price {
+  font-size: 0.875rem;
+  color: var(--booking-primary);
+  font-weight: 500;
+  margin-top: 0.25rem;
+}
+
+.enhanced-radio-input:focus+.enhanced-radio-label,
+.enhanced-checkbox:focus+.enhanced-checkbox-label {
+  box-shadow: 0 0 0 3px rgba(var(--booking-primary-rgb), 0.15);
+}
+
+/* No Options Message */
+.no-options-message {
+  text-align: center;
+  padding: 3rem 2rem;
+  background: linear-gradient(135deg, rgba(var(--booking-primary-rgb), 0.05), rgba(var(--booking-primary-rgb), 0.02));
+  border-radius: 16px;
+  border: 1px dashed rgba(var(--booking-primary-rgb), 0.2);
+}
+
+.no-options-icon {
+  width: 80px;
+  height: 80px;
+  margin: 0 auto 1.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: white;
+  border-radius: 50%;
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.08);
+}
+
+.no-options-icon svg {
+  width: 40px;
+  height: 40px;
+  stroke: var(--booking-primary);
+  stroke-width: 1.5;
+}
+
+.no-options-message h3 {
+  font-size: 1.25rem;
+  font-weight: 600;
+  margin-bottom: 0.75rem;
+  color: #374151;
+}
+
+.no-options-message p {
+  color: #6b7280;
+  max-width: 500px;
+  margin: 0 auto;
+}
+
+/* Focus Styles for Accessibility */
+.enhanced-input:focus-visible,
+.enhanced-textarea:focus-visible,
+.enhanced-number-input:focus-visible,
+.custom-dropdown-trigger:focus-visible,
+.enhanced-radio-label:focus-visible,
+.enhanced-checkbox-label:focus-visible,
+.quantity-btn:focus-visible {
+  outline: 2px solid var(--booking-primary);
+  outline-offset: 2px;
+}
+
+/* Animation for Option Fields */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.option-field {
+  animation: fadeInUp 0.4s ease forwards;
+  animation-delay: calc(var(--animation-order, 0) * 0.05s);
+  opacity: 0;
+}
+
+/* Error States */
+.option-field.error {
+  border-color: #ef4444;
+}
+
+.option-field.error::before {
+  background: linear-gradient(to bottom, #ef4444, #b91c1c);
+  opacity: 1;
+}
+
+.field-error {
+  color: #ef4444;
+  font-size: 0.875rem;
+  margin-top: 0.5rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.field-error::before {
+  content: '⚠️';
+}
+
+/* Media Queries for Responsive Design */
+@media (min-width: 768px) {}
+
+@media (max-width: 767px) {
+  .service-options-section {
+    padding: 1.5rem;
+  }
+
+  .service-options-title {
+    font-size: 1.5rem;
+  }
+
+  .option-field {
+    padding: 1.25rem;
+  }
+
+  .enhanced-radio-label,
+  .enhanced-checkbox-label {
+    padding: 0.875rem;
+  }
+
+  .enhanced-quantity-input {
+    max-width: 100%;
+  }
+}
+
+/* High Contrast Mode Support */
+@media (prefers-contrast: high) {
+  .option-field {
+    border: 2px solid #000;
+  }
+
+  .option-field::before {
+    opacity: 1;
+    width: 8px;
+  }
+
+  .enhanced-input,
+  .enhanced-textarea,
+  .enhanced-number-input,
+  .custom-dropdown-trigger,
+  .enhanced-radio-label,
+  .enhanced-checkbox-label,
+  .quantity-btn {
+    border: 2px solid #000;
+  }
+
+  .enhanced-radio-input:checked+.enhanced-radio-label,
+  .enhanced-checkbox:checked+.enhanced-checkbox-label {
+    border: 2px solid #000;
+    outline: 2px solid var(--booking-primary);
+  }
+
+  .radio-indicator,
+  .checkbox-indicator {
+    border: 2px solid #000;
+  }
+}
+
+/* Reduced Motion Support */
+@media (prefers-reduced-motion: reduce) {
+
+  .option-field,
+  .enhanced-input,
+  .enhanced-textarea,
+  .enhanced-number-input,
+  .custom-dropdown-trigger,
+  .enhanced-radio-label,
+  .enhanced-checkbox-label,
+  .quantity-btn,
+  .custom-dropdown-menu,
+  .checkbox-check,
+  .radio-indicator::after,
+  .service-options-section {
+    transition: none !important;
+    animation: none !important;
   }
 }

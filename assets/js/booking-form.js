@@ -1237,14 +1237,6 @@
 
       const $section = $(`
        <div class="service-options-section" data-service-id="${serviceId}">
-           <div class="service-options-header">
-               <h3 class="service-options-title">
-                   ${serviceData.name} Options
-               </h3>
-               <p class="service-options-subtitle">Customize your ${
-                 serviceData.name
-               } service</p>
-           </div>
            <div class="service-options-fields">
                ${this.generateEnhancedOptionsHTML(options)}
            </div>
@@ -2496,26 +2488,6 @@
  }
 }
 
-/* Enhanced option styling */
-.enhanced-option {
- background: white;
- border: 1px solid #e5e7eb;
- border-radius: 8px;
- padding: 20px;
- margin-bottom: 16px;
- transition: all 0.2s ease;
-}
-
-.enhanced-option:hover {
- border-color: #d1d5db;
- box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-}
-
-.enhanced-option:focus-within {
- border-color: var(--booking-primary);
- box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
-}
-
 /* Enhanced quantity controls */
 .enhanced-quantity-input {
  display: flex;
@@ -2537,10 +2509,7 @@
  transition: all 0.2s ease;
 }
 
-.quantity-btn:hover:not(:disabled) {
- border-color: var(--booking-primary);
- background: rgba(59, 130, 246, 0.05);
-}
+
 
 .quantity-btn:disabled {
  opacity: 0.5;
@@ -2661,10 +2630,6 @@
  cursor: not-allowed;
 }
 
-/* Enhanced radio and checkbox styling */
-.enhanced-radio-option, .enhanced-checkbox-input {
- margin-bottom: 12px;
-}
 
 .enhanced-radio-label, .enhanced-checkbox-label {
  display: flex;
