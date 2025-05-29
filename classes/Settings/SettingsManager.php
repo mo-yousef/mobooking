@@ -547,6 +547,9 @@ class SettingsAjaxManager {
         if (!class_exists('\MoBooking\Bookings\Manager')) {
             return array();
         }
+
+
+        
         
         $bookings_manager = new \MoBooking\Bookings\Manager();
         return $bookings_manager->get_user_bookings($user_id, array('limit' => -1));
