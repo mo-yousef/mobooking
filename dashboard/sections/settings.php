@@ -1318,8 +1318,6 @@ jQuery(document).ready(function($) {
     justify-content: space-between;
     gap: 2rem;
     margin-bottom: 2rem;
-    padding-bottom: 1.5rem;
-    border-bottom: 1px solid hsl(var(--border));
 }
 
 .settings-header-content {
@@ -1338,14 +1336,14 @@ jQuery(document).ready(function($) {
     align-items: center;
     gap: 0.75rem;
     margin: 0 0 0.5rem 0;
-    font-size: 1.75rem;
+    font-size: 22px;
     font-weight: 700;
     color: hsl(var(--foreground));
 }
 
 .title-icon {
-    width: 2rem;
-    height: 2rem;
+    width: 25px;
+    height: 25px;
     color: hsl(var(--primary));
 }
 
@@ -1425,12 +1423,6 @@ jQuery(document).ready(function($) {
 }
 
 /* Settings Form */
-.settings-container {
-    background: hsl(var(--card));
-    border: 1px solid hsl(var(--border));
-    border-radius: var(--radius-lg);
-    overflow: hidden;
-}
 
 .tab-pane {
     display: none;

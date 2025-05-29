@@ -29,32 +29,6 @@
   position: relative;
 }
 
-.option-card::before {
-  content: "";
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 2px;
-  background: linear-gradient(
-    135deg,
-    hsl(var(--primary)),
-    hsl(var(--primary) / 0.6)
-  );
-  transform: scaleX(0);
-  transform-origin: left;
-  transition: transform 0.3s ease-in-out;
-}
-
-.option-card:hover {
-  transform: translateY(-2px) scale(var(--option-card-hover-scale));
-  box-shadow: var(--shadow-lg);
-  border-color: hsl(var(--primary) / 0.3);
-}
-
-.option-card:hover::before {
-  transform: scaleX(1);
-}
 
 .option-card.ui-sortable-helper {
   transform: rotate(2deg) scale(1.05);
@@ -72,13 +46,10 @@
   display: flex;
   align-items: center;
   padding: 1rem;
-  background: linear-gradient(
-    135deg,
-    hsl(var(--muted) / 0.5),
-    hsl(var(--muted) / 0.3)
-  );
+  background: linear-gradient(135deg, hsl(var(--muted) / 0.5), hsl(var(--muted) / 0.3));
   border-bottom: 1px solid hsl(var(--border));
   gap: 0.75rem;
+  justify-content: space-between;
 }
 
 .option-drag-handle {
@@ -139,11 +110,9 @@
   display: inline-flex;
   align-items: center;
   padding: 0.25rem 0.625rem;
-  background: linear-gradient(
-    135deg,
-    hsl(var(--primary)),
-    hsl(var(--primary) / 0.8)
-  );
+  background: linear-gradient(135deg,
+      hsl(var(--primary)),
+      hsl(var(--primary) / 0.8));
   color: hsl(var(--primary-foreground));
   border-radius: 9999px;
   font-size: 0.625rem;
@@ -185,12 +154,10 @@
   left: -100%;
   width: 100%;
   height: 100%;
-  background: linear-gradient(
-    90deg,
-    transparent,
-    rgba(255, 255, 255, 0.3),
-    transparent
-  );
+  background: linear-gradient(90deg,
+      transparent,
+      rgba(255, 255, 255, 0.3),
+      transparent);
   transition: left 0.4s;
 }
 
@@ -220,11 +187,9 @@
 
 /* Options Header */
 .options-header {
-  background: linear-gradient(
-    135deg,
-    hsl(var(--card)),
-    hsl(var(--muted) / 0.3)
-  );
+  background: linear-gradient(135deg,
+      hsl(var(--card)),
+      hsl(var(--muted) / 0.3));
   border: 1px solid hsl(var(--border));
   border-radius: var(--radius);
   padding: 1.5rem;
@@ -240,11 +205,9 @@
   left: 0;
   right: 0;
   height: 3px;
-  background: linear-gradient(
-    135deg,
-    hsl(var(--primary)),
-    hsl(var(--primary) / 0.6)
-  );
+  background: linear-gradient(135deg,
+      hsl(var(--primary)),
+      hsl(var(--primary) / 0.6));
 }
 
 .options-header h3 {
@@ -252,11 +215,9 @@
   font-size: 1.25rem;
   font-weight: 700;
   color: hsl(var(--foreground));
-  background: linear-gradient(
-    135deg,
-    hsl(var(--primary)),
-    hsl(var(--primary) / 0.8)
-  );
+  background: linear-gradient(135deg,
+      hsl(var(--primary)),
+      hsl(var(--primary) / 0.8));
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
@@ -275,11 +236,9 @@
   align-items: center;
   gap: 0.5rem;
   padding: 0.75rem 1.5rem;
-  background: linear-gradient(
-    135deg,
-    hsl(var(--primary)),
-    hsl(var(--primary) / 0.9)
-  );
+  background: linear-gradient(135deg,
+      hsl(var(--primary)),
+      hsl(var(--primary) / 0.9));
   color: hsl(var(--primary-foreground));
   border: 1px solid hsl(var(--primary));
   border-radius: var(--radius);
@@ -299,12 +258,10 @@
   left: -100%;
   width: 100%;
   height: 100%;
-  background: linear-gradient(
-    90deg,
-    transparent,
-    rgba(255, 255, 255, 0.2),
-    transparent
-  );
+  background: linear-gradient(90deg,
+      transparent,
+      rgba(255, 255, 255, 0.2),
+      transparent);
   transition: left 0.5s;
 }
 
@@ -313,11 +270,9 @@
 }
 
 #add-option-btn:hover:not(:disabled) {
-  background: linear-gradient(
-    135deg,
-    hsl(var(--primary) / 0.9),
-    hsl(var(--primary) / 0.8)
-  );
+  background: linear-gradient(135deg,
+      hsl(var(--primary) / 0.9),
+      hsl(var(--primary) / 0.8));
   transform: translateY(-2px);
   box-shadow: var(--shadow-lg);
 }
@@ -344,22 +299,18 @@
   padding: 3rem 2rem;
   border: 2px dashed hsl(var(--border));
   border-radius: var(--radius);
-  background: linear-gradient(
-    135deg,
-    hsl(var(--muted) / 0.3),
-    hsl(var(--muted) / 0.1)
-  );
+  background: linear-gradient(135deg,
+      hsl(var(--muted) / 0.3),
+      hsl(var(--muted) / 0.1));
   color: hsl(var(--muted-foreground));
   transition: all 0.3s ease-in-out;
 }
 
 .no-options-message:hover {
   border-color: hsl(var(--primary) / 0.3);
-  background: linear-gradient(
-    135deg,
-    hsl(var(--primary) / 0.05),
-    hsl(var(--primary) / 0.02)
-  );
+  background: linear-gradient(135deg,
+      hsl(var(--primary) / 0.05),
+      hsl(var(--primary) / 0.02));
 }
 
 .no-options-message .dashicons {
@@ -417,6 +368,7 @@
     opacity: 0;
     transform: translateY(2rem) scale(0.95);
   }
+
   to {
     opacity: 1;
     transform: translateY(0) scale(1);
@@ -458,11 +410,9 @@
   font-size: 1.5rem;
   font-weight: 700;
   color: hsl(var(--foreground));
-  background: linear-gradient(
-    135deg,
-    hsl(var(--primary)),
-    hsl(var(--primary) / 0.8)
-  );
+  background: linear-gradient(135deg,
+      hsl(var(--primary)),
+      hsl(var(--primary) / 0.8));
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
@@ -610,12 +560,10 @@
   left: -100%;
   width: 100%;
   height: 100%;
-  background: linear-gradient(
-    90deg,
-    transparent,
-    rgba(255, 255, 255, 0.3),
-    transparent
-  );
+  background: linear-gradient(90deg,
+      transparent,
+      rgba(255, 255, 255, 0.3),
+      transparent);
   transition: left 0.4s;
 }
 
@@ -640,11 +588,9 @@
 #add-choice-btn {
   width: 100%;
   padding: 0.75rem;
-  background: linear-gradient(
-    135deg,
-    hsl(var(--muted)),
-    hsl(var(--muted) / 0.8)
-  );
+  background: linear-gradient(135deg,
+      hsl(var(--muted)),
+      hsl(var(--muted) / 0.8));
   border: 1px dashed hsl(var(--border));
   color: hsl(var(--muted-foreground));
   font-size: 0.8125rem;
@@ -655,11 +601,9 @@
 }
 
 #add-choice-btn:hover {
-  background: linear-gradient(
-    135deg,
-    hsl(var(--accent)),
-    hsl(var(--accent) / 0.8)
-  );
+  background: linear-gradient(135deg,
+      hsl(var(--accent)),
+      hsl(var(--accent) / 0.8));
   color: hsl(var(--foreground));
   border-color: hsl(var(--primary) / 0.5);
   border-style: solid;
@@ -672,11 +616,9 @@
   justify-content: space-between;
   padding: 1.5rem 2rem;
   border-top: 1px solid hsl(var(--border));
-  background: linear-gradient(
-    135deg,
-    hsl(var(--muted) / 0.3),
-    hsl(var(--muted) / 0.1)
-  );
+  background: linear-gradient(135deg,
+      hsl(var(--muted) / 0.3),
+      hsl(var(--muted) / 0.1));
   margin: 2rem -2rem -2rem -2rem;
   gap: 1rem;
 }
@@ -704,12 +646,10 @@
   left: -100%;
   width: 100%;
   height: 100%;
-  background: linear-gradient(
-    90deg,
-    transparent,
-    rgba(255, 255, 255, 0.2),
-    transparent
-  );
+  background: linear-gradient(90deg,
+      transparent,
+      rgba(255, 255, 255, 0.2),
+      transparent);
   transition: left 0.5s;
 }
 
@@ -718,22 +658,18 @@
 }
 
 .form-actions .button-primary {
-  background: linear-gradient(
-    135deg,
-    hsl(var(--primary)),
-    hsl(var(--primary) / 0.9)
-  );
+  background: linear-gradient(135deg,
+      hsl(var(--primary)),
+      hsl(var(--primary) / 0.9));
   color: hsl(var(--primary-foreground));
   border: 1px solid hsl(var(--primary));
   box-shadow: var(--shadow-sm);
 }
 
 .form-actions .button-primary:hover {
-  background: linear-gradient(
-    135deg,
-    hsl(var(--primary) / 0.9),
-    hsl(var(--primary) / 0.8)
-  );
+  background: linear-gradient(135deg,
+      hsl(var(--primary) / 0.9),
+      hsl(var(--primary) / 0.8));
   transform: translateY(-1px);
   box-shadow: var(--shadow-md);
 }
@@ -750,21 +686,17 @@
 }
 
 .form-actions .button-danger {
-  background: linear-gradient(
-    135deg,
-    hsl(var(--destructive)),
-    hsl(var(--destructive) / 0.9)
-  );
+  background: linear-gradient(135deg,
+      hsl(var(--destructive)),
+      hsl(var(--destructive) / 0.9));
   color: hsl(var(--destructive-foreground));
   border: 1px solid hsl(var(--destructive));
 }
 
 .form-actions .button-danger:hover {
-  background: linear-gradient(
-    135deg,
-    hsl(var(--destructive) / 0.9),
-    hsl(var(--destructive) / 0.8)
-  );
+  background: linear-gradient(135deg,
+      hsl(var(--destructive) / 0.9),
+      hsl(var(--destructive) / 0.8));
   transform: translateY(-1px);
   box-shadow: var(--shadow-md);
 }
@@ -776,11 +708,9 @@
 /* Sortable Placeholder */
 .option-card-placeholder {
   height: 5rem;
-  background: linear-gradient(
-    135deg,
-    hsl(var(--primary) / 0.1),
-    hsl(var(--primary) / 0.05)
-  );
+  background: linear-gradient(135deg,
+      hsl(var(--primary) / 0.1),
+      hsl(var(--primary) / 0.05));
   border: 2px dashed hsl(var(--primary) / 0.5);
   border-radius: var(--radius);
   margin: 1rem 0;
@@ -789,10 +719,12 @@
 }
 
 @keyframes pulse {
+
   0%,
   100% {
     opacity: 1;
   }
+
   50% {
     opacity: 0.7;
   }
@@ -813,11 +745,9 @@
 
 .choice-row-placeholder {
   height: var(--choice-row-height);
-  background: linear-gradient(
-    135deg,
-    hsl(var(--primary) / 0.1),
-    hsl(var(--primary) / 0.05)
-  );
+  background: linear-gradient(135deg,
+      hsl(var(--primary) / 0.1),
+      hsl(var(--primary) / 0.05));
   border: 1px dashed hsl(var(--primary) / 0.5);
   border-radius: calc(var(--radius) - 2px);
   margin: 0.25rem 0;
@@ -1001,6 +931,7 @@
 
 /* Reduced motion */
 @media (prefers-reduced-motion: reduce) {
+
   *,
   *::before,
   *::after {

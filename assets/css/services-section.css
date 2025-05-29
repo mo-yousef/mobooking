@@ -715,6 +715,14 @@
 .tab-pane {
   display: none;
   padding: 2rem 0;
+  background: hsl(var(--card));
+  border: 1px solid hsl(var(--border));
+  border-radius: 12px;
+  padding: 1.5rem;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  overflow: hidden;
+  margin-top: 30px;
 }
 
 .tab-pane.active {

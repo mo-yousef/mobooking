@@ -18,7 +18,9 @@ try {
 }
 
 // Get user's discount codes
-$discounts = $discounts_manager->get_user_discounts($user_id);
+$discounts = is_callable(array($discounts_manager, 'get_user_discounts')) 
+    ? $discounts_manager->get_user_discounts($user_id) 
+    : array();
 
 // Get statistics
 $total_discounts = count($discounts);
@@ -35,6 +37,408 @@ $total_usage = array_sum(array_column($discounts, 'usage_count'));
             <div class="discounts-title-group">
                 <h1 class="discounts-main-title">
                     <svg class="title-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M19 5L5 19M9 6.5C9 7.88071 7.88071 9 6.5 9C5.11929 9 4 7.88071 4 6.5C4 5.11929 5.11929 4 6.5 4C7.88071 4 9 5.11929 9 6.5ZM20 17.5C20 18.8807 18.8807 20 17.5 20C16.1193 20 15 18.8807 15 17.5C15 16.1193 16.1193 15 17.5 15C18.8807 15 20 16.1193 20 17.5Z"/>
+                    </svg>
+                    <?php _e('Discount Codes', 'mobooking'); ?>
+                </h1>
+                <p class="discounts-subtitle"><?php _e('Create and manage discount codes for your services', 'mobooking'); ?></p>
+            </div>
+            
+            <?php if (!empty($discounts)) : ?>
+                <div class="discounts-stats">
+                    <div class="stat-item">
+                        <span class="stat-number"><?php echo $total_discounts; ?></span>
+                        <span class="stat-label"><?php _e('Total Codes', 'mobooking'); ?></span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-number"><?php echo $active_discounts; ?></span>
+                        <span class="stat-label"><?php _e('Active', 'mobooking'); ?></span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-number"><?php echo $total_usage; ?></span>
+                        <span class="stat-label"><?php _e('Total Uses', 'mobooking'); ?></span>
+                    </div>
+                </div>
+            <?php endif; ?>
+        </div>
+        
+        <div class="discounts-header-actions">
+            <button type="button" id="add-discount-btn" class="btn-primary">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M12 5v14M5 12h14"/>
+                </svg>
+                <?php _e('Create Discount Code', 'mobooking'); ?>
+            </button>
+        </div>
+    </div>
+    
+    <?php if (empty($discounts)) : ?>
+        <!-- Empty State -->
+        <div class="discounts-empty-state">
+            <div class="empty-state-visual">
+                <div class="empty-state-icon">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                        <path d="M19 5L5 19M9 6.5C9 7.88071 7.88071 9 6.5 9C5.11929 9 4 7.88071 4 6.5C4 5.11929 5.11929 4 6.5 4C7.88071 4 9 5.11929 9 6.5ZM20 17.5C20 18.8807 18.8807 20 17.5 20C16.1193 20 15 18.8807 15 17.5C15 16.1193 16.1193 15 17.5 15C18.8807 15 20 16.1193 20 17.5Z"/>
+                    </svg>
+                </div>
+                <div class="empty-state-sparkles">
+                    <div class="sparkle sparkle-1"></div>
+                    <div class="sparkle sparkle-2"></div>
+                    <div class="sparkle sparkle-3"></div>
+                </div>
+            </div>
+            <div class="empty-state-content">
+                <h2><?php _e('Boost Sales with Discount Codes', 'mobooking'); ?></h2>
+                <p><?php _e('Create promotional codes to attract new customers and reward loyal ones. Offer percentage or fixed amount discounts to increase bookings.', 'mobooking'); ?></p>
+                <button type="button" id="add-first-discount-btn" class="btn-primary btn-large">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M12 5v14M5 12h14"/>
+                    </svg>
+                    <?php _e('Create Your First Discount Code', 'mobooking'); ?>
+                </button>
+            </div>
+        </div>
+    <?php else : ?>
+        <!-- Discounts Management -->
+        <div class="discounts-management">
+            <!-- Quick Stats Cards -->
+            <div class="discounts-stats-grid">
+                <div class="stat-card total-discounts">
+                    <div class="stat-card-header">
+                        <div class="stat-icon">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M19 5L5 19M9 6.5C9 7.88071 7.88071 9 6.5 9C5.11929 9 4 7.88071 4 6.5C4 5.11929 5.11929 4 6.5 4C7.88071 4 9 5.11929 9 6.5ZM20 17.5C20 18.8807 18.8807 20 17.5 20C16.1193 20 15 18.8807 15 17.5C15 16.1193 16.1193 15 17.5 15C18.8807 15 20 16.1193 20 17.5Z"/>
+                            </svg>
+                        </div>
+                        <div class="stat-info">
+                            <div class="stat-value"><?php echo $total_discounts; ?></div>
+                            <div class="stat-label"><?php _e('Total Codes', 'mobooking'); ?></div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="stat-card active-discounts">
+                    <div class="stat-card-header">
+                        <div class="stat-icon">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2ZM8 12l2 2 4-4"/>
+                            </svg>
+                        </div>
+                        <div class="stat-info">
+                            <div class="stat-value"><?php echo $active_discounts; ?></div>
+                            <div class="stat-label"><?php _e('Active Codes', 'mobooking'); ?></div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="stat-card expired-discounts">
+                    <div class="stat-card-header">
+                        <div class="stat-icon">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <circle cx="12" cy="12" r="10"></circle>
+                                <path d="M12 6v6l4 2"></path>
+                            </svg>
+                        </div>
+                        <div class="stat-info">
+                            <div class="stat-value"><?php echo $expired_discounts; ?></div>
+                            <div class="stat-label"><?php _e('Expired', 'mobooking'); ?></div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="stat-card total-usage">
+                    <div class="stat-card-header">
+                        <div class="stat-icon">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path>
+                                <circle cx="9" cy="7" r="4"></circle>
+                                <path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"></path>
+                            </svg>
+                        </div>
+                        <div class="stat-info">
+                            <div class="stat-value"><?php echo $total_usage; ?></div>
+                            <div class="stat-label"><?php _e('Total Uses', 'mobooking'); ?></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Filters and Actions -->
+            <div class="discounts-toolbar">
+                <div class="filters-section">
+                    <select id="discount-status-filter" class="filter-select">
+                        <option value=""><?php _e('All Statuses', 'mobooking'); ?></option>
+                        <option value="active"><?php _e('Active', 'mobooking'); ?></option>
+                        <option value="inactive"><?php _e('Inactive', 'mobooking'); ?></option>
+                        <option value="expired"><?php _e('Expired', 'mobooking'); ?></option>
+                    </select>
+                    
+                    <select id="discount-type-filter" class="filter-select">
+                        <option value=""><?php _e('All Types', 'mobooking'); ?></option>
+                        <option value="percentage"><?php _e('Percentage', 'mobooking'); ?></option>
+                        <option value="fixed"><?php _e('Fixed Amount', 'mobooking'); ?></option>
+                    </select>
+                </div>
+                
+                <div class="search-section">
+                    <input type="text" id="discounts-search-input" placeholder="<?php _e('Search discount codes...', 'mobooking'); ?>" class="search-input">
+                </div>
+            </div>
+            
+            <!-- Discounts Table -->
+            <div class="discounts-container">
+                <div class="discounts-grid-header">
+                    <div class="grid-header-cell discount-code"><?php _e('Code', 'mobooking'); ?></div>
+                    <div class="grid-header-cell discount-type"><?php _e('Type', 'mobooking'); ?></div>
+                    <div class="grid-header-cell discount-amount"><?php _e('Discount', 'mobooking'); ?></div>
+                    <div class="grid-header-cell usage-info"><?php _e('Usage', 'mobooking'); ?></div>
+                    <div class="grid-header-cell expiry-date"><?php _e('Expires', 'mobooking'); ?></div>
+                    <div class="grid-header-cell status"><?php _e('Status', 'mobooking'); ?></div>
+                    <div class="grid-header-cell actions"><?php _e('Actions', 'mobooking'); ?></div>
+                </div>
+                
+                <div class="discounts-grid-body" id="discounts-list">
+                    <?php foreach ($discounts as $discount) : 
+                        $is_expired = $discount->expiry_date && strtotime($discount->expiry_date) < time();
+                        $is_limit_reached = $discount->usage_limit > 0 && $discount->usage_count >= $discount->usage_limit;
+                        $effective_status = !$discount->active ? 'inactive' : ($is_expired ? 'expired' : 'active');
+                        $usage_percentage = $discount->usage_limit > 0 ? min(100, ($discount->usage_count / $discount->usage_limit) * 100) : 0;
+                    ?>
+                        <div class="discount-row" data-discount-id="<?php echo esc_attr($discount->id); ?>" data-status="<?php echo esc_attr($effective_status); ?>" data-type="<?php echo esc_attr($discount->type); ?>">
+                            <div class="grid-cell discount-code">
+                                <div class="code-display">
+                                    <span class="code-text"><?php echo esc_html($discount->code); ?></span>
+                                    <button class="copy-code-btn" data-code="<?php echo esc_attr($discount->code); ?>" title="<?php _e('Copy code', 'mobooking'); ?>">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                            <rect width="14" height="14" x="8" y="8" rx="2" ry="2"></rect>
+                                            <path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"></path>
+                                        </svg>
+                                    </button>
+                                </div>
+                            </div>
+                            
+                            <div class="grid-cell discount-type">
+                                <span class="type-badge type-<?php echo esc_attr($discount->type); ?>">
+                                    <?php if ($discount->type === 'percentage') : ?>
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                            <path d="M19 5L5 19M9 6.5C9 7.88071 7.88071 9 6.5 9C5.11929 9 4 7.88071 4 6.5C4 5.11929 5.11929 4 6.5 4C7.88071 4 9 5.11929 9 6.5ZM20 17.5C20 18.8807 18.8807 20 17.5 20C16.1193 20 15 18.8807 15 17.5C15 16.1193 16.1193 15 17.5 15C18.8807 15 20 16.1193 20 17.5Z"/>
+                                        </svg>
+                                        <?php _e('Percentage', 'mobooking'); ?>
+                                    <?php else : ?>
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                            <line x1="12" y1="1" x2="12" y2="23"></line>
+                                            <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
+                                        </svg>
+                                        <?php _e('Fixed Amount', 'mobooking'); ?>
+                                    <?php endif; ?>
+                                </span>
+                            </div>
+                            
+                            <div class="grid-cell discount-amount">
+                                <span class="amount-display">
+                                    <?php 
+                                    if ($discount->type === 'percentage') {
+                                        echo number_format($discount->amount, 0) . '%';
+                                    } else {
+                                        echo function_exists('wc_price') ? wc_price($discount->amount) : '$' . number_format($discount->amount, 2);
+                                    }
+                                    ?>
+                                </span>
+                            </div>
+                            
+                            <div class="grid-cell usage-info">
+                                <div class="usage-display">
+                                    <div class="usage-numbers">
+                                        <span class="usage-count"><?php echo $discount->usage_count; ?></span>
+                                        <?php if ($discount->usage_limit > 0) : ?>
+                                            <span class="usage-separator">/</span>
+                                            <span class="usage-limit"><?php echo $discount->usage_limit; ?></span>
+                                        <?php else : ?>
+                                            <span class="usage-unlimited"><?php _e('unlimited', 'mobooking'); ?></span>
+                                        <?php endif; ?>
+                                    </div>
+                                    <?php if ($discount->usage_limit > 0) : ?>
+                                        <div class="usage-progress">
+                                            <div class="usage-progress-bar">
+                                                <div class="usage-progress-fill" style="width: <?php echo $usage_percentage; ?>%"></div>
+                                            </div>
+                                        </div>
+                                    <?php endif; ?>
+                                </div>
+                            </div>
+                            
+                            <div class="grid-cell expiry-date">
+                                <?php if ($discount->expiry_date) : ?>
+                                    <div class="expiry-display">
+                                        <span class="expiry-date-text"><?php echo date_i18n(get_option('date_format'), strtotime($discount->expiry_date)); ?></span>
+                                        <?php if ($is_expired) : ?>
+                                            <span class="expiry-status expired"><?php _e('Expired', 'mobooking'); ?></span>
+                                        <?php else : ?>
+                                            <?php 
+                                            $days_until_expiry = ceil((strtotime($discount->expiry_date) - time()) / (60 * 60 * 24));
+                                            if ($days_until_expiry <= 7) : ?>
+                                                <span class="expiry-status warning"><?php echo $days_until_expiry . ' ' . _n('day left', 'days left', $days_until_expiry, 'mobooking'); ?></span>
+                                            <?php endif; ?>
+                                        <?php endif; ?>
+                                    </div>
+                                <?php else : ?>
+                                    <span class="no-expiry"><?php _e('No expiry', 'mobooking'); ?></span>
+                                <?php endif; ?>
+                            </div>
+                            
+                            <div class="grid-cell status">
+                                <span class="status-badge status-<?php echo esc_attr($effective_status); ?>">
+                                    <?php 
+                                    switch ($effective_status) {
+                                        case 'active':
+                                            echo '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2ZM8 12l2 2 4-4"/></svg>';
+                                            _e('Active', 'mobooking');
+                                            break;
+                                        case 'inactive':
+                                            echo '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><path d="M8 12h8"/></svg>';
+                                            _e('Inactive', 'mobooking');
+                                            break;
+                                        case 'expired':
+                                            echo '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><path d="M12 6v6l4 2"></path></svg>';
+                                            _e('Expired', 'mobooking');
+                                            break;
+                                    }
+                                    ?>
+                                </span>
+                                <?php if ($is_limit_reached) : ?>
+                                    <span class="limit-reached"><?php _e('Limit reached', 'mobooking'); ?></span>
+                                <?php endif; ?>
+                            </div>
+                            
+                            <div class="grid-cell actions">
+                                <div class="action-buttons">
+                                    <button type="button" class="btn-icon edit-discount-btn" data-discount-id="<?php echo esc_attr($discount->id); ?>" title="<?php _e('Edit', 'mobooking'); ?>">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                                            <path d="m18.5 2.5-9.5 9.5L4 15l1-4 9.5-9.5 3 3Z"></path>
+                                        </svg>
+                                    </button>
+                                    
+                                    <button type="button" class="btn-icon toggle-discount-btn" data-discount-id="<?php echo esc_attr($discount->id); ?>" data-active="<?php echo $discount->active ? '1' : '0'; ?>" title="<?php echo $discount->active ? __('Deactivate', 'mobooking') : __('Activate', 'mobooking'); ?>">
+                                        <?php if ($discount->active) : ?>
+                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                                <circle cx="12" cy="12" r="10"></circle>
+                                                <path d="M8 12h8"/>
+                                            </svg>
+                                        <?php else : ?>
+                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                                <path d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2ZM8 12l2 2 4-4"/>
+                                            </svg>
+                                        <?php endif; ?>
+                                    </button>
+                                    
+                                    <button type="button" class="btn-icon btn-danger delete-discount-btn" data-discount-id="<?php echo esc_attr($discount->id); ?>" title="<?php _e('Delete', 'mobooking'); ?>">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                            <path d="m3 6 3 18h12l3-18"></path>
+                                            <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path>
+                                        </svg>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    <?php endforeach; ?>
+                </div>
+            </div>
+            
+            <!-- Discount Code Generator -->
+            <div class="discount-generator">
+                <h3><?php _e('Quick Actions', 'mobooking'); ?></h3>
+                <div class="generator-actions">
+                    <button type="button" id="generate-welcome-discount" class="btn-secondary">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path>
+                            <circle cx="9" cy="7" r="4"></circle>
+                            <path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"></path>
+                        </svg>
+                        <?php _e('Generate Welcome Discount', 'mobooking'); ?>
+                    </button>
+                    
+                    <button type="button" id="generate-holiday-discount" class="btn-secondary">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+                        </svg>
+                        <?php _e('Generate Holiday Discount', 'mobooking'); ?>
+                    </button>
+                    
+                    <button type="button" id="generate-bulk-discounts" class="btn-secondary">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M17 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path>
+                            <circle cx="9" cy="7" r="4"></circle>
+                            <path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"></path>
+                        </svg>
+                        <?php _e('Bulk Generate Codes', 'mobooking'); ?>
+                    </button>
+                </div>
+            </div>
+        </div>
+    <?php endif; ?>
+</div>
+
+<!-- Discount Modal (Add/Edit) -->
+<div id="discount-modal" class="mobooking-modal" style="display:none;">
+    <div class="modal-backdrop"></div>
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3 id="discount-modal-title"><?php _e('Add Discount Code', 'mobooking'); ?></h3>
+            <button class="modal-close" aria-label="<?php _e('Close', 'mobooking'); ?>">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M18 6 6 18M6 6l12 12"/>
+                </svg>
+            </button>
+        </div>
+        
+        <form id="discount-form" method="post">
+            <input type="hidden" id="discount-id" name="id">
+            <?php wp_nonce_field('mobooking-discount-nonce', 'nonce'); ?>
+            
+            <div class="modal-body">
+                <div class="form-group">
+                    <label for="discount-code"><?php _e('Discount Code', 'mobooking'); ?> *</label>
+                    <div class="input-with-button">
+                        <input type="text" id="discount-code" name="code" class="form-control" 
+                               placeholder="<?php _e('e.g., SAVE20', 'mobooking'); ?>" 
+                               pattern="[A-Z0-9]{3,20}" 
+                               title="<?php _e('3-20 characters, letters and numbers only', 'mobooking'); ?>"
+                               required>
+                        <button type="button" id="generate-code-btn" class="btn-secondary">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <polyline points="1 4 1 10 7 10"></polyline>
+                                <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"></path>
+                            </svg>
+                            <?php _e('Generate', 'mobooking'); ?>
+                        </button>
+                    </div>
+                    <p class="field-help"><?php _e('Enter a unique code (3-20 characters, uppercase letters and numbers only)', 'mobooking'); ?></p>
+                </div>
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="discount-type"><?php _e('Discount Type', 'mobooking'); ?> *</label>
+                        <select id="discount-type" name="type" class="form-control" required>
+                            <option value="percentage"><?php _e('Percentage', 'mobooking'); ?></option>
+                            <option value="fixed"><?php _e('Fixed Amount', 'mobooking'); ?></option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="discount-amount" id="discount-amount-label"><?php _e('Discount Amount', 'mobooking'); ?> *</label>
+                        <div class="amount-input-wrapper">
+                            <span class="amount-prefix" id="amount-prefix">%</span>
+                            <input type="number" id="discount-amount" name="amount" class="form-control" 
+                                   min="0" max="100" step="0.01" required>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="discount-expiry"><?php _e('Expiry Date', 'mobooking'); ?></label>
+                        <input type="date" id="discount-expiry" name="expiry_date" class="form-control">
                         <p class="field-help"><?php _e('Leave empty for no expiry date', 'mobooking'); ?></p>
                     </div>
                     
@@ -766,409 +1170,7 @@ jQuery(document).ready(function($) {
                 $input.attr('max', '100').attr('step', '1');
                 $label.text('Discount Percentage');
             } else {
-                $prefix.text('ath d="M19 5L5 19M9 6.5C9 7.88071 7.88071 9 6.5 9C5.11929 9 4 7.88071 4 6.5C4 5.11929 5.11929 4 6.5 4C7.88071 4 9 5.11929 9 6.5ZM20 17.5C20 18.8807 18.8807 20 17.5 20C16.1193 20 15 18.8807 15 17.5C15 16.1193 16.1193 15 17.5 15C18.8807 15 20 16.1193 20 17.5Z"/>
-                    </svg>
-                    <?php _e('Discount Codes', 'mobooking'); ?>
-                </h1>
-                <p class="discounts-subtitle"><?php _e('Create and manage discount codes for your services', 'mobooking'); ?></p>
-            </div>
-            
-            <?php if (!empty($discounts)) : ?>
-                <div class="discounts-stats">
-                    <div class="stat-item">
-                        <span class="stat-number"><?php echo $total_discounts; ?></span>
-                        <span class="stat-label"><?php _e('Total Codes', 'mobooking'); ?></span>
-                    </div>
-                    <div class="stat-item">
-                        <span class="stat-number"><?php echo $active_discounts; ?></span>
-                        <span class="stat-label"><?php _e('Active', 'mobooking'); ?></span>
-                    </div>
-                    <div class="stat-item">
-                        <span class="stat-number"><?php echo $total_usage; ?></span>
-                        <span class="stat-label"><?php _e('Total Uses', 'mobooking'); ?></span>
-                    </div>
-                </div>
-            <?php endif; ?>
-        </div>
-        
-        <div class="discounts-header-actions">
-            <button type="button" id="add-discount-btn" class="btn-primary">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M12 5v14M5 12h14"/>
-                </svg>
-                <?php _e('Create Discount Code', 'mobooking'); ?>
-            </button>
-        </div>
-    </div>
-    
-    <?php if (empty($discounts)) : ?>
-        <!-- Empty State -->
-        <div class="discounts-empty-state">
-            <div class="empty-state-visual">
-                <div class="empty-state-icon">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-                        <path d="M19 5L5 19M9 6.5C9 7.88071 7.88071 9 6.5 9C5.11929 9 4 7.88071 4 6.5C4 5.11929 5.11929 4 6.5 4C7.88071 4 9 5.11929 9 6.5ZM20 17.5C20 18.8807 18.8807 20 17.5 20C16.1193 20 15 18.8807 15 17.5C15 16.1193 16.1193 15 17.5 15C18.8807 15 20 16.1193 20 17.5Z"/>
-                    </svg>
-                </div>
-                <div class="empty-state-sparkles">
-                    <div class="sparkle sparkle-1"></div>
-                    <div class="sparkle sparkle-2"></div>
-                    <div class="sparkle sparkle-3"></div>
-                </div>
-            </div>
-            <div class="empty-state-content">
-                <h2><?php _e('Boost Sales with Discount Codes', 'mobooking'); ?></h2>
-                <p><?php _e('Create promotional codes to attract new customers and reward loyal ones. Offer percentage or fixed amount discounts to increase bookings.', 'mobooking'); ?></p>
-                <button type="button" id="add-first-discount-btn" class="btn-primary btn-large">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M12 5v14M5 12h14"/>
-                    </svg>
-                    <?php _e('Create Your First Discount Code', 'mobooking'); ?>
-                </button>
-            </div>
-        </div>
-    <?php else : ?>
-        <!-- Discounts Management -->
-        <div class="discounts-management">
-            <!-- Quick Stats Cards -->
-            <div class="discounts-stats-grid">
-                <div class="stat-card total-discounts">
-                    <div class="stat-card-header">
-                        <div class="stat-icon">
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <path d="M19 5L5 19M9 6.5C9 7.88071 7.88071 9 6.5 9C5.11929 9 4 7.88071 4 6.5C4 5.11929 5.11929 4 6.5 4C7.88071 4 9 5.11929 9 6.5ZM20 17.5C20 18.8807 18.8807 20 17.5 20C16.1193 20 15 18.8807 15 17.5C15 16.1193 16.1193 15 17.5 15C18.8807 15 20 16.1193 20 17.5Z"/>
-                            </svg>
-                        </div>
-                        <div class="stat-info">
-                            <div class="stat-value"><?php echo $total_discounts; ?></div>
-                            <div class="stat-label"><?php _e('Total Codes', 'mobooking'); ?></div>
-                        </div>
-                    </div>
-                </div>
-                
-                <div class="stat-card active-discounts">
-                    <div class="stat-card-header">
-                        <div class="stat-icon">
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <path d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2ZM8 12l2 2 4-4"/>
-                            </svg>
-                        </div>
-                        <div class="stat-info">
-                            <div class="stat-value"><?php echo $active_discounts; ?></div>
-                            <div class="stat-label"><?php _e('Active Codes', 'mobooking'); ?></div>
-                        </div>
-                    </div>
-                </div>
-                
-                <div class="stat-card expired-discounts">
-                    <div class="stat-card-header">
-                        <div class="stat-icon">
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <circle cx="12" cy="12" r="10"></circle>
-                                <path d="M12 6v6l4 2"></path>
-                            </svg>
-                        </div>
-                        <div class="stat-info">
-                            <div class="stat-value"><?php echo $expired_discounts; ?></div>
-                            <div class="stat-label"><?php _e('Expired', 'mobooking'); ?></div>
-                        </div>
-                    </div>
-                </div>
-                
-                <div class="stat-card total-usage">
-                    <div class="stat-card-header">
-                        <div class="stat-icon">
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path>
-                                <circle cx="9" cy="7" r="4"></circle>
-                                <path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"></path>
-                            </svg>
-                        </div>
-                        <div class="stat-info">
-                            <div class="stat-value"><?php echo $total_usage; ?></div>
-                            <div class="stat-label"><?php _e('Total Uses', 'mobooking'); ?></div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            
-            <!-- Filters and Actions -->
-            <div class="discounts-toolbar">
-                <div class="filters-section">
-                    <select id="discount-status-filter" class="filter-select">
-                        <option value=""><?php _e('All Statuses', 'mobooking'); ?></option>
-                        <option value="active"><?php _e('Active', 'mobooking'); ?></option>
-                        <option value="inactive"><?php _e('Inactive', 'mobooking'); ?></option>
-                        <option value="expired"><?php _e('Expired', 'mobooking'); ?></option>
-                    </select>
-                    
-                    <select id="discount-type-filter" class="filter-select">
-                        <option value=""><?php _e('All Types', 'mobooking'); ?></option>
-                        <option value="percentage"><?php _e('Percentage', 'mobooking'); ?></option>
-                        <option value="fixed"><?php _e('Fixed Amount', 'mobooking'); ?></option>
-                    </select>
-                </div>
-                
-                <div class="search-section">
-                    <input type="text" id="discounts-search-input" placeholder="<?php _e('Search discount codes...', 'mobooking'); ?>" class="search-input">
-                </div>
-            </div>
-            
-            <!-- Discounts Table -->
-            <div class="discounts-container">
-                <div class="discounts-grid-header">
-                    <div class="grid-header-cell discount-code"><?php _e('Code', 'mobooking'); ?></div>
-                    <div class="grid-header-cell discount-type"><?php _e('Type', 'mobooking'); ?></div>
-                    <div class="grid-header-cell discount-amount"><?php _e('Discount', 'mobooking'); ?></div>
-                    <div class="grid-header-cell usage-info"><?php _e('Usage', 'mobooking'); ?></div>
-                    <div class="grid-header-cell expiry-date"><?php _e('Expires', 'mobooking'); ?></div>
-                    <div class="grid-header-cell status"><?php _e('Status', 'mobooking'); ?></div>
-                    <div class="grid-header-cell actions"><?php _e('Actions', 'mobooking'); ?></div>
-                </div>
-                
-                <div class="discounts-grid-body" id="discounts-list">
-                    <?php foreach ($discounts as $discount) : 
-                        $is_expired = $discount->expiry_date && strtotime($discount->expiry_date) < time();
-                        $is_limit_reached = $discount->usage_limit > 0 && $discount->usage_count >= $discount->usage_limit;
-                        $effective_status = !$discount->active ? 'inactive' : ($is_expired ? 'expired' : 'active');
-                        $usage_percentage = $discount->usage_limit > 0 ? min(100, ($discount->usage_count / $discount->usage_limit) * 100) : 0;
-                    ?>
-                        <div class="discount-row" data-discount-id="<?php echo esc_attr($discount->id); ?>" data-status="<?php echo esc_attr($effective_status); ?>" data-type="<?php echo esc_attr($discount->type); ?>">
-                            <div class="grid-cell discount-code">
-                                <div class="code-display">
-                                    <span class="code-text"><?php echo esc_html($discount->code); ?></span>
-                                    <button class="copy-code-btn" data-code="<?php echo esc_attr($discount->code); ?>" title="<?php _e('Copy code', 'mobooking'); ?>">
-                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                            <rect width="14" height="14" x="8" y="8" rx="2" ry="2"></rect>
-                                            <path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"></path>
-                                        </svg>
-                                    </button>
-                                </div>
-                            </div>
-                            
-                            <div class="grid-cell discount-type">
-                                <span class="type-badge type-<?php echo esc_attr($discount->type); ?>">
-                                    <?php if ($discount->type === 'percentage') : ?>
-                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                            <path d="M19 5L5 19M9 6.5C9 7.88071 7.88071 9 6.5 9C5.11929 9 4 7.88071 4 6.5C4 5.11929 5.11929 4 6.5 4C7.88071 4 9 5.11929 9 6.5ZM20 17.5C20 18.8807 18.8807 20 17.5 20C16.1193 20 15 18.8807 15 17.5C15 16.1193 16.1193 15 17.5 15C18.8807 15 20 16.1193 20 17.5Z"/>
-                                        </svg>
-                                        <?php _e('Percentage', 'mobooking'); ?>
-                                    <?php else : ?>
-                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                            <line x1="12" y1="1" x2="12" y2="23"></line>
-                                            <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
-                                        </svg>
-                                        <?php _e('Fixed Amount', 'mobooking'); ?>
-                                    <?php endif; ?>
-                                </span>
-                            </div>
-                            
-                            <div class="grid-cell discount-amount">
-                                <span class="amount-display">
-                                    <?php 
-                                    if ($discount->type === 'percentage') {
-                                        echo number_format($discount->amount, 0) . '%';
-                                    } else {
-                                        echo function_exists('wc_price') ? wc_price($discount->amount) : '$' . number_format($discount->amount, 2);
-                                    }
-                                    ?>
-                                </span>
-                            </div>
-                            
-                            <div class="grid-cell usage-info">
-                                <div class="usage-display">
-                                    <div class="usage-numbers">
-                                        <span class="usage-count"><?php echo $discount->usage_count; ?></span>
-                                        <?php if ($discount->usage_limit > 0) : ?>
-                                            <span class="usage-separator">/</span>
-                                            <span class="usage-limit"><?php echo $discount->usage_limit; ?></span>
-                                        <?php else : ?>
-                                            <span class="usage-unlimited"><?php _e('unlimited', 'mobooking'); ?></span>
-                                        <?php endif; ?>
-                                    </div>
-                                    <?php if ($discount->usage_limit > 0) : ?>
-                                        <div class="usage-progress">
-                                            <div class="usage-progress-bar">
-                                                <div class="usage-progress-fill" style="width: <?php echo $usage_percentage; ?>%"></div>
-                                            </div>
-                                        </div>
-                                    <?php endif; ?>
-                                </div>
-                            </div>
-                            
-                            <div class="grid-cell expiry-date">
-                                <?php if ($discount->expiry_date) : ?>
-                                    <div class="expiry-display">
-                                        <span class="expiry-date-text"><?php echo date_i18n(get_option('date_format'), strtotime($discount->expiry_date)); ?></span>
-                                        <?php if ($is_expired) : ?>
-                                            <span class="expiry-status expired"><?php _e('Expired', 'mobooking'); ?></span>
-                                        <?php else : ?>
-                                            <?php 
-                                            $days_until_expiry = ceil((strtotime($discount->expiry_date) - time()) / (60 * 60 * 24));
-                                            if ($days_until_expiry <= 7) : ?>
-                                                <span class="expiry-status warning"><?php echo $days_until_expiry . ' ' . _n('day left', 'days left', $days_until_expiry, 'mobooking'); ?></span>
-                                            <?php endif; ?>
-                                        <?php endif; ?>
-                                    </div>
-                                <?php else : ?>
-                                    <span class="no-expiry"><?php _e('No expiry', 'mobooking'); ?></span>
-                                <?php endif; ?>
-                            </div>
-                            
-                            <div class="grid-cell status">
-                                <span class="status-badge status-<?php echo esc_attr($effective_status); ?>">
-                                    <?php 
-                                    switch ($effective_status) {
-                                        case 'active':
-                                            echo '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2ZM8 12l2 2 4-4"/></svg>';
-                                            _e('Active', 'mobooking');
-                                            break;
-                                        case 'inactive':
-                                            echo '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><path d="M8 12h8"/></svg>';
-                                            _e('Inactive', 'mobooking');
-                                            break;
-                                        case 'expired':
-                                            echo '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><path d="M12 6v6l4 2"></path></svg>';
-                                            _e('Expired', 'mobooking');
-                                            break;
-                                    }
-                                    ?>
-                                </span>
-                                <?php if ($is_limit_reached) : ?>
-                                    <span class="limit-reached"><?php _e('Limit reached', 'mobooking'); ?></span>
-                                <?php endif; ?>
-                            </div>
-                            
-                            <div class="grid-cell actions">
-                                <div class="action-buttons">
-                                    <button type="button" class="btn-icon edit-discount-btn" data-discount-id="<?php echo esc_attr($discount->id); ?>" title="<?php _e('Edit', 'mobooking'); ?>">
-                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
-                                            <path d="m18.5 2.5-9.5 9.5L4 15l1-4 9.5-9.5 3 3Z"></path>
-                                        </svg>
-                                    </button>
-                                    
-                                    <button type="button" class="btn-icon toggle-discount-btn" data-discount-id="<?php echo esc_attr($discount->id); ?>" data-active="<?php echo $discount->active ? '1' : '0'; ?>" title="<?php echo $discount->active ? __('Deactivate', 'mobooking') : __('Activate', 'mobooking'); ?>">
-                                        <?php if ($discount->active) : ?>
-                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                                <circle cx="12" cy="12" r="10"></circle>
-                                                <path d="M8 12h8"/>
-                                            </svg>
-                                        <?php else : ?>
-                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                                <path d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2ZM8 12l2 2 4-4"/>
-                                            </svg>
-                                        <?php endif; ?>
-                                    </button>
-                                    
-                                    <button type="button" class="btn-icon btn-danger delete-discount-btn" data-discount-id="<?php echo esc_attr($discount->id); ?>" title="<?php _e('Delete', 'mobooking'); ?>">
-                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                            <path d="m3 6 3 18h12l3-18"></path>
-                                            <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path>
-                                        </svg>
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-                    <?php endforeach; ?>
-                </div>
-            </div>
-            
-            <!-- Discount Code Generator -->
-            <div class="discount-generator">
-                <h3><?php _e('Quick Actions', 'mobooking'); ?></h3>
-                <div class="generator-actions">
-                    <button type="button" id="generate-welcome-discount" class="btn-secondary">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path>
-                            <circle cx="9" cy="7" r="4"></circle>
-                            <path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"></path>
-                        </svg>
-                        <?php _e('Generate Welcome Discount', 'mobooking'); ?>
-                    </button>
-                    
-                    <button type="button" id="generate-holiday-discount" class="btn-secondary">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
-                        </svg>
-                        <?php _e('Generate Holiday Discount', 'mobooking'); ?>
-                    </button>
-                    
-                    <button type="button" id="generate-bulk-discounts" class="btn-secondary">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <path d="M17 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path>
-                            <circle cx="9" cy="7" r="4"></circle>
-                            <path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"></path>
-                        </svg>
-                        <?php _e('Bulk Generate Codes', 'mobooking'); ?>
-                    </button>
-                </div>
-            </div>
-        </div>
-    <?php endif; ?>
-</div>
-
-<!-- Discount Modal (Add/Edit) -->
-<div id="discount-modal" class="mobooking-modal" style="display:none;">
-    <div class="modal-backdrop"></div>
-    <div class="modal-content">
-        <div class="modal-header">
-            <h3 id="discount-modal-title"><?php _e('Add Discount Code', 'mobooking'); ?></h3>
-            <button class="modal-close" aria-label="<?php _e('Close', 'mobooking'); ?>">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M18 6 6 18M6 6l12 12"/>
-                </svg>
-            </button>
-        </div>
-        
-        <form id="discount-form" method="post">
-            <input type="hidden" id="discount-id" name="id">
-            <?php wp_nonce_field('mobooking-discount-nonce', 'nonce'); ?>
-            
-            <div class="modal-body">
-                <div class="form-group">
-                    <label for="discount-code"><?php _e('Discount Code', 'mobooking'); ?> *</label>
-                    <div class="input-with-button">
-                        <input type="text" id="discount-code" name="code" class="form-control" 
-                               placeholder="<?php _e('e.g., SAVE20', 'mobooking'); ?>" 
-                               pattern="[A-Z0-9]{3,20}" 
-                               title="<?php _e('3-20 characters, letters and numbers only', 'mobooking'); ?>"
-                               required>
-                        <button type="button" id="generate-code-btn" class="btn-secondary">
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <polyline points="1 4 1 10 7 10"></polyline>
-                                <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"></path>
-                            </svg>
-                            <?php _e('Generate', 'mobooking'); ?>
-                        </button>
-                    </div>
-                    <p class="field-help"><?php _e('Enter a unique code (3-20 characters, uppercase letters and numbers only)', 'mobooking'); ?></p>
-                </div>
-                
-                <div class="form-row">
-                    <div class="form-group">
-                        <label for="discount-type"><?php _e('Discount Type', 'mobooking'); ?> *</label>
-                        <select id="discount-type" name="type" class="form-control" required>
-                            <option value="percentage"><?php _e('Percentage', 'mobooking'); ?></option>
-                            <option value="fixed"><?php _e('Fixed Amount', 'mobooking'); ?></option>
-                        </select>
-                    </div>
-                    
-                    <div class="form-group">
-                        <label for="discount-amount" id="discount-amount-label"><?php _e('Discount Amount', 'mobooking'); ?> *</label>
-                        <div class="amount-input-wrapper">
-                            <span class="amount-prefix" id="amount-prefix">%</span>
-                            <input type="number" id="discount-amount" name="amount" class="form-control" 
-                                   min="0" max="100" step="0.01" required>
-                        </div>
-                    </div>
-                </div>
-                
-                <div class="form-row">
-                    <div class="form-group">
-                        <label for="discount-expiry"><?php _e('Expiry Date', 'mobooking'); ?></label>
-                        <input type="date" id="discount-expiry" name="expiry_date" class="form-control">
-                        <p);
+                $prefix.text(');
                 $input.attr('max', '10000').attr('step', '0.01');
                 $label.text('Discount Amount');
             }
@@ -1184,409 +1186,7 @@ jQuery(document).ready(function($) {
                 $prefix.text('%');
                 $input.attr('max', '100').attr('step', '1');
             } else {
-                $prefix.text('ath d="M19 5L5 19M9 6.5C9 7.88071 7.88071 9 6.5 9C5.11929 9 4 7.88071 4 6.5C4 5.11929 5.11929 4 6.5 4C7.88071 4 9 5.11929 9 6.5ZM20 17.5C20 18.8807 18.8807 20 17.5 20C16.1193 20 15 18.8807 15 17.5C15 16.1193 16.1193 15 17.5 15C18.8807 15 20 16.1193 20 17.5Z"/>
-                    </svg>
-                    <?php _e('Discount Codes', 'mobooking'); ?>
-                </h1>
-                <p class="discounts-subtitle"><?php _e('Create and manage discount codes for your services', 'mobooking'); ?></p>
-            </div>
-            
-            <?php if (!empty($discounts)) : ?>
-                <div class="discounts-stats">
-                    <div class="stat-item">
-                        <span class="stat-number"><?php echo $total_discounts; ?></span>
-                        <span class="stat-label"><?php _e('Total Codes', 'mobooking'); ?></span>
-                    </div>
-                    <div class="stat-item">
-                        <span class="stat-number"><?php echo $active_discounts; ?></span>
-                        <span class="stat-label"><?php _e('Active', 'mobooking'); ?></span>
-                    </div>
-                    <div class="stat-item">
-                        <span class="stat-number"><?php echo $total_usage; ?></span>
-                        <span class="stat-label"><?php _e('Total Uses', 'mobooking'); ?></span>
-                    </div>
-                </div>
-            <?php endif; ?>
-        </div>
-        
-        <div class="discounts-header-actions">
-            <button type="button" id="add-discount-btn" class="btn-primary">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M12 5v14M5 12h14"/>
-                </svg>
-                <?php _e('Create Discount Code', 'mobooking'); ?>
-            </button>
-        </div>
-    </div>
-    
-    <?php if (empty($discounts)) : ?>
-        <!-- Empty State -->
-        <div class="discounts-empty-state">
-            <div class="empty-state-visual">
-                <div class="empty-state-icon">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-                        <path d="M19 5L5 19M9 6.5C9 7.88071 7.88071 9 6.5 9C5.11929 9 4 7.88071 4 6.5C4 5.11929 5.11929 4 6.5 4C7.88071 4 9 5.11929 9 6.5ZM20 17.5C20 18.8807 18.8807 20 17.5 20C16.1193 20 15 18.8807 15 17.5C15 16.1193 16.1193 15 17.5 15C18.8807 15 20 16.1193 20 17.5Z"/>
-                    </svg>
-                </div>
-                <div class="empty-state-sparkles">
-                    <div class="sparkle sparkle-1"></div>
-                    <div class="sparkle sparkle-2"></div>
-                    <div class="sparkle sparkle-3"></div>
-                </div>
-            </div>
-            <div class="empty-state-content">
-                <h2><?php _e('Boost Sales with Discount Codes', 'mobooking'); ?></h2>
-                <p><?php _e('Create promotional codes to attract new customers and reward loyal ones. Offer percentage or fixed amount discounts to increase bookings.', 'mobooking'); ?></p>
-                <button type="button" id="add-first-discount-btn" class="btn-primary btn-large">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M12 5v14M5 12h14"/>
-                    </svg>
-                    <?php _e('Create Your First Discount Code', 'mobooking'); ?>
-                </button>
-            </div>
-        </div>
-    <?php else : ?>
-        <!-- Discounts Management -->
-        <div class="discounts-management">
-            <!-- Quick Stats Cards -->
-            <div class="discounts-stats-grid">
-                <div class="stat-card total-discounts">
-                    <div class="stat-card-header">
-                        <div class="stat-icon">
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <path d="M19 5L5 19M9 6.5C9 7.88071 7.88071 9 6.5 9C5.11929 9 4 7.88071 4 6.5C4 5.11929 5.11929 4 6.5 4C7.88071 4 9 5.11929 9 6.5ZM20 17.5C20 18.8807 18.8807 20 17.5 20C16.1193 20 15 18.8807 15 17.5C15 16.1193 16.1193 15 17.5 15C18.8807 15 20 16.1193 20 17.5Z"/>
-                            </svg>
-                        </div>
-                        <div class="stat-info">
-                            <div class="stat-value"><?php echo $total_discounts; ?></div>
-                            <div class="stat-label"><?php _e('Total Codes', 'mobooking'); ?></div>
-                        </div>
-                    </div>
-                </div>
-                
-                <div class="stat-card active-discounts">
-                    <div class="stat-card-header">
-                        <div class="stat-icon">
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <path d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2ZM8 12l2 2 4-4"/>
-                            </svg>
-                        </div>
-                        <div class="stat-info">
-                            <div class="stat-value"><?php echo $active_discounts; ?></div>
-                            <div class="stat-label"><?php _e('Active Codes', 'mobooking'); ?></div>
-                        </div>
-                    </div>
-                </div>
-                
-                <div class="stat-card expired-discounts">
-                    <div class="stat-card-header">
-                        <div class="stat-icon">
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <circle cx="12" cy="12" r="10"></circle>
-                                <path d="M12 6v6l4 2"></path>
-                            </svg>
-                        </div>
-                        <div class="stat-info">
-                            <div class="stat-value"><?php echo $expired_discounts; ?></div>
-                            <div class="stat-label"><?php _e('Expired', 'mobooking'); ?></div>
-                        </div>
-                    </div>
-                </div>
-                
-                <div class="stat-card total-usage">
-                    <div class="stat-card-header">
-                        <div class="stat-icon">
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path>
-                                <circle cx="9" cy="7" r="4"></circle>
-                                <path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"></path>
-                            </svg>
-                        </div>
-                        <div class="stat-info">
-                            <div class="stat-value"><?php echo $total_usage; ?></div>
-                            <div class="stat-label"><?php _e('Total Uses', 'mobooking'); ?></div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            
-            <!-- Filters and Actions -->
-            <div class="discounts-toolbar">
-                <div class="filters-section">
-                    <select id="discount-status-filter" class="filter-select">
-                        <option value=""><?php _e('All Statuses', 'mobooking'); ?></option>
-                        <option value="active"><?php _e('Active', 'mobooking'); ?></option>
-                        <option value="inactive"><?php _e('Inactive', 'mobooking'); ?></option>
-                        <option value="expired"><?php _e('Expired', 'mobooking'); ?></option>
-                    </select>
-                    
-                    <select id="discount-type-filter" class="filter-select">
-                        <option value=""><?php _e('All Types', 'mobooking'); ?></option>
-                        <option value="percentage"><?php _e('Percentage', 'mobooking'); ?></option>
-                        <option value="fixed"><?php _e('Fixed Amount', 'mobooking'); ?></option>
-                    </select>
-                </div>
-                
-                <div class="search-section">
-                    <input type="text" id="discounts-search-input" placeholder="<?php _e('Search discount codes...', 'mobooking'); ?>" class="search-input">
-                </div>
-            </div>
-            
-            <!-- Discounts Table -->
-            <div class="discounts-container">
-                <div class="discounts-grid-header">
-                    <div class="grid-header-cell discount-code"><?php _e('Code', 'mobooking'); ?></div>
-                    <div class="grid-header-cell discount-type"><?php _e('Type', 'mobooking'); ?></div>
-                    <div class="grid-header-cell discount-amount"><?php _e('Discount', 'mobooking'); ?></div>
-                    <div class="grid-header-cell usage-info"><?php _e('Usage', 'mobooking'); ?></div>
-                    <div class="grid-header-cell expiry-date"><?php _e('Expires', 'mobooking'); ?></div>
-                    <div class="grid-header-cell status"><?php _e('Status', 'mobooking'); ?></div>
-                    <div class="grid-header-cell actions"><?php _e('Actions', 'mobooking'); ?></div>
-                </div>
-                
-                <div class="discounts-grid-body" id="discounts-list">
-                    <?php foreach ($discounts as $discount) : 
-                        $is_expired = $discount->expiry_date && strtotime($discount->expiry_date) < time();
-                        $is_limit_reached = $discount->usage_limit > 0 && $discount->usage_count >= $discount->usage_limit;
-                        $effective_status = !$discount->active ? 'inactive' : ($is_expired ? 'expired' : 'active');
-                        $usage_percentage = $discount->usage_limit > 0 ? min(100, ($discount->usage_count / $discount->usage_limit) * 100) : 0;
-                    ?>
-                        <div class="discount-row" data-discount-id="<?php echo esc_attr($discount->id); ?>" data-status="<?php echo esc_attr($effective_status); ?>" data-type="<?php echo esc_attr($discount->type); ?>">
-                            <div class="grid-cell discount-code">
-                                <div class="code-display">
-                                    <span class="code-text"><?php echo esc_html($discount->code); ?></span>
-                                    <button class="copy-code-btn" data-code="<?php echo esc_attr($discount->code); ?>" title="<?php _e('Copy code', 'mobooking'); ?>">
-                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                            <rect width="14" height="14" x="8" y="8" rx="2" ry="2"></rect>
-                                            <path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"></path>
-                                        </svg>
-                                    </button>
-                                </div>
-                            </div>
-                            
-                            <div class="grid-cell discount-type">
-                                <span class="type-badge type-<?php echo esc_attr($discount->type); ?>">
-                                    <?php if ($discount->type === 'percentage') : ?>
-                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                            <path d="M19 5L5 19M9 6.5C9 7.88071 7.88071 9 6.5 9C5.11929 9 4 7.88071 4 6.5C4 5.11929 5.11929 4 6.5 4C7.88071 4 9 5.11929 9 6.5ZM20 17.5C20 18.8807 18.8807 20 17.5 20C16.1193 20 15 18.8807 15 17.5C15 16.1193 16.1193 15 17.5 15C18.8807 15 20 16.1193 20 17.5Z"/>
-                                        </svg>
-                                        <?php _e('Percentage', 'mobooking'); ?>
-                                    <?php else : ?>
-                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                            <line x1="12" y1="1" x2="12" y2="23"></line>
-                                            <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
-                                        </svg>
-                                        <?php _e('Fixed Amount', 'mobooking'); ?>
-                                    <?php endif; ?>
-                                </span>
-                            </div>
-                            
-                            <div class="grid-cell discount-amount">
-                                <span class="amount-display">
-                                    <?php 
-                                    if ($discount->type === 'percentage') {
-                                        echo number_format($discount->amount, 0) . '%';
-                                    } else {
-                                        echo function_exists('wc_price') ? wc_price($discount->amount) : '$' . number_format($discount->amount, 2);
-                                    }
-                                    ?>
-                                </span>
-                            </div>
-                            
-                            <div class="grid-cell usage-info">
-                                <div class="usage-display">
-                                    <div class="usage-numbers">
-                                        <span class="usage-count"><?php echo $discount->usage_count; ?></span>
-                                        <?php if ($discount->usage_limit > 0) : ?>
-                                            <span class="usage-separator">/</span>
-                                            <span class="usage-limit"><?php echo $discount->usage_limit; ?></span>
-                                        <?php else : ?>
-                                            <span class="usage-unlimited"><?php _e('unlimited', 'mobooking'); ?></span>
-                                        <?php endif; ?>
-                                    </div>
-                                    <?php if ($discount->usage_limit > 0) : ?>
-                                        <div class="usage-progress">
-                                            <div class="usage-progress-bar">
-                                                <div class="usage-progress-fill" style="width: <?php echo $usage_percentage; ?>%"></div>
-                                            </div>
-                                        </div>
-                                    <?php endif; ?>
-                                </div>
-                            </div>
-                            
-                            <div class="grid-cell expiry-date">
-                                <?php if ($discount->expiry_date) : ?>
-                                    <div class="expiry-display">
-                                        <span class="expiry-date-text"><?php echo date_i18n(get_option('date_format'), strtotime($discount->expiry_date)); ?></span>
-                                        <?php if ($is_expired) : ?>
-                                            <span class="expiry-status expired"><?php _e('Expired', 'mobooking'); ?></span>
-                                        <?php else : ?>
-                                            <?php 
-                                            $days_until_expiry = ceil((strtotime($discount->expiry_date) - time()) / (60 * 60 * 24));
-                                            if ($days_until_expiry <= 7) : ?>
-                                                <span class="expiry-status warning"><?php echo $days_until_expiry . ' ' . _n('day left', 'days left', $days_until_expiry, 'mobooking'); ?></span>
-                                            <?php endif; ?>
-                                        <?php endif; ?>
-                                    </div>
-                                <?php else : ?>
-                                    <span class="no-expiry"><?php _e('No expiry', 'mobooking'); ?></span>
-                                <?php endif; ?>
-                            </div>
-                            
-                            <div class="grid-cell status">
-                                <span class="status-badge status-<?php echo esc_attr($effective_status); ?>">
-                                    <?php 
-                                    switch ($effective_status) {
-                                        case 'active':
-                                            echo '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2ZM8 12l2 2 4-4"/></svg>';
-                                            _e('Active', 'mobooking');
-                                            break;
-                                        case 'inactive':
-                                            echo '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><path d="M8 12h8"/></svg>';
-                                            _e('Inactive', 'mobooking');
-                                            break;
-                                        case 'expired':
-                                            echo '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><path d="M12 6v6l4 2"></path></svg>';
-                                            _e('Expired', 'mobooking');
-                                            break;
-                                    }
-                                    ?>
-                                </span>
-                                <?php if ($is_limit_reached) : ?>
-                                    <span class="limit-reached"><?php _e('Limit reached', 'mobooking'); ?></span>
-                                <?php endif; ?>
-                            </div>
-                            
-                            <div class="grid-cell actions">
-                                <div class="action-buttons">
-                                    <button type="button" class="btn-icon edit-discount-btn" data-discount-id="<?php echo esc_attr($discount->id); ?>" title="<?php _e('Edit', 'mobooking'); ?>">
-                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
-                                            <path d="m18.5 2.5-9.5 9.5L4 15l1-4 9.5-9.5 3 3Z"></path>
-                                        </svg>
-                                    </button>
-                                    
-                                    <button type="button" class="btn-icon toggle-discount-btn" data-discount-id="<?php echo esc_attr($discount->id); ?>" data-active="<?php echo $discount->active ? '1' : '0'; ?>" title="<?php echo $discount->active ? __('Deactivate', 'mobooking') : __('Activate', 'mobooking'); ?>">
-                                        <?php if ($discount->active) : ?>
-                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                                <circle cx="12" cy="12" r="10"></circle>
-                                                <path d="M8 12h8"/>
-                                            </svg>
-                                        <?php else : ?>
-                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                                <path d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2ZM8 12l2 2 4-4"/>
-                                            </svg>
-                                        <?php endif; ?>
-                                    </button>
-                                    
-                                    <button type="button" class="btn-icon btn-danger delete-discount-btn" data-discount-id="<?php echo esc_attr($discount->id); ?>" title="<?php _e('Delete', 'mobooking'); ?>">
-                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                            <path d="m3 6 3 18h12l3-18"></path>
-                                            <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path>
-                                        </svg>
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-                    <?php endforeach; ?>
-                </div>
-            </div>
-            
-            <!-- Discount Code Generator -->
-            <div class="discount-generator">
-                <h3><?php _e('Quick Actions', 'mobooking'); ?></h3>
-                <div class="generator-actions">
-                    <button type="button" id="generate-welcome-discount" class="btn-secondary">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path>
-                            <circle cx="9" cy="7" r="4"></circle>
-                            <path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"></path>
-                        </svg>
-                        <?php _e('Generate Welcome Discount', 'mobooking'); ?>
-                    </button>
-                    
-                    <button type="button" id="generate-holiday-discount" class="btn-secondary">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
-                        </svg>
-                        <?php _e('Generate Holiday Discount', 'mobooking'); ?>
-                    </button>
-                    
-                    <button type="button" id="generate-bulk-discounts" class="btn-secondary">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <path d="M17 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path>
-                            <circle cx="9" cy="7" r="4"></circle>
-                            <path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"></path>
-                        </svg>
-                        <?php _e('Bulk Generate Codes', 'mobooking'); ?>
-                    </button>
-                </div>
-            </div>
-        </div>
-    <?php endif; ?>
-</div>
-
-<!-- Discount Modal (Add/Edit) -->
-<div id="discount-modal" class="mobooking-modal" style="display:none;">
-    <div class="modal-backdrop"></div>
-    <div class="modal-content">
-        <div class="modal-header">
-            <h3 id="discount-modal-title"><?php _e('Add Discount Code', 'mobooking'); ?></h3>
-            <button class="modal-close" aria-label="<?php _e('Close', 'mobooking'); ?>">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M18 6 6 18M6 6l12 12"/>
-                </svg>
-            </button>
-        </div>
-        
-        <form id="discount-form" method="post">
-            <input type="hidden" id="discount-id" name="id">
-            <?php wp_nonce_field('mobooking-discount-nonce', 'nonce'); ?>
-            
-            <div class="modal-body">
-                <div class="form-group">
-                    <label for="discount-code"><?php _e('Discount Code', 'mobooking'); ?> *</label>
-                    <div class="input-with-button">
-                        <input type="text" id="discount-code" name="code" class="form-control" 
-                               placeholder="<?php _e('e.g., SAVE20', 'mobooking'); ?>" 
-                               pattern="[A-Z0-9]{3,20}" 
-                               title="<?php _e('3-20 characters, letters and numbers only', 'mobooking'); ?>"
-                               required>
-                        <button type="button" id="generate-code-btn" class="btn-secondary">
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <polyline points="1 4 1 10 7 10"></polyline>
-                                <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"></path>
-                            </svg>
-                            <?php _e('Generate', 'mobooking'); ?>
-                        </button>
-                    </div>
-                    <p class="field-help"><?php _e('Enter a unique code (3-20 characters, uppercase letters and numbers only)', 'mobooking'); ?></p>
-                </div>
-                
-                <div class="form-row">
-                    <div class="form-group">
-                        <label for="discount-type"><?php _e('Discount Type', 'mobooking'); ?> *</label>
-                        <select id="discount-type" name="type" class="form-control" required>
-                            <option value="percentage"><?php _e('Percentage', 'mobooking'); ?></option>
-                            <option value="fixed"><?php _e('Fixed Amount', 'mobooking'); ?></option>
-                        </select>
-                    </div>
-                    
-                    <div class="form-group">
-                        <label for="discount-amount" id="discount-amount-label"><?php _e('Discount Amount', 'mobooking'); ?> *</label>
-                        <div class="amount-input-wrapper">
-                            <span class="amount-prefix" id="amount-prefix">%</span>
-                            <input type="number" id="discount-amount" name="amount" class="form-control" 
-                                   min="0" max="100" step="0.01" required>
-                        </div>
-                    </div>
-                </div>
-                
-                <div class="form-row">
-                    <div class="form-group">
-                        <label for="discount-expiry"><?php _e('Expiry Date', 'mobooking'); ?></label>
-                        <input type="date" id="discount-expiry" name="expiry_date" class="form-control">
-                        <p);
+                $prefix.text(');
                 $input.attr('max', '10000').attr('step', '0.01');
             }
         },
@@ -1767,6 +1367,51 @@ jQuery(document).ready(function($) {
     console.log('✅ MoBooking Discounts Manager ready');
 });
 </script>
+
+<?php
+// Enqueue additional scripts and styles
+wp_enqueue_script('wp-color-picker');
+wp_enqueue_style('wp-color-picker');
+wp_enqueue_media();
+
+// Localize script for AJAX calls and translations
+$localize_data = array(
+    'ajaxUrl' => admin_url('admin-ajax.php'),
+    'nonce' => wp_create_nonce('mobooking-discount-nonce'),
+    'userId' => $user_id,
+    'strings' => array(
+        'saving' => __('Saving...', 'mobooking'),
+        'saved' => __('Discount saved successfully', 'mobooking'),
+        'error' => __('An error occurred', 'mobooking'),
+        'copied' => __('Copied to clipboard', 'mobooking'),
+        'confirmDelete' => __('Are you sure you want to delete this discount code? This action cannot be undone.', 'mobooking'),
+        'generating' => __('Generating codes...', 'mobooking'),
+        'generated' => __('Discount codes generated successfully', 'mobooking'),
+        'invalidCode' => __('Please enter a valid discount code (3-20 characters, letters and numbers only)', 'mobooking'),
+        'duplicateCode' => __('This discount code already exists', 'mobooking'),
+        'required' => __('This field is required', 'mobooking'),
+        'maxAmount' => __('Amount cannot exceed maximum value', 'mobooking'),
+        'invalidDate' => __('Please select a future date', 'mobooking'),
+        'addDiscount' => __('Add Discount Code', 'mobooking'),
+        'editDiscount' => __('Edit Discount Code', 'mobooking')
+    ),
+    'settings' => array(
+        'totalDiscounts' => $total_discounts,
+        'activeDiscounts' => $active_discounts,
+        'expiredDiscounts' => $expired_discounts,
+        'totalUsage' => $total_usage
+    )
+);
+
+wp_localize_script('mobooking-dashboard', 'mobookingDiscounts', $localize_data);
+?>
+
+
+
+
+
+
+
 
 <style>
 /* Discounts Section Styling */
@@ -2966,443 +2611,3 @@ body.modal-open {
     font-size: 0.875rem;
 }
 </style>
-
-<?php
-// Enqueue additional scripts and styles
-wp_enqueue_script('wp-color-picker');
-wp_enqueue_style('wp-color-picker');
-wp_enqueue_media();
-
-// Localize script for AJAX calls and translations
-$localize_data = array(
-    'ajaxUrl' => admin_url('admin-ajax.php'),
-    'nonce' => wp_create_nonce('mobooking-discount-nonce'),
-    'userId' => $user_id,
-    'strings' => array(
-        'saving' => __('Saving...', 'mobooking'),
-        'saved' => __('Discount saved successfully', 'mobooking'),
-        'error' => __('An error occurred', 'mobooking'),
-        'copied' => __('Copied to clipboard', 'mobooking'),
-        'confirmDelete' => __('Are you sure you want to delete this discount code? This action cannot be undone.', 'mobooking'),
-        'generating' => __('Generating codes...', 'mobooking'),
-        'generated' => __('Discount codes generated successfully', 'mobooking'),
-        'invalidCode' => __('Please enter a valid discount code (3-20 characters, letters and numbers only)', 'mobooking'),
-        'duplicateCode' => __('This discount code already exists', 'mobooking'),
-        'required' => __('This field is required', 'mobooking'),
-        'maxAmount' => __('Amount cannot exceed maximum value', 'mobooking'),
-        'invalidDate' => __('Please select a future date', 'mobooking'),
-        'addDiscount' => __('Add Discount Code', 'mobooking'),
-        'editDiscount' => __('Edit Discount Code', 'mobooking')
-    ),
-    'settings' => array(
-        'totalDiscounts' => $total_discounts,
-        'activeDiscounts' => $active_discounts,
-        'expiredDiscounts' => $expired_discounts,
-        'totalUsage' => $total_usage
-    )
-);
-
-wp_localize_script('mobooking-dashboard', 'mobookingDiscounts', $localize_data);
-?>ath d="M19 5L5 19M9 6.5C9 7.88071 7.88071 9 6.5 9C5.11929 9 4 7.88071 4 6.5C4 5.11929 5.11929 4 6.5 4C7.88071 4 9 5.11929 9 6.5ZM20 17.5C20 18.8807 18.8807 20 17.5 20C16.1193 20 15 18.8807 15 17.5C15 16.1193 16.1193 15 17.5 15C18.8807 15 20 16.1193 20 17.5Z"/>
-                    </svg>
-                    <?php _e('Discount Codes', 'mobooking'); ?>
-                </h1>
-                <p class="discounts-subtitle"><?php _e('Create and manage discount codes for your services', 'mobooking'); ?></p>
-            </div>
-            
-            <?php if (!empty($discounts)) : ?>
-                <div class="discounts-stats">
-                    <div class="stat-item">
-                        <span class="stat-number"><?php echo $total_discounts; ?></span>
-                        <span class="stat-label"><?php _e('Total Codes', 'mobooking'); ?></span>
-                    </div>
-                    <div class="stat-item">
-                        <span class="stat-number"><?php echo $active_discounts; ?></span>
-                        <span class="stat-label"><?php _e('Active', 'mobooking'); ?></span>
-                    </div>
-                    <div class="stat-item">
-                        <span class="stat-number"><?php echo $total_usage; ?></span>
-                        <span class="stat-label"><?php _e('Total Uses', 'mobooking'); ?></span>
-                    </div>
-                </div>
-            <?php endif; ?>
-        </div>
-        
-        <div class="discounts-header-actions">
-            <button type="button" id="add-discount-btn" class="btn-primary">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M12 5v14M5 12h14"/>
-                </svg>
-                <?php _e('Create Discount Code', 'mobooking'); ?>
-            </button>
-        </div>
-    </div>
-    
-    <?php if (empty($discounts)) : ?>
-        <!-- Empty State -->
-        <div class="discounts-empty-state">
-            <div class="empty-state-visual">
-                <div class="empty-state-icon">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-                        <path d="M19 5L5 19M9 6.5C9 7.88071 7.88071 9 6.5 9C5.11929 9 4 7.88071 4 6.5C4 5.11929 5.11929 4 6.5 4C7.88071 4 9 5.11929 9 6.5ZM20 17.5C20 18.8807 18.8807 20 17.5 20C16.1193 20 15 18.8807 15 17.5C15 16.1193 16.1193 15 17.5 15C18.8807 15 20 16.1193 20 17.5Z"/>
-                    </svg>
-                </div>
-                <div class="empty-state-sparkles">
-                    <div class="sparkle sparkle-1"></div>
-                    <div class="sparkle sparkle-2"></div>
-                    <div class="sparkle sparkle-3"></div>
-                </div>
-            </div>
-            <div class="empty-state-content">
-                <h2><?php _e('Boost Sales with Discount Codes', 'mobooking'); ?></h2>
-                <p><?php _e('Create promotional codes to attract new customers and reward loyal ones. Offer percentage or fixed amount discounts to increase bookings.', 'mobooking'); ?></p>
-                <button type="button" id="add-first-discount-btn" class="btn-primary btn-large">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M12 5v14M5 12h14"/>
-                    </svg>
-                    <?php _e('Create Your First Discount Code', 'mobooking'); ?>
-                </button>
-            </div>
-        </div>
-    <?php else : ?>
-        <!-- Discounts Management -->
-        <div class="discounts-management">
-            <!-- Quick Stats Cards -->
-            <div class="discounts-stats-grid">
-                <div class="stat-card total-discounts">
-                    <div class="stat-card-header">
-                        <div class="stat-icon">
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <path d="M19 5L5 19M9 6.5C9 7.88071 7.88071 9 6.5 9C5.11929 9 4 7.88071 4 6.5C4 5.11929 5.11929 4 6.5 4C7.88071 4 9 5.11929 9 6.5ZM20 17.5C20 18.8807 18.8807 20 17.5 20C16.1193 20 15 18.8807 15 17.5C15 16.1193 16.1193 15 17.5 15C18.8807 15 20 16.1193 20 17.5Z"/>
-                            </svg>
-                        </div>
-                        <div class="stat-info">
-                            <div class="stat-value"><?php echo $total_discounts; ?></div>
-                            <div class="stat-label"><?php _e('Total Codes', 'mobooking'); ?></div>
-                        </div>
-                    </div>
-                </div>
-                
-                <div class="stat-card active-discounts">
-                    <div class="stat-card-header">
-                        <div class="stat-icon">
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <path d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2ZM8 12l2 2 4-4"/>
-                            </svg>
-                        </div>
-                        <div class="stat-info">
-                            <div class="stat-value"><?php echo $active_discounts; ?></div>
-                            <div class="stat-label"><?php _e('Active Codes', 'mobooking'); ?></div>
-                        </div>
-                    </div>
-                </div>
-                
-                <div class="stat-card expired-discounts">
-                    <div class="stat-card-header">
-                        <div class="stat-icon">
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <circle cx="12" cy="12" r="10"></circle>
-                                <path d="M12 6v6l4 2"></path>
-                            </svg>
-                        </div>
-                        <div class="stat-info">
-                            <div class="stat-value"><?php echo $expired_discounts; ?></div>
-                            <div class="stat-label"><?php _e('Expired', 'mobooking'); ?></div>
-                        </div>
-                    </div>
-                </div>
-                
-                <div class="stat-card total-usage">
-                    <div class="stat-card-header">
-                        <div class="stat-icon">
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path>
-                                <circle cx="9" cy="7" r="4"></circle>
-                                <path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"></path>
-                            </svg>
-                        </div>
-                        <div class="stat-info">
-                            <div class="stat-value"><?php echo $total_usage; ?></div>
-                            <div class="stat-label"><?php _e('Total Uses', 'mobooking'); ?></div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            
-            <!-- Filters and Actions -->
-            <div class="discounts-toolbar">
-                <div class="filters-section">
-                    <select id="discount-status-filter" class="filter-select">
-                        <option value=""><?php _e('All Statuses', 'mobooking'); ?></option>
-                        <option value="active"><?php _e('Active', 'mobooking'); ?></option>
-                        <option value="inactive"><?php _e('Inactive', 'mobooking'); ?></option>
-                        <option value="expired"><?php _e('Expired', 'mobooking'); ?></option>
-                    </select>
-                    
-                    <select id="discount-type-filter" class="filter-select">
-                        <option value=""><?php _e('All Types', 'mobooking'); ?></option>
-                        <option value="percentage"><?php _e('Percentage', 'mobooking'); ?></option>
-                        <option value="fixed"><?php _e('Fixed Amount', 'mobooking'); ?></option>
-                    </select>
-                </div>
-                
-                <div class="search-section">
-                    <input type="text" id="discounts-search-input" placeholder="<?php _e('Search discount codes...', 'mobooking'); ?>" class="search-input">
-                </div>
-            </div>
-            
-            <!-- Discounts Table -->
-            <div class="discounts-container">
-                <div class="discounts-grid-header">
-                    <div class="grid-header-cell discount-code"><?php _e('Code', 'mobooking'); ?></div>
-                    <div class="grid-header-cell discount-type"><?php _e('Type', 'mobooking'); ?></div>
-                    <div class="grid-header-cell discount-amount"><?php _e('Discount', 'mobooking'); ?></div>
-                    <div class="grid-header-cell usage-info"><?php _e('Usage', 'mobooking'); ?></div>
-                    <div class="grid-header-cell expiry-date"><?php _e('Expires', 'mobooking'); ?></div>
-                    <div class="grid-header-cell status"><?php _e('Status', 'mobooking'); ?></div>
-                    <div class="grid-header-cell actions"><?php _e('Actions', 'mobooking'); ?></div>
-                </div>
-                
-                <div class="discounts-grid-body" id="discounts-list">
-                    <?php foreach ($discounts as $discount) : 
-                        $is_expired = $discount->expiry_date && strtotime($discount->expiry_date) < time();
-                        $is_limit_reached = $discount->usage_limit > 0 && $discount->usage_count >= $discount->usage_limit;
-                        $effective_status = !$discount->active ? 'inactive' : ($is_expired ? 'expired' : 'active');
-                        $usage_percentage = $discount->usage_limit > 0 ? min(100, ($discount->usage_count / $discount->usage_limit) * 100) : 0;
-                    ?>
-                        <div class="discount-row" data-discount-id="<?php echo esc_attr($discount->id); ?>" data-status="<?php echo esc_attr($effective_status); ?>" data-type="<?php echo esc_attr($discount->type); ?>">
-                            <div class="grid-cell discount-code">
-                                <div class="code-display">
-                                    <span class="code-text"><?php echo esc_html($discount->code); ?></span>
-                                    <button class="copy-code-btn" data-code="<?php echo esc_attr($discount->code); ?>" title="<?php _e('Copy code', 'mobooking'); ?>">
-                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                            <rect width="14" height="14" x="8" y="8" rx="2" ry="2"></rect>
-                                            <path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"></path>
-                                        </svg>
-                                    </button>
-                                </div>
-                            </div>
-                            
-                            <div class="grid-cell discount-type">
-                                <span class="type-badge type-<?php echo esc_attr($discount->type); ?>">
-                                    <?php if ($discount->type === 'percentage') : ?>
-                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                            <path d="M19 5L5 19M9 6.5C9 7.88071 7.88071 9 6.5 9C5.11929 9 4 7.88071 4 6.5C4 5.11929 5.11929 4 6.5 4C7.88071 4 9 5.11929 9 6.5ZM20 17.5C20 18.8807 18.8807 20 17.5 20C16.1193 20 15 18.8807 15 17.5C15 16.1193 16.1193 15 17.5 15C18.8807 15 20 16.1193 20 17.5Z"/>
-                                        </svg>
-                                        <?php _e('Percentage', 'mobooking'); ?>
-                                    <?php else : ?>
-                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                            <line x1="12" y1="1" x2="12" y2="23"></line>
-                                            <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
-                                        </svg>
-                                        <?php _e('Fixed Amount', 'mobooking'); ?>
-                                    <?php endif; ?>
-                                </span>
-                            </div>
-                            
-                            <div class="grid-cell discount-amount">
-                                <span class="amount-display">
-                                    <?php 
-                                    if ($discount->type === 'percentage') {
-                                        echo number_format($discount->amount, 0) . '%';
-                                    } else {
-                                        echo function_exists('wc_price') ? wc_price($discount->amount) : '$' . number_format($discount->amount, 2);
-                                    }
-                                    ?>
-                                </span>
-                            </div>
-                            
-                            <div class="grid-cell usage-info">
-                                <div class="usage-display">
-                                    <div class="usage-numbers">
-                                        <span class="usage-count"><?php echo $discount->usage_count; ?></span>
-                                        <?php if ($discount->usage_limit > 0) : ?>
-                                            <span class="usage-separator">/</span>
-                                            <span class="usage-limit"><?php echo $discount->usage_limit; ?></span>
-                                        <?php else : ?>
-                                            <span class="usage-unlimited"><?php _e('unlimited', 'mobooking'); ?></span>
-                                        <?php endif; ?>
-                                    </div>
-                                    <?php if ($discount->usage_limit > 0) : ?>
-                                        <div class="usage-progress">
-                                            <div class="usage-progress-bar">
-                                                <div class="usage-progress-fill" style="width: <?php echo $usage_percentage; ?>%"></div>
-                                            </div>
-                                        </div>
-                                    <?php endif; ?>
-                                </div>
-                            </div>
-                            
-                            <div class="grid-cell expiry-date">
-                                <?php if ($discount->expiry_date) : ?>
-                                    <div class="expiry-display">
-                                        <span class="expiry-date-text"><?php echo date_i18n(get_option('date_format'), strtotime($discount->expiry_date)); ?></span>
-                                        <?php if ($is_expired) : ?>
-                                            <span class="expiry-status expired"><?php _e('Expired', 'mobooking'); ?></span>
-                                        <?php else : ?>
-                                            <?php 
-                                            $days_until_expiry = ceil((strtotime($discount->expiry_date) - time()) / (60 * 60 * 24));
-                                            if ($days_until_expiry <= 7) : ?>
-                                                <span class="expiry-status warning"><?php echo $days_until_expiry . ' ' . _n('day left', 'days left', $days_until_expiry, 'mobooking'); ?></span>
-                                            <?php endif; ?>
-                                        <?php endif; ?>
-                                    </div>
-                                <?php else : ?>
-                                    <span class="no-expiry"><?php _e('No expiry', 'mobooking'); ?></span>
-                                <?php endif; ?>
-                            </div>
-                            
-                            <div class="grid-cell status">
-                                <span class="status-badge status-<?php echo esc_attr($effective_status); ?>">
-                                    <?php 
-                                    switch ($effective_status) {
-                                        case 'active':
-                                            echo '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2ZM8 12l2 2 4-4"/></svg>';
-                                            _e('Active', 'mobooking');
-                                            break;
-                                        case 'inactive':
-                                            echo '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><path d="M8 12h8"/></svg>';
-                                            _e('Inactive', 'mobooking');
-                                            break;
-                                        case 'expired':
-                                            echo '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><path d="M12 6v6l4 2"></path></svg>';
-                                            _e('Expired', 'mobooking');
-                                            break;
-                                    }
-                                    ?>
-                                </span>
-                                <?php if ($is_limit_reached) : ?>
-                                    <span class="limit-reached"><?php _e('Limit reached', 'mobooking'); ?></span>
-                                <?php endif; ?>
-                            </div>
-                            
-                            <div class="grid-cell actions">
-                                <div class="action-buttons">
-                                    <button type="button" class="btn-icon edit-discount-btn" data-discount-id="<?php echo esc_attr($discount->id); ?>" title="<?php _e('Edit', 'mobooking'); ?>">
-                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
-                                            <path d="m18.5 2.5-9.5 9.5L4 15l1-4 9.5-9.5 3 3Z"></path>
-                                        </svg>
-                                    </button>
-                                    
-                                    <button type="button" class="btn-icon toggle-discount-btn" data-discount-id="<?php echo esc_attr($discount->id); ?>" data-active="<?php echo $discount->active ? '1' : '0'; ?>" title="<?php echo $discount->active ? __('Deactivate', 'mobooking') : __('Activate', 'mobooking'); ?>">
-                                        <?php if ($discount->active) : ?>
-                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                                <circle cx="12" cy="12" r="10"></circle>
-                                                <path d="M8 12h8"/>
-                                            </svg>
-                                        <?php else : ?>
-                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                                <path d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2ZM8 12l2 2 4-4"/>
-                                            </svg>
-                                        <?php endif; ?>
-                                    </button>
-                                    
-                                    <button type="button" class="btn-icon btn-danger delete-discount-btn" data-discount-id="<?php echo esc_attr($discount->id); ?>" title="<?php _e('Delete', 'mobooking'); ?>">
-                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                            <path d="m3 6 3 18h12l3-18"></path>
-                                            <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path>
-                                        </svg>
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-                    <?php endforeach; ?>
-                </div>
-            </div>
-            
-            <!-- Discount Code Generator -->
-            <div class="discount-generator">
-                <h3><?php _e('Quick Actions', 'mobooking'); ?></h3>
-                <div class="generator-actions">
-                    <button type="button" id="generate-welcome-discount" class="btn-secondary">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path>
-                            <circle cx="9" cy="7" r="4"></circle>
-                            <path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"></path>
-                        </svg>
-                        <?php _e('Generate Welcome Discount', 'mobooking'); ?>
-                    </button>
-                    
-                    <button type="button" id="generate-holiday-discount" class="btn-secondary">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
-                        </svg>
-                        <?php _e('Generate Holiday Discount', 'mobooking'); ?>
-                    </button>
-                    
-                    <button type="button" id="generate-bulk-discounts" class="btn-secondary">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <path d="M17 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path>
-                            <circle cx="9" cy="7" r="4"></circle>
-                            <path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"></path>
-                        </svg>
-                        <?php _e('Bulk Generate Codes', 'mobooking'); ?>
-                    </button>
-                </div>
-            </div>
-        </div>
-    <?php endif; ?>
-</div>
-
-<!-- Discount Modal (Add/Edit) -->
-<div id="discount-modal" class="mobooking-modal" style="display:none;">
-    <div class="modal-backdrop"></div>
-    <div class="modal-content">
-        <div class="modal-header">
-            <h3 id="discount-modal-title"><?php _e('Add Discount Code', 'mobooking'); ?></h3>
-            <button class="modal-close" aria-label="<?php _e('Close', 'mobooking'); ?>">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M18 6 6 18M6 6l12 12"/>
-                </svg>
-            </button>
-        </div>
-        
-        <form id="discount-form" method="post">
-            <input type="hidden" id="discount-id" name="id">
-            <?php wp_nonce_field('mobooking-discount-nonce', 'nonce'); ?>
-            
-            <div class="modal-body">
-                <div class="form-group">
-                    <label for="discount-code"><?php _e('Discount Code', 'mobooking'); ?> *</label>
-                    <div class="input-with-button">
-                        <input type="text" id="discount-code" name="code" class="form-control" 
-                               placeholder="<?php _e('e.g., SAVE20', 'mobooking'); ?>" 
-                               pattern="[A-Z0-9]{3,20}" 
-                               title="<?php _e('3-20 characters, letters and numbers only', 'mobooking'); ?>"
-                               required>
-                        <button type="button" id="generate-code-btn" class="btn-secondary">
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <polyline points="1 4 1 10 7 10"></polyline>
-                                <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"></path>
-                            </svg>
-                            <?php _e('Generate', 'mobooking'); ?>
-                        </button>
-                    </div>
-                    <p class="field-help"><?php _e('Enter a unique code (3-20 characters, uppercase letters and numbers only)', 'mobooking'); ?></p>
-                </div>
-                
-                <div class="form-row">
-                    <div class="form-group">
-                        <label for="discount-type"><?php _e('Discount Type', 'mobooking'); ?> *</label>
-                        <select id="discount-type" name="type" class="form-control" required>
-                            <option value="percentage"><?php _e('Percentage', 'mobooking'); ?></option>
-                            <option value="fixed"><?php _e('Fixed Amount', 'mobooking'); ?></option>
-                        </select>
-                    </div>
-                    
-                    <div class="form-group">
-                        <label for="discount-amount" id="discount-amount-label"><?php _e('Discount Amount', 'mobooking'); ?> *</label>
-                        <div class="amount-input-wrapper">
-                            <span class="amount-prefix" id="amount-prefix">%</span>
-                            <input type="number" id="discount-amount" name="amount" class="form-control" 
-                                   min="0" max="100" step="0.01" required>
-                        </div>
-                    </div>
-                </div>
-                
-                <div class="form-row">
-                    <div class="form-group">
-                        <label for="discount-expiry"><?php _e('Expiry Date', 'mobooking'); ?></label>
-                        <input type="date" id="discount-expiry" name="expiry_date" class="form-control">
-                        <p
