@@ -1985,3 +1985,239 @@ if (!class_exists('MoBookingSettingsAjaxManager')) {
 
 
 
+
+
+
+
+
+
+/**
+ * Database Migration for Enhanced Service Areas
+ * Add this to your functions.php or create as a separate migration file
+ */
+
+// Add this function to your functions.php or run it as a one-time migration
+function mobooking_migrate_service_areas_database() {
+    global $wpdb;
+    
+    $table_name = $wpdb->prefix . 'mobooking_areas';
+    
+    // Check if table exists
+    if ($wpdb->get_var("SHOW TABLES LIKE '$table_name'") != $table_name) {
+        // Create the table with all columns if it doesn't exist
+        mobooking_create_enhanced_areas_table();
+        return;
+    }
+    
+    // Get current table structure
+    $columns = $wpdb->get_results("SHOW COLUMNS FROM $table_name");
+    $existing_columns = array();
+    
+    foreach ($columns as $column) {
+        $existing_columns[] = $column->Field;
+    }
+    
+    // Define new columns to add
+    $new_columns = array(
+        'city_name' => array(
+            'definition' => 'VARCHAR(255) NULL',
+            'position' => 'AFTER label'
+        ),
+        'state' => array(
+            'definition' => 'VARCHAR(100) NULL',
+            'position' => 'AFTER city_name'
+        ),
+        'country' => array(
+            'definition' => 'VARCHAR(10) NULL',
+            'position' => 'AFTER state'
+        ),
+        'description' => array(
+            'definition' => 'TEXT NULL',
+            'position' => 'AFTER country'
+        ),
+        'zip_codes' => array(
+            'definition' => 'LONGTEXT NULL',
+            'position' => 'AFTER description'
+        )
+    );
+    
+    // Add missing columns
+    foreach ($new_columns as $column_name => $column_info) {
+        if (!in_array($column_name, $existing_columns)) {
+            $sql = "ALTER TABLE $table_name ADD COLUMN $column_name {$column_info['definition']} {$column_info['position']}";
+            $result = $wpdb->query($sql);
+            
+            if ($result === false) {
+                error_log("MoBooking Migration Error: Failed to add column $column_name to $table_name");
+                error_log("SQL: $sql");
+                error_log("Error: " . $wpdb->last_error);
+            } else {
+                error_log("MoBooking Migration: Successfully added column $column_name to $table_name");
+            }
+        }
+    }
+    
+    // Migrate existing data
+    mobooking_migrate_existing_areas_data();
+    
+    // Update database version
+    update_option('mobooking_areas_db_version', '2.0');
+    
+    error_log("MoBooking: Service Areas database migration completed");
+}
+
+/**
+ * Create the enhanced areas table from scratch
+ */
+function mobooking_create_enhanced_areas_table() {
+    global $wpdb;
+    
+    $table_name = $wpdb->prefix . 'mobooking_areas';
+    $charset_collate = $wpdb->get_charset_collate();
+    
+    $sql = "CREATE TABLE $table_name (
+        id bigint(20) NOT NULL AUTO_INCREMENT,
+        user_id bigint(20) NOT NULL,
+        zip_code varchar(20) NULL,
+        label varchar(255) NULL,
+        city_name varchar(255) NULL,
+        state varchar(100) NULL,
+        country varchar(10) NULL,
+        description text NULL,
+        zip_codes longtext NULL,
+        active tinyint(1) NOT NULL DEFAULT 1,
+        created_at datetime DEFAULT CURRENT_TIMESTAMP,
+        updated_at datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        PRIMARY KEY (id),
+        KEY user_id (user_id),
+        KEY active (active),
+        KEY city_name (city_name),
+        KEY country (country),
+        UNIQUE KEY user_city_state (user_id, city_name, state)
+    ) $charset_collate;";
+    
+    require_once(ABSPATH . 'wp-admin/includes/upgrade.php');
+    dbDelta($sql);
+    
+    error_log("MoBooking: Created enhanced areas table");
+}
+
+/**
+ * Migrate existing data to new structure
+ */
+function mobooking_migrate_existing_areas_data() {
+    global $wpdb;
+    
+    $table_name = $wpdb->prefix . 'mobooking_areas';
+    
+    // Find areas that need migration (have zip_code but no city_name or zip_codes)
+    $areas_to_migrate = $wpdb->get_results(
+        "SELECT id, user_id, zip_code, label 
+         FROM $table_name 
+         WHERE (city_name IS NULL OR city_name = '') 
+         AND zip_code IS NOT NULL 
+         AND zip_code != ''"
+    );
+    
+    $migrated_count = 0;
+    
+    foreach ($areas_to_migrate as $area) {
+        // Set city_name from label or create a default
+        $city_name = !empty($area->label) ? $area->label : 'Area ' . $area->id;
+        
+        // Create zip_codes JSON from single zip_code
+        $zip_codes_json = json_encode(array($area->zip_code));
+        
+        // Update the record
+        $result = $wpdb->update(
+            $table_name,
+            array(
+                'city_name' => $city_name,
+                'zip_codes' => $zip_codes_json
+            ),
+            array('id' => $area->id),
+            array('%s', '%s'),
+            array('%d')
+        );
+        
+        if ($result !== false) {
+            $migrated_count++;
+        }
+    }
+    
+    // Also migrate areas where zip_codes is NULL but zip_code exists
+    $areas_to_migrate_zips = $wpdb->get_results(
+        "SELECT id, zip_code 
+         FROM $table_name 
+         WHERE zip_codes IS NULL 
+         AND zip_code IS NOT NULL 
+         AND zip_code != ''"
+    );
+    
+    foreach ($areas_to_migrate_zips as $area) {
+        $zip_codes_json = json_encode(array($area->zip_code));
+        
+        $wpdb->update(
+            $table_name,
+            array('zip_codes' => $zip_codes_json),
+            array('id' => $area->id),
+            array('%s'),
+            array('%d')
+        );
+        
+        $migrated_count++;
+    }
+    
+    if ($migrated_count > 0) {
+        error_log("MoBooking: Migrated $migrated_count area records to new structure");
+    }
+}
+
+/**
+ * Check if migration is needed and run it
+ */
+function mobooking_maybe_run_areas_migration() {
+    $current_version = get_option('mobooking_areas_db_version', '1.0');
+    
+    if (version_compare($current_version, '2.0', '<')) {
+        mobooking_migrate_service_areas_database();
+    }
+}
+
+// Hook the migration check to run on admin init
+add_action('admin_init', 'mobooking_maybe_run_areas_migration');
+
+/**
+ * Manual migration trigger (for testing)
+ * Add ?mobooking_migrate_areas=1 to any admin URL to trigger migration
+ */
+function mobooking_manual_areas_migration() {
+    if (current_user_can('administrator') && isset($_GET['mobooking_migrate_areas'])) {
+        mobooking_migrate_service_areas_database();
+        
+        add_action('admin_notices', function() {
+            echo '<div class="notice notice-success is-dismissible">';
+            echo '<p><strong>MoBooking:</strong> Service Areas database migration completed successfully!</p>';
+            echo '</div>';
+        });
+    }
+}
+add_action('admin_init', 'mobooking_manual_areas_migration');
+
+/**
+ * Add admin menu item for migration (for debugging)
+ */
+function mobooking_add_migration_admin_menu() {
+    if (current_user_can('administrator') && defined('WP_DEBUG') && WP_DEBUG) {
+        add_submenu_page(
+            'tools.php',
+            'MoBooking Areas Migration',
+            'MoBooking Areas Migration',
+            'administrator',
+            'mobooking-areas-migration',
+            'mobooking_areas_migration_page'
+        );
+    }
+}
+add_action('admin_menu', 'mobooking_add_migration_admin_menu');
+
