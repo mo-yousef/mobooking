@@ -1234,113 +1234,240 @@ jQuery(document).ready(function($) {
             this.showModal('#cities-processing-modal');
         },
         
-        processCities: function() {
-            const self = this;
-            let processedCount = 0;
-            const cities = this.state.selectedCities;
-            const country = this.config.selectedCountry;
-            
-            // Process cities in batches to avoid overwhelming the API
-            const batchSize = 3;
-            let currentBatch = 0;
-            
-            function processBatch() {
-                const start = currentBatch * batchSize;
-                const end = Math.min(start + batchSize, cities.length);
-                const batch = cities.slice(start, end);
+/**
+ * Updated processCities method with better error handling
+ */
+processCities: function() {
+    const self = this;
+    let processedCount = 0;
+    const cities = this.state.selectedCities;
+    const country = this.config.selectedCountry;
+    const processedCitiesData = [];
+    
+    // Process cities in smaller batches to be more reliable
+    const batchSize = 2;
+    let currentBatch = 0;
+    
+    function processBatch() {
+        const start = currentBatch * batchSize;
+        const end = Math.min(start + batchSize, cities.length);
+        const batch = cities.slice(start, end);
+        
+        const promises = batch.map(city => self.fetchCityData(city, country));
+        
+        Promise.allSettled(promises).then(results => {
+            results.forEach((result, index) => {
+                const city = batch[index];
+                processedCount++;
                 
-                const promises = batch.map(city => self.fetchCityData(city, country));
-                
-                Promise.allSettled(promises).then(results => {
-                    results.forEach((result, index) => {
-                        const city = batch[index];
-                        processedCount++;
-                        
-                        if (result.status === 'fulfilled' && result.value.success) {
-                            self.addProcessingLog(`✓ ${city}: Found ${result.value.zipCodes.length} ZIP codes`, 'success');
-                        } else {
-                            const error = result.status === 'rejected' ? result.reason : result.value.error;
-                            self.addProcessingLog(`✗ ${city}: ${error}`, 'error');
-                            self.state.processingErrors.push({city, error});
-                        }
-                        
-                        // Update progress
-                        const progress = (processedCount / cities.length) * 100;
-                        $('#processing-current').text(processedCount);
-                        $('#processing-progress-fill').css('width', progress + '%');
+                if (result.status === 'fulfilled' && result.value.success) {
+                    const cityData = result.value;
+                    self.addProcessingLog(`✓ ${city}: Found ${cityData.zipCodes.length} ZIP codes (${cityData.source})`, 'success');
+                    
+                    // Store processed city data
+                    processedCitiesData.push({
+                        city_name: cityData.cityName,
+                        state: cityData.state,
+                        zip_codes: cityData.zipCodes,
+                        active: true,
+                        description: `Service area for ${cityData.cityName}${cityData.state ? ', ' + cityData.state : ''}`
                     });
-                    
-                    currentBatch++;
-                    
-                    if (currentBatch * batchSize < cities.length) {
-                        // Process next batch after a short delay
-                        setTimeout(processBatch, 1000);
-                    } else {
-                        // All cities processed
-                        self.completeProcessing();
-                    }
+                } else {
+                    const error = result.status === 'rejected' ? result.reason : result.value.error;
+                    self.addProcessingLog(`✗ ${city}: ${error}`, 'error');
+                    self.state.processingErrors.push({city, error});
+                }
+                
+                // Update progress
+                const progress = (processedCount / cities.length) * 100;
+                $('#processing-current').text(processedCount);
+                $('#processing-progress-fill').css('width', progress + '%');
+            });
+            
+            currentBatch++;
+            
+            if (currentBatch * batchSize < cities.length) {
+                // Process next batch after a delay
+                setTimeout(processBatch, 1500); // Increased delay to be more respectful to APIs
+            } else {
+                // All cities processed
+                self.state.processedCitiesData = processedCitiesData;
+                self.completeProcessing();
+            }
+        });
+    }
+    
+    // Start processing
+    processBatch();
+},
+/**
+ * Enhanced fetchCityData method with better error handling and retry logic
+ */
+fetchCityData: function(cityName, countryCode) {
+    return new Promise((resolve, reject) => {
+        const self = this;
+        
+        // Try multiple approaches to get city data
+        const fetchAttempts = [
+            // Attempt 1: Direct WordPress AJAX call to use PHP API providers
+            () => self.fetchCityDataViaWP(cityName, countryCode),
+            // Attempt 2: Generate mock data if in development
+            () => self.generateMockCityData(cityName, countryCode)
+        ];
+        
+        let attemptIndex = 0;
+        
+        function tryNextAttempt() {
+            if (attemptIndex >= fetchAttempts.length) {
+                resolve({
+                    success: false,
+                    error: 'All data sources failed for ' + cityName
                 });
+                return;
             }
             
-            // Start processing
-            processBatch();
-        },
-        
-        fetchCityData: function(cityName, countryCode) {
-            return new Promise((resolve, reject) => {
-                const apiUrl = `${this.config.zippopotamApiUrl}${countryCode}/${encodeURIComponent(cityName)}`;
-                
-                $.ajax({
-                    url: apiUrl,
-                    type: 'GET',
-                    dataType: 'json',
-                    timeout: 30000,
-                    success: (response) => {
-                        if (response && response.places && Array.isArray(response.places)) {
-                            const zipCodes = response.places
-                                .map(place => place['post code'])
-                                .filter(Boolean)
-                                .filter((zip, index, arr) => arr.indexOf(zip) === index) // Remove duplicates
-                                .sort();
-                            
-                            if (zipCodes.length > 0) {
-                                resolve({
-                                    success: true,
-                                    cityName: response['place name'] || cityName,
-                                    state: response.state || '',
-                                    zipCodes: zipCodes
-                                });
-                            } else {
-                                resolve({
-                                    success: false,
-                                    error: 'No ZIP codes found'
-                                });
-                            }
-                        } else {
-                            resolve({
-                                success: false,
-                                error: 'Invalid response format'
-                            });
-                        }
-                    },
-                    error: (xhr, status, error) => {
-                        let errorMessage = 'Failed to fetch data';
-                        if (xhr.status === 404) {
-                            errorMessage = 'City not found';
-                        } else if (xhr.status === 0) {
-                            errorMessage = 'Network error';
-                        } else if (status === 'timeout') {
-                            errorMessage = 'Request timeout';
-                        }
-                        resolve({
-                            success: false,
-                            error: errorMessage
-                        });
+            const currentAttempt = fetchAttempts[attemptIndex];
+            attemptIndex++;
+            
+            currentAttempt()
+                .then(result => {
+                    if (result.success && result.zipCodes && result.zipCodes.length > 0) {
+                        resolve(result);
+                    } else {
+                        // Try next attempt
+                        setTimeout(tryNextAttempt, 500);
                     }
+                })
+                .catch(error => {
+                    console.warn(`Attempt ${attemptIndex} failed for ${cityName}:`, error);
+                    setTimeout(tryNextAttempt, 500);
                 });
-            });
-        },
+        }
         
+        tryNextAttempt();
+    });
+},
+
+/**
+ * Fetch city data via WordPress AJAX (uses PHP API providers)
+ */
+fetchCityDataViaWP: function(cityName, countryCode) {
+    return new Promise((resolve, reject) => {
+        jQuery.ajax({
+            url: this.config.ajaxUrl,
+            type: 'POST',
+            data: {
+                action: 'mobooking_fetch_city_zip_codes',
+                city_name: cityName,
+                country_code: countryCode,
+                nonce: this.config.nonce
+            },
+            timeout: 30000,
+            success: (response) => {
+                if (response.success && response.data) {
+                    resolve({
+                        success: true,
+                        cityName: response.data.location_info?.place_name || cityName,
+                        state: response.data.location_info?.state || '',
+                        zipCodes: response.data.zip_codes || [],
+                        source: response.data.location_info?.source || 'API'
+                    });
+                } else {
+                    resolve({
+                        success: false,
+                        error: response.data?.message || 'WordPress API call failed'
+                    });
+                }
+            },
+            error: (xhr, status, error) => {
+                resolve({
+                    success: false,
+                    error: `WordPress AJAX error: ${error}`
+                });
+            }
+        });
+    });
+},
+
+/**
+ * Generate mock city data for development/testing
+ */
+generateMockCityData: function(cityName, countryCode) {
+    return new Promise((resolve) => {
+        // Only generate mock data if we're in debug mode or if explicitly enabled
+        const isDevelopment = window.location.hostname === 'localhost' || 
+                             window.location.hostname.includes('local') ||
+                             window.location.search.includes('debug=1');
+        
+        if (!isDevelopment) {
+            resolve({
+                success: false,
+                error: 'Mock data not available in production'
+            });
+            return;
+        }
+        
+        const mockZipPatterns = {
+            'US': () => this.generateUSZipCodes(cityName),
+            'GB': () => this.generateUKPostcodes(cityName),
+            'CA': () => this.generateCanadianPostalCodes(cityName),
+            'DE': () => this.generateGermanPostcodes(cityName),
+            'FR': () => this.generateFrenchPostcodes(cityName),
+            'ES': () => this.generateSpanishPostcodes(cityName),
+            'IT': () => this.generateItalianPostcodes(cityName),
+            'AU': () => this.generateAustralianPostcodes(cityName)
+        };
+        
+        const generator = mockZipPatterns[countryCode];
+        if (generator) {
+            const zipCodes = generator();
+            resolve({
+                success: true,
+                cityName: cityName,
+                state: '',
+                zipCodes: zipCodes,
+                source: 'Mock Data (Development)'
+            });
+        } else {
+            resolve({
+                success: false,
+                error: `No mock data pattern for country: ${countryCode}`
+            });
+        }
+    });
+},
+
+
+/**
+ * Generate German postcodes based on city name
+ */
+generateGermanPostcodes: function(cityName) {
+    const cityHash = this.hashString(cityName);
+    const baseCode = 10000 + (cityHash % 80000);
+    const postcodes = [];
+    
+    for (let i = 0; i < 5; i++) {
+        const code = (baseCode + i * 10).toString().padStart(5, '0');
+        postcodes.push(code);
+    }
+    
+    return postcodes;
+},
+
+
+/**
+ * Simple string hash function
+ */
+hashString: function(str) {
+    let hash = 0;
+    for (let i = 0; i < str.length; i++) {
+        const char = str.charCodeAt(i);
+        hash = ((hash << 5) - hash) + char;
+        hash = hash & hash; // Convert to 32bit integer
+    }
+    return Math.abs(hash);
+},
+
         addProcessingLog: function(message, type = 'info') {
             const $logContent = $('#processing-log-content');
             const $entry = $(`<div class="log-entry ${type}">${message}</div>`);
@@ -1350,84 +1477,190 @@ jQuery(document).ready(function($) {
             $logContent.scrollTop($logContent[0].scrollHeight);
         },
         
-        completeProcessing: function() {
-            const successCount = this.state.totalCities - this.state.processingErrors.length;
-            
-            this.addProcessingLog(`\n=== Processing Complete ===`, 'info');
-            this.addProcessingLog(`Successfully processed: ${successCount} cities`, 'success');
-            
-            if (this.state.processingErrors.length > 0) {
-                this.addProcessingLog(`Failed: ${this.state.processingErrors.length} cities`, 'error');
-            }
-            
-            // Save the successfully processed cities to database
-            if (successCount > 0) {
-                this.saveCitiesToDatabase();
-            } else {
-                this.addProcessingLog('No cities were successfully processed.', 'error');
-                setTimeout(() => {
-                    this.hideModals();
-                }, 3000);
-            }
-        },
+
+/**
+ * Enhanced completeProcessing method
+ */
+completeProcessing: function() {
+    const successCount = (this.state.processedCitiesData || []).length;
+    const errorCount = this.state.processingErrors.length;
+    
+    this.addProcessingLog(`\n=== Processing Complete ===`, 'info');
+    this.addProcessingLog(`Successfully processed: ${successCount} cities`, 'success');
+    
+    if (errorCount > 0) {
+        this.addProcessingLog(`Failed: ${errorCount} cities`, 'error');
         
-        saveCitiesToDatabase: function() {
-            this.addProcessingLog('Saving cities to database...', 'info');
-            
-            // Here you would make an AJAX call to save all the processed city data
-            // This is a placeholder - you'll need to implement the server-side handler
-            const data = {
-                action: 'mobooking_save_processed_cities',
-                cities_data: JSON.stringify(this.getProcessedCitiesData()),
-                country: this.config.selectedCountry,
-                nonce: this.config.nonce
-            };
-            
-            $.ajax({
-                url: this.config.ajaxUrl,
-                type: 'POST',
-                data: data,
-                success: (response) => {
-                    if (response.success) {
-                        this.addProcessingLog('✓ All cities saved to database successfully!', 'success');
-                        setTimeout(() => {
-                            this.hideModals();
-                            location.reload(); // Refresh to show the new areas
-                        }, 2000);
-                    } else {
-                        this.addProcessingLog('✗ Failed to save cities to database', 'error');
-                        setTimeout(() => {
-                            this.hideModals();
-                        }, 3000);
-                    }
-                },
-                error: () => {
-                    this.addProcessingLog('✗ Error saving cities to database', 'error');
-                    setTimeout(() => {
-                        this.hideModals();
-                    }, 3000);
-                }
-            });
-        },
+        // Try to recover failed cities with fallback data in development
+        const isDevelopment = window.location.hostname === 'localhost' || 
+                             window.location.hostname.includes('local') ||
+                             window.location.search.includes('debug=1');
         
-        getProcessedCitiesData: function() {
-            const processedData = [];
-            
-            // This is a simplified version - you'd need to collect the actual processed data
-            // from the successful API calls during the processing phase
-            this.state.selectedCities.forEach(city => {
-                if (!this.state.processingErrors.find(error => error.city === city)) {
-                    processedData.push({
-                        city_name: city,
-                        zip_codes: [], // This would be populated with actual ZIP codes
-                        state: '',
-                        active: true
+        if (isDevelopment && errorCount > 0) {
+            this.addProcessingLog('Attempting to recover failed cities with fallback data...', 'info');
+            setTimeout(() => {
+                this.retryFailedCities();
+            }, 1000);
+            return;
+        }
+    }
+    
+    // Save the successfully processed cities to database
+    if (successCount > 0) {
+        setTimeout(() => {
+            this.saveCitiesToDatabase();
+        }, 1000);
+    } else {
+        this.addProcessingLog('No cities were successfully processed.', 'error');
+        this.addProcessingLog('Please check your internet connection and try again.', 'info');
+        setTimeout(() => {
+            this.hideModals();
+        }, 5000);
+    }
+}
+        
+/**
+ * Updated saveCitiesToDatabase method with better error handling
+ */
+saveCitiesToDatabase: function() {
+    this.addProcessingLog('Saving cities to database...', 'info');
+    
+    const processedData = this.getProcessedCitiesData();
+    
+    if (processedData.length === 0) {
+        this.addProcessingLog('No valid city data to save', 'error');
+        setTimeout(() => {
+            this.hideModals();
+        }, 3000);
+        return;
+    }
+    
+    const data = {
+        action: 'mobooking_save_processed_cities',
+        cities_data: JSON.stringify(processedData),
+        country: this.config.selectedCountry,
+        nonce: this.config.nonce
+    };
+    
+    $.ajax({
+        url: this.config.ajaxUrl,
+        type: 'POST',
+        data: data,
+        timeout: 60000, // Increased timeout for large datasets
+        success: (response) => {
+            if (response.success) {
+                this.addProcessingLog(`✓ Successfully saved ${response.data.saved_count} cities to database!`, 'success');
+                
+                if (response.data.errors && response.data.errors.length > 0) {
+                    this.addProcessingLog('Some errors occurred:', 'warning');
+                    response.data.errors.forEach(error => {
+                        this.addProcessingLog(`  - ${error}`, 'error');
                     });
                 }
-            });
-            
-            return processedData;
+                
+                setTimeout(() => {
+                    this.hideModals();
+                    location.reload();
+                }, 3000);
+            } else {
+                this.addProcessingLog('✗ Failed to save cities to database', 'error');
+                if (response.data && response.data.errors) {
+                    response.data.errors.forEach(error => {
+                        this.addProcessingLog(`  - ${error}`, 'error');
+                    });
+                }
+                setTimeout(() => {
+                    this.hideModals();
+                }, 5000);
+            }
         },
+        error: (xhr, status, error) => {
+            this.addProcessingLog('✗ Error communicating with server: ' + error, 'error');
+            setTimeout(() => {
+                this.hideModals();
+            }, 5000);
+        }
+    });
+},
+    
+
+
+/**
+ * Add retry mechanism for failed cities
+ */
+retryFailedCities: function() {
+    if (this.state.processingErrors.length === 0) {
+        return;
+    }
+    
+    this.addProcessingLog(`\nRetrying ${this.state.processingErrors.length} failed cities...`, 'info');
+    
+    const failedCities = this.state.processingErrors.map(error => error.city);
+    const country = this.config.selectedCountry;
+    let retryCount = 0;
+    
+    const retryPromises = failedCities.map(city => {
+        return this.generateMockCityData(city, country)
+            .then(result => {
+                retryCount++;
+                if (result.success) {
+                    this.addProcessingLog(`✓ Retry successful for ${city} (using fallback data)`, 'success');
+                    return {
+                        city_name: result.cityName,
+                        state: result.state,
+                        zip_codes: result.zipCodes,
+                        active: true,
+                        description: `Service area for ${result.cityName} (fallback data)`
+                    };
+                } else {
+                    this.addProcessingLog(`✗ Retry failed for ${city}`, 'error');
+                    return null;
+                }
+            });
+    });
+    
+    Promise.allSettled(retryPromises).then(results => {
+        const successfulRetries = results
+            .filter(result => result.status === 'fulfilled' && result.value !== null)
+            .map(result => result.value);
+        
+        if (successfulRetries.length > 0) {
+            this.state.processedCitiesData = (this.state.processedCitiesData || []).concat(successfulRetries);
+            this.addProcessingLog(`✓ Successfully recovered ${successfulRetries.length} cities with fallback data`, 'success');
+        }
+        
+        // Now save everything to database
+        this.saveCitiesToDatabase();
+    });
+},
+
+
+/**
+ * Updated getProcessedCitiesData method
+ */
+getProcessedCitiesData: function() {
+    return this.state.processedCitiesData || [];
+},
+
+
+/**
+ * Enhanced error handling for API failures
+ */
+handleApiError: function(error, cityName) {
+    console.error(`API Error for ${cityName}:`, error);
+    
+    // Log different types of errors
+    if (error.includes('404')) {
+        return `City "${cityName}" not found in database`;
+    } else if (error.includes('timeout')) {
+        return `Request timeout for ${cityName}`;
+    } else if (error.includes('Network')) {
+        return `Network error accessing data for ${cityName}`;
+    } else {
+        return `Data unavailable for ${cityName}`;
+    }
+},
+
         
         // Existing methods for area management...
         viewZipCodes: function(areaId) {

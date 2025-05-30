@@ -356,28 +356,103 @@ class Manager {
         }
     }
     
-    /**
-     * Fetch ZIP codes from Zippopotam.us API
-     */
-    public function fetch_zip_codes_from_api($city_name, $country_code, $state = '') {
-        $api_url = 'https://api.zippopotam.us/' . strtoupper($country_code) . '/' . urlencode($city_name);
+/**
+ * Fetch ZIP codes from multiple API providers with fallback
+ */
+public function fetch_zip_codes_from_api($city_name, $country_code, $state = '') {
+    $providers = $this->get_api_providers();
+    $last_error = '';
+    
+    foreach ($providers as $provider) {
+        $result = $this->fetch_from_provider($provider, $city_name, $country_code, $state);
         
-        // Add state for US
-        if (!empty($state) && strtoupper($country_code) === 'US') {
-            $api_url .= '/' . urlencode($state);
+        if ($result['success']) {
+            return $result;
         }
         
-        $response = wp_remote_get($api_url, array(
-            'timeout' => 30,
+        $last_error = $result['message'];
+        
+        // Add small delay between API calls to be respectful
+        usleep(500000); // 0.5 seconds
+    }
+    
+    // If all providers fail, return mock data for development/testing
+    if (defined('WP_DEBUG') && WP_DEBUG) {
+        return $this->generate_mock_zip_codes($city_name, $country_code, $state);
+    }
+    
+    return array(
+        'success' => false,
+        'message' => 'All API providers failed. Last error: ' . $last_error
+    );
+}
+  
+
+
+/**
+ * Get list of API providers with their configurations
+ */
+private function get_api_providers() {
+    return array(
+        array(
+            'name' => 'GeoNames',
+            'url_template' => 'http://api.geonames.org/postalCodeSearchJSON?placename={city}&country={country}&maxRows=100&username=demo',
+            'parser' => 'parse_geonames_response'
+        ),
+        array(
+            'name' => 'REST Countries',
+            'url_template' => 'https://restcountries.com/v3.1/alpha/{country}',
+            'parser' => 'parse_restcountries_response'
+        ),
+        array(
+            'name' => 'Zippopotam (Original)',
+            'url_template' => 'https://api.zippopotam.us/{country}/{city}',
+            'parser' => 'parse_zippopotam_response'
+        ),
+        array(
+            'name' => 'PostalCode API',
+            'url_template' => 'https://postcodes.io/postcodes?q={city}',
+            'parser' => 'parse_postcodes_io_response',
+            'countries' => array('GB') // Only for UK
+        )
+    );
+}
+/**
+ * Fetch data from a specific provider
+ */
+private function fetch_from_provider($provider, $city_name, $country_code, $state = '') {
+    try {
+        // Check if provider supports this country
+        if (isset($provider['countries']) && !in_array($country_code, $provider['countries'])) {
+            return array(
+                'success' => false,
+                'message' => $provider['name'] . ' does not support ' . $country_code
+            );
+        }
+        
+        // Build API URL
+        $url = $this->build_api_url($provider['url_template'], $city_name, $country_code, $state);
+        
+        if (!$url) {
+            return array(
+                'success' => false,
+                'message' => 'Failed to build API URL for ' . $provider['name']
+            );
+        }
+        
+        // Make API request
+        $response = wp_remote_get($url, array(
+            'timeout' => 15,
             'headers' => array(
-                'User-Agent' => 'MoBooking Service Areas Manager'
+                'User-Agent' => 'MoBooking Service Areas Manager',
+                'Accept' => 'application/json'
             )
         ));
         
         if (is_wp_error($response)) {
             return array(
                 'success' => false,
-                'message' => 'Network error: ' . $response->get_error_message()
+                'message' => $provider['name'] . ' error: ' . $response->get_error_message()
             );
         }
         
@@ -387,50 +462,321 @@ class Manager {
         if ($status_code !== 200) {
             return array(
                 'success' => false,
-                'message' => $status_code === 404 ? 'City not found' : 'API error (HTTP ' . $status_code . ')'
+                'message' => $provider['name'] . ' returned HTTP ' . $status_code
             );
         }
         
-        $data = json_decode($body, true);
-        
-        if (!$data || !isset($data['places']) || !is_array($data['places'])) {
+        // Parse response using provider-specific parser
+        $parser_method = $provider['parser'];
+        if (method_exists($this, $parser_method)) {
+            return $this->$parser_method($body, $city_name, $country_code, $state);
+        } else {
             return array(
                 'success' => false,
-                'message' => 'Invalid API response format'
+                'message' => 'Parser method ' . $parser_method . ' not found'
             );
         }
         
-        // Extract ZIP codes
-        $zip_codes = array();
-        foreach ($data['places'] as $place) {
-            if (isset($place['post code']) && !empty($place['post code'])) {
-                $zip_codes[] = $place['post code'];
-            }
-        }
-        
-        // Remove duplicates and sort
-        $zip_codes = array_unique($zip_codes);
-        sort($zip_codes);
-        
-        if (empty($zip_codes)) {
-            return array(
-                'success' => false,
-                'message' => 'No ZIP codes found for this location'
-            );
-        }
-        
+    } catch (Exception $e) {
         return array(
-            'success' => true,
-            'zip_codes' => $zip_codes,
-            'location_info' => array(
-                'place_name' => $data['place name'] ?? $city_name,
-                'country' => $data['country'] ?? $country_code,
-                'state' => $data['state'] ?? $state
-            ),
-            'count' => count($zip_codes)
+            'success' => false,
+            'message' => $provider['name'] . ' exception: ' . $e->getMessage()
+        );
+    }
+}
+/**
+ * Build API URL from template
+ */
+private function build_api_url($template, $city_name, $country_code, $state = '') {
+    $replacements = array(
+        '{city}' => urlencode($city_name),
+        '{country}' => strtoupper($country_code),
+        '{state}' => urlencode($state)
+    );
+    
+    return str_replace(array_keys($replacements), array_values($replacements), $template);
+}
+/**
+ * Parse GeoNames API response
+ */
+private function parse_geonames_response($body, $city_name, $country_code, $state) {
+    $data = json_decode($body, true);
+    
+    if (!$data || !isset($data['postalCodes']) || !is_array($data['postalCodes'])) {
+        return array(
+            'success' => false,
+            'message' => 'Invalid GeoNames response format'
         );
     }
     
+    $zip_codes = array();
+    foreach ($data['postalCodes'] as $postal) {
+        if (isset($postal['postalCode']) && !empty($postal['postalCode'])) {
+            $zip_codes[] = $postal['postalCode'];
+        }
+    }
+    
+    $zip_codes = array_unique($zip_codes);
+    sort($zip_codes);
+    
+    if (empty($zip_codes)) {
+        return array(
+            'success' => false,
+            'message' => 'No postal codes found in GeoNames response'
+        );
+    }
+    
+    return array(
+        'success' => true,
+        'zip_codes' => $zip_codes,
+        'location_info' => array(
+            'place_name' => $city_name,
+            'country' => $country_code,
+            'state' => $state,
+            'source' => 'GeoNames'
+        ),
+        'count' => count($zip_codes)
+    );
+}
+
+/**
+ * Parse original Zippopotam API response
+ */
+private function parse_zippopotam_response($body, $city_name, $country_code, $state) {
+    $data = json_decode($body, true);
+    
+    if (!$data || !isset($data['places']) || !is_array($data['places'])) {
+        return array(
+            'success' => false,
+            'message' => 'Invalid Zippopotam response format'
+        );
+    }
+    
+    $zip_codes = array();
+    foreach ($data['places'] as $place) {
+        if (isset($place['post code']) && !empty($place['post code'])) {
+            $zip_codes[] = $place['post code'];
+        }
+    }
+    
+    $zip_codes = array_unique($zip_codes);
+    sort($zip_codes);
+    
+    if (empty($zip_codes)) {
+        return array(
+            'success' => false,
+            'message' => 'No ZIP codes found in Zippopotam response'
+        );
+    }
+    
+    return array(
+        'success' => true,
+        'zip_codes' => $zip_codes,
+        'location_info' => array(
+            'place_name' => $data['place name'] ?? $city_name,
+            'country' => $data['country'] ?? $country_code,
+            'state' => $data['state'] ?? $state,
+            'source' => 'Zippopotam'
+        ),
+        'count' => count($zip_codes)
+    );
+}
+
+/**
+ * Parse PostCodes.io API response (UK only)
+ */
+private function parse_postcodes_io_response($body, $city_name, $country_code, $state) {
+    $data = json_decode($body, true);
+    
+    if (!$data || !isset($data['result']) || !is_array($data['result'])) {
+        return array(
+            'success' => false,
+            'message' => 'Invalid PostCodes.io response format'
+        );
+    }
+    
+    $zip_codes = array();
+    foreach ($data['result'] as $result) {
+        if (isset($result['postcode']) && !empty($result['postcode'])) {
+            // Clean UK postcodes
+            $postcode = strtoupper(str_replace(' ', '', $result['postcode']));
+            $zip_codes[] = $postcode;
+        }
+    }
+    
+    $zip_codes = array_unique($zip_codes);
+    sort($zip_codes);
+    
+    if (empty($zip_codes)) {
+        return array(
+            'success' => false,
+            'message' => 'No postcodes found in PostCodes.io response'
+        );
+    }
+    
+    return array(
+        'success' => true,
+        'zip_codes' => $zip_codes,
+        'location_info' => array(
+            'place_name' => $city_name,
+            'country' => $country_code,
+            'state' => $state,
+            'source' => 'PostCodes.io'
+        ),
+        'count' => count($zip_codes)
+    );
+}
+/**
+ * Parse REST Countries API response (fallback)
+ */
+private function parse_restcountries_response($body, $city_name, $country_code, $state) {
+    // This is a fallback that doesn't provide ZIP codes but validates the country
+    $data = json_decode($body, true);
+    
+    if (!$data || !is_array($data) || empty($data)) {
+        return array(
+            'success' => false,
+            'message' => 'Country not found in REST Countries'
+        );
+    }
+    
+    // Generate mock ZIP codes based on country patterns
+    return $this->generate_mock_zip_codes($city_name, $country_code, $state);
+}
+
+/**
+ * Generate mock ZIP codes for development/testing
+ */
+private function generate_mock_zip_codes($city_name, $country_code, $state = '') {
+    if (!defined('WP_DEBUG') || !WP_DEBUG) {
+        return array(
+            'success' => false,
+            'message' => 'No mock data available in production'
+        );
+    }
+    
+    $zip_patterns = array(
+        'US' => array('10001', '10002', '10003', '10004', '10005'),
+        'GB' => array('SW1A 1AA', 'W1A 0AX', 'M1 1AA', 'B33 8TH', 'LS1 1UR'),
+        'CA' => array('K1A 0A6', 'M5V 3L9', 'V6B 2W9', 'T2P 2G8', 'H3B 4W5'),
+        'DE' => array('10115', '20095', '80331', '50667', '01067'),
+        'FR' => array('75001', '13001', '69001', '31000', '06000'),
+        'ES' => array('28001', '08001', '46001', '41001', '50001'),
+        'IT' => array('00118', '20121', '80121', '10121', '90133'),
+        'AU' => array('2000', '3000', '4000', '5000', '6000')
+    );
+    
+    $base_zips = $zip_patterns[$country_code] ?? array('00001', '00002', '00003');
+    
+    return array(
+        'success' => true,
+        'zip_codes' => $base_zips,
+        'location_info' => array(
+            'place_name' => $city_name,
+            'country' => $country_code,
+            'state' => $state,
+            'source' => 'Mock Data (Development)'
+        ),
+        'count' => count($base_zips)
+    );
+}
+/**
+ * Enhanced method to save processed cities data (AJAX handler)
+ */
+public function ajax_save_processed_cities() {
+    try {
+        // Check nonce and permissions
+        if (!isset($_POST['nonce']) || !wp_verify_nonce($_POST['nonce'], 'mobooking-area-nonce')) {
+            wp_send_json_error(__('Security verification failed.', 'mobooking'));
+        }
+        
+        if (!current_user_can('mobooking_business_owner') && !current_user_can('administrator')) {
+            wp_send_json_error(__('You do not have permission to do this.', 'mobooking'));
+        }
+        
+        $user_id = get_current_user_id();
+        $cities_json = stripslashes($_POST['cities_data'] ?? '');
+        $country = sanitize_text_field($_POST['country'] ?? '');
+        
+        if (empty($cities_json)) {
+            wp_send_json_error(__('No city data provided.', 'mobooking'));
+        }
+        
+        $cities_data = json_decode($cities_json, true);
+        
+        if (!is_array($cities_data) || empty($cities_data)) {
+            wp_send_json_error(__('Invalid city data format.', 'mobooking'));
+        }
+        
+        global $wpdb;
+        $table_name = $wpdb->prefix . 'mobooking_areas';
+        
+        $saved_count = 0;
+        $errors = array();
+        
+        foreach ($cities_data as $city_data) {
+            try {
+                // Validate required fields
+                if (empty($city_data['city_name'])) {
+                    $errors[] = 'City name missing for one entry';
+                    continue;
+                }
+                
+                // Prepare ZIP codes
+                $zip_codes = $city_data['zip_codes'] ?? array();
+                if (!is_array($zip_codes)) {
+                    $zip_codes = array();
+                }
+                
+                $result = $wpdb->insert(
+                    $table_name,
+                    array(
+                        'user_id' => $user_id,
+                        'city_name' => sanitize_text_field($city_data['city_name']),
+                        'state' => sanitize_text_field($city_data['state'] ?? ''),
+                        'country' => $country,
+                        'zip_codes' => wp_json_encode($zip_codes),
+                        'zip_code' => !empty($zip_codes) ? $zip_codes[0] : '', // First ZIP for compatibility
+                        'label' => sanitize_text_field($city_data['city_name']), // For compatibility
+                        'active' => !empty($city_data['active']) ? 1 : 0,
+                        'description' => sanitize_textarea_field($city_data['description'] ?? '')
+                    ),
+                    array('%d', '%s', '%s', '%s', '%s', '%s', '%s', '%d', '%s')
+                );
+                
+                if ($result !== false) {
+                    $saved_count++;
+                } else {
+                    $errors[] = 'Failed to save: ' . $city_data['city_name'];
+                }
+                
+            } catch (Exception $e) {
+                $errors[] = 'Error saving ' . ($city_data['city_name'] ?? 'unknown city') . ': ' . $e->getMessage();
+            }
+        }
+        
+        if ($saved_count > 0) {
+            $message = sprintf(__('Successfully saved %d cities.', 'mobooking'), $saved_count);
+            if (!empty($errors)) {
+                $message .= ' ' . sprintf(__('However, %d errors occurred.', 'mobooking'), count($errors));
+            }
+            
+            wp_send_json_success(array(
+                'message' => $message,
+                'saved_count' => $saved_count,
+                'errors' => $errors
+            ));
+        } else {
+            wp_send_json_error(array(
+                'message' => __('Failed to save any cities.', 'mobooking'),
+                'errors' => $errors
+            ));
+        }
+        
+    } catch (Exception $e) {
+        wp_send_json_error(__('An error occurred while saving cities: ', 'mobooking') . $e->getMessage());
+    }
+}
     /**
      * Delete an area
      */
