@@ -295,6 +295,7 @@
   color: hsl(var(--muted-foreground));
   max-width: 32rem;
   line-height: 1.6;
+  margin-inline: auto;
 }
 
 /* Services Grid */

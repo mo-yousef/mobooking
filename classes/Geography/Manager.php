@@ -898,11 +898,299 @@ class Manager {
             wp_send_json_error(__('An error occurred while toggling area status.', 'mobooking'));
         }
     }
-    
-    /**
+/**
      * Legacy AJAX handlers for backward compatibility
      */
     
     public function ajax_save_area() {
         // Convert legacy format to new format
-        if (isset($_POST['zip_code']) && !isset($_
+        if (isset($_POST['zip_code']) && !isset($_POST['zip_codes'])) {
+            $_POST['zip_codes'] = json_encode(array($_POST['zip_code']));
+            $_POST['city_name'] = $_POST['label'] ?? 'Area ' . time();
+        }
+        
+        // Use the enhanced save method
+        $this->ajax_save_area_with_zips();
+    }
+    
+    public function ajax_delete_area() {
+        try {
+            // Check nonce
+            if (!isset($_POST['nonce']) || !wp_verify_nonce($_POST['nonce'], 'mobooking-area-nonce')) {
+                wp_send_json_error(__('Security verification failed.', 'mobooking'));
+            }
+            
+            // Check permissions
+            if (!current_user_can('mobooking_business_owner') && !current_user_can('administrator')) {
+                wp_send_json_error(__('You do not have permission to do this.', 'mobooking'));
+            }
+            
+            $area_id = isset($_POST['id']) ? absint($_POST['id']) : 0;
+            $user_id = get_current_user_id();
+            
+            if (!$area_id) {
+                wp_send_json_error(__('Area ID is required.', 'mobooking'));
+            }
+            
+            $result = $this->delete_area($area_id, $user_id);
+            
+            if ($result) {
+                wp_send_json_success(array(
+                    'message' => __('Service area deleted successfully.', 'mobooking')
+                ));
+            } else {
+                wp_send_json_error(__('Failed to delete service area.', 'mobooking'));
+            }
+            
+        } catch (Exception $e) {
+            wp_send_json_error(__('An error occurred while deleting the area.', 'mobooking'));
+        }
+    }
+    
+    public function ajax_get_areas() {
+        try {
+            // Check nonce
+            if (!isset($_POST['nonce']) || !wp_verify_nonce($_POST['nonce'], 'mobooking-area-nonce')) {
+                wp_send_json_error(__('Security verification failed.', 'mobooking'));
+            }
+            
+            // Check permissions
+            if (!current_user_can('mobooking_business_owner') && !current_user_can('administrator')) {
+                wp_send_json_error(__('You do not have permission to do this.', 'mobooking'));
+            }
+            
+            $user_id = get_current_user_id();
+            $areas = $this->get_user_areas($user_id);
+            
+            wp_send_json_success(array(
+                'areas' => $areas,
+                'count' => count($areas)
+            ));
+            
+        } catch (Exception $e) {
+            wp_send_json_error(__('An error occurred while loading areas.', 'mobooking'));
+        }
+    }
+    
+    /**
+     * Shortcode to display area list
+     */
+    public function area_list_shortcode($atts) {
+        $atts = shortcode_atts(array(
+            'user_id' => get_current_user_id(),
+            'show_inactive' => false,
+            'format' => 'list' // list, grid, dropdown
+        ), $atts, 'mobooking_area_list');
+        
+        $user_id = absint($atts['user_id']);
+        if (!$user_id) {
+            return '<p>' . __('No user specified.', 'mobooking') . '</p>';
+        }
+        
+        $areas = $this->get_user_areas($user_id);
+        
+        if (!$atts['show_inactive']) {
+            $areas = array_filter($areas, function($area) {
+                return $area->active;
+            });
+        }
+        
+        if (empty($areas)) {
+            return '<p>' . __('No service areas found.', 'mobooking') . '</p>';
+        }
+        
+        $output = '';
+        
+        switch ($atts['format']) {
+            case 'grid':
+                $output .= '<div class="mobooking-areas-grid">';
+                foreach ($areas as $area) {
+                    $zip_codes = !empty($area->zip_codes) ? json_decode($area->zip_codes, true) : array();
+                    $zip_count = count($zip_codes);
+                    
+                    $output .= '<div class="area-card">';
+                    $output .= '<h4>' . esc_html($area->city_name ?: $area->label) . '</h4>';
+                    if (!empty($area->state)) {
+                        $output .= '<p class="area-state">' . esc_html($area->state) . '</p>';
+                    }
+                    $output .= '<p class="zip-count">' . sprintf(_n('%d ZIP code', '%d ZIP codes', $zip_count, 'mobooking'), $zip_count) . '</p>';
+                    $output .= '</div>';
+                }
+                $output .= '</div>';
+                break;
+                
+            case 'dropdown':
+                $output .= '<select class="mobooking-areas-dropdown">';
+                $output .= '<option value="">' . __('Select an area...', 'mobooking') . '</option>';
+                foreach ($areas as $area) {
+                    $label = $area->city_name ?: $area->label;
+                    if (!empty($area->state)) {
+                        $label .= ', ' . $area->state;
+                    }
+                    $output .= '<option value="' . esc_attr($area->id) . '">' . esc_html($label) . '</option>';
+                }
+                $output .= '</select>';
+                break;
+                
+            default: // list
+                $output .= '<ul class="mobooking-areas-list">';
+                foreach ($areas as $area) {
+                    $label = $area->city_name ?: $area->label;
+                    if (!empty($area->state)) {
+                        $label .= ', ' . $area->state;
+                    }
+                    
+                    $zip_codes = !empty($area->zip_codes) ? json_decode($area->zip_codes, true) : array();
+                    if (!empty($zip_codes)) {
+                        $label .= ' (' . implode(', ', array_slice($zip_codes, 0, 3));
+                        if (count($zip_codes) > 3) {
+                            $label .= ' +' . (count($zip_codes) - 3) . ' more';
+                        }
+                        $label .= ')';
+                    }
+                    
+                    $output .= '<li>' . esc_html($label) . '</li>';
+                }
+                $output .= '</ul>';
+                break;
+        }
+        
+        return $output;
+    }
+    
+    /**
+     * Export areas to CSV
+     */
+    public function export_areas_csv($user_id) {
+        $areas = $this->get_user_areas($user_id);
+        
+        if (empty($areas)) {
+            return false;
+        }
+        
+        $filename = 'service-areas-' . date('Y-m-d') . '.csv';
+        
+        header('Content-Type: text/csv; charset=utf-8');
+        header('Content-Disposition: attachment; filename=' . $filename);
+        
+        $output = fopen('php://output', 'w');
+        
+        // CSV headers
+        fputcsv($output, array(
+            'ID',
+            'City Name',
+            'State',
+            'Country',
+            'Description',
+            'ZIP Codes',
+            'Active',
+            'Created',
+            'Updated'
+        ));
+        
+        // CSV data
+        foreach ($areas as $area) {
+            $zip_codes = !empty($area->zip_codes) ? 
+                implode(';', json_decode($area->zip_codes, true)) : 
+                $area->zip_code;
+            
+            fputcsv($output, array(
+                $area->id,
+                $area->city_name ?: $area->label,
+                $area->state,
+                $area->country,
+                $area->description,
+                $zip_codes,
+                $area->active ? 'Yes' : 'No',
+                $area->created_at,
+                $area->updated_at
+            ));
+        }
+        
+        fclose($output);
+        exit;
+    }
+    
+    /**
+     * Get statistics for dashboard
+     */
+    public function get_areas_statistics($user_id) {
+        $areas = $this->get_user_areas($user_id);
+        
+        $stats = array(
+            'total_areas' => count($areas),
+            'active_areas' => 0,
+            'inactive_areas' => 0,
+            'total_zip_codes' => 0,
+            'countries' => array(),
+            'states' => array()
+        );
+        
+        foreach ($areas as $area) {
+            if ($area->active) {
+                $stats['active_areas']++;
+            } else {
+                $stats['inactive_areas']++;
+            }
+            
+            // Count ZIP codes
+            if (!empty($area->zip_codes)) {
+                $zip_codes = json_decode($area->zip_codes, true);
+                $stats['total_zip_codes'] += is_array($zip_codes) ? count($zip_codes) : 0;
+            } elseif (!empty($area->zip_code)) {
+                $stats['total_zip_codes']++;
+            }
+            
+            // Track countries
+            if (!empty($area->country) && !in_array($area->country, $stats['countries'])) {
+                $stats['countries'][] = $area->country;
+            }
+            
+            // Track states
+            if (!empty($area->state) && !in_array($area->state, $stats['states'])) {
+                $stats['states'][] = $area->state;
+            }
+        }
+        
+        return $stats;
+    }
+    
+    /**
+     * Search areas by various criteria
+     */
+    public function search_areas($user_id, $search_term, $filters = array()) {
+        global $wpdb;
+        $table_name = $wpdb->prefix . 'mobooking_areas';
+        
+        $search_term = sanitize_text_field(trim($search_term));
+        
+        $sql = "SELECT * FROM $table_name WHERE user_id = %d";
+        $params = array($user_id);
+        
+        if (!empty($search_term)) {
+            $sql .= " AND (city_name LIKE %s OR state LIKE %s OR zip_code LIKE %s OR JSON_SEARCH(zip_codes, 'one', %s) IS NOT NULL)";
+            $like_term = '%' . $wpdb->esc_like($search_term) . '%';
+            $params = array_merge($params, array($like_term, $like_term, $like_term, $search_term));
+        }
+        
+        // Apply filters
+        if (isset($filters['active']) && $filters['active'] !== '') {
+            $sql .= " AND active = %d";
+            $params[] = $filters['active'] ? 1 : 0;
+        }
+        
+        if (!empty($filters['country'])) {
+            $sql .= " AND country = %s";
+            $params[] = sanitize_text_field($filters['country']);
+        }
+        
+        if (!empty($filters['state'])) {
+            $sql .= " AND state = %s";
+            $params[] = sanitize_text_field($filters['state']);
+        }
+        
+        $sql .= " ORDER BY city_name ASC, label ASC";
+        
+        return $wpdb->get_results($wpdb->prepare($sql, $params));
+    }
+}
