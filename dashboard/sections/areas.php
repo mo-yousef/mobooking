@@ -2111,6 +2111,9 @@ handleApiError: function(error, cityName) {
  *             }
  *         }
  *         
+ * 
+ * 
+ * 
  *         if ($saved_count > 0) {
  *             wp_send_json_success(array(
  *                 'message' => sprintf(__('Successfully saved %d cities with their ZIP codes.', 'mobooking'), $saved_count),
