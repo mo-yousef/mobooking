@@ -546,6 +546,7 @@ class Manager {
                 'PL', 'CZ', 'HU', 'SK', 'SI', 'HR', 'PT', 'IE', 'LU', 'MT', 'CY', 'EE', 'LV', 'LT',
                 'JP', 'AU', 'NZ', 'MX', 'BR', 'AR', 'IN', 'TR', 'RU', 'ZA'
             );
+
             
             if (!in_array($country, $supported_countries)) {
                 wp_send_json_error(__('Invalid country code.', 'mobooking'));
@@ -805,63 +806,7 @@ class Manager {
         }
     }
     
-    /**
-     * Generate mock ZIP codes for a city (helper method)
-     */
-    private function generate_mock_zip_codes_for_city($city_name, $country_code) {
-        $mock_patterns = array(
-            'US' => function($city) {
-                $hash = $this->simple_hash($city);
-                $base = 10000 + ($hash % 80000);
-                return array(
-                    str_pad($base, 5, '0', STR_PAD_LEFT),
-                    str_pad($base + 1, 5, '0', STR_PAD_LEFT),
-                    str_pad($base + 2, 5, '0', STR_PAD_LEFT),
-                    str_pad($base + 3, 5, '0', STR_PAD_LEFT),
-                    str_pad($base + 4, 5, '0', STR_PAD_LEFT)
-                );
-            },
-            'GB' => function($city) {
-                $areas = array('SW', 'NW', 'SE', 'NE', 'W', 'E');
-                $hash = $this->simple_hash($city);
-                $area = $areas[$hash % count($areas)];
-                $district = ($hash % 20) + 1;
-                return array(
-                    $area . $district . ' 1AA',
-                    $area . $district . ' 2BB',
-                    $area . $district . ' 3CC',
-                    $area . $district . ' 4DD',
-                    $area . $district . ' 5EE'
-                );
-            },
-            'CA' => function($city) {
-                $provinces = array('K', 'M', 'V', 'T', 'H');
-                $hash = $this->simple_hash($city);
-                $province = $provinces[$hash % count($provinces)];
-                $district = ($hash % 9) + 1;
-                return array(
-                    $province . $district . 'A 1B2',
-                    $province . $district . 'B 2C3',
-                    $province . $district . 'C 3D4',
-                    $province . $district . 'D 4E5',
-                    $province . $district . 'E 5F6'
-                );
-            }
-        );
-        
-        if (isset($mock_patterns[$country_code])) {
-            return $mock_patterns[$country_code]($city_name);
-        }
-        
-        // Default fallback
-        $hash = $this->simple_hash($city_name);
-        $base = 10000 + ($hash % 80000);
-        return array(
-            str_pad($base, 5, '0', STR_PAD_LEFT),
-            str_pad($base + 10, 5, '0', STR_PAD_LEFT),
-            str_pad($base + 20, 5, '0', STR_PAD_LEFT)
-        );
-    }
+
     
     /**
      * Simple hash function for consistent mock data
@@ -980,6 +925,167 @@ class Manager {
         }
     }
     
+
+
+
+
+// Add these methods to the Geography Manager class for postal code generation:
+
+/**
+ * Generate Swedish postal codes
+ */
+private function generateSwedishPostcodes($cityName) {
+    $cityHash = $this->simple_hash($cityName);
+    $baseCode = 10000 + ($cityHash % 80000);
+    $postcodes = array();
+    
+    for ($i = 0; $i < 5; $i++) {
+        // Swedish postal codes are 5 digits with a space after 3 digits (XXX XX)
+        $code = ($baseCode + $i * 10);
+        $formatted = substr(str_pad($code, 5, '0', STR_PAD_LEFT), 0, 3) . ' ' . 
+                    substr(str_pad($code, 5, '0', STR_PAD_LEFT), 3, 2);
+        $postcodes[] = $formatted;
+    }
+    
+    return $postcodes;
+}
+
+/**
+ * Generate Cypriot postal codes
+ */
+private function generateCypriotPostcodes($cityName) {
+    $cityHash = $this->simple_hash($cityName);
+    $baseCode = 1000 + ($cityHash % 8000);
+    $postcodes = array();
+    
+    for ($i = 0; $i < 5; $i++) {
+        // Cyprus postal codes are 4 digits
+        $code = str_pad(($baseCode + $i * 10), 4, '0', STR_PAD_LEFT);
+        $postcodes[] = $code;
+    }
+    
+    return $postcodes;
+}
+
+// Update the generate_mock_zip_codes_for_city method to include these patterns:
+private function generate_mock_zip_codes_for_city($city_name, $country_code) {
+    $mock_patterns = array(
+        'US' => function($city) {
+            $hash = $this->simple_hash($city);
+            $base = 10000 + ($hash % 80000);
+            return array(
+                str_pad($base, 5, '0', STR_PAD_LEFT),
+                str_pad($base + 1, 5, '0', STR_PAD_LEFT),
+                str_pad($base + 2, 5, '0', STR_PAD_LEFT),
+                str_pad($base + 3, 5, '0', STR_PAD_LEFT),
+                str_pad($base + 4, 5, '0', STR_PAD_LEFT)
+            );
+        },
+        'GB' => function($city) {
+            $areas = array('SW', 'NW', 'SE', 'NE', 'W', 'E');
+            $hash = $this->simple_hash($city);
+            $area = $areas[$hash % count($areas)];
+            $district = ($hash % 20) + 1;
+            return array(
+                $area . $district . ' 1AA',
+                $area . $district . ' 2BB',
+                $area . $district . ' 3CC',
+                $area . $district . ' 4DD',
+                $area . $district . ' 5EE'
+            );
+        },
+        'CA' => function($city) {
+            $provinces = array('K', 'M', 'V', 'T', 'H');
+            $hash = $this->simple_hash($city);
+            $province = $provinces[$hash % count($provinces)];
+            $district = ($hash % 9) + 1;
+            return array(
+                $province . $district . 'A 1B2',
+                $province . $district . 'B 2C3',
+                $province . $district . 'C 3D4',
+                $province . $district . 'D 4E5',
+                $province . $district . 'E 5F6'
+            );
+        },
+        'SE' => function($city) {
+            return $this->generateSwedishPostcodes($city);
+        },
+        'CY' => function($city) {
+            return $this->generateCypriotPostcodes($city);
+        },
+        'DE' => function($city) {
+            $hash = $this->simple_hash($city);
+            $base = 10000 + ($hash % 80000);
+            return array(
+                str_pad($base, 5, '0', STR_PAD_LEFT),
+                str_pad($base + 10, 5, '0', STR_PAD_LEFT),
+                str_pad($base + 20, 5, '0', STR_PAD_LEFT),
+                str_pad($base + 30, 5, '0', STR_PAD_LEFT),
+                str_pad($base + 40, 5, '0', STR_PAD_LEFT)
+            );
+        },
+        'FR' => function($city) {
+            $hash = $this->simple_hash($city);
+            $base = 10000 + ($hash % 85000);
+            return array(
+                str_pad($base, 5, '0', STR_PAD_LEFT),
+                str_pad($base + 10, 5, '0', STR_PAD_LEFT),
+                str_pad($base + 20, 5, '0', STR_PAD_LEFT),
+                str_pad($base + 30, 5, '0', STR_PAD_LEFT),
+                str_pad($base + 40, 5, '0', STR_PAD_LEFT)
+            );
+        },
+        'ES' => function($city) {
+            $hash = $this->simple_hash($city);
+            $base = 10000 + ($hash % 40000);
+            return array(
+                str_pad($base, 5, '0', STR_PAD_LEFT),
+                str_pad($base + 10, 5, '0', STR_PAD_LEFT),
+                str_pad($base + 20, 5, '0', STR_PAD_LEFT),
+                str_pad($base + 30, 5, '0', STR_PAD_LEFT),
+                str_pad($base + 40, 5, '0', STR_PAD_LEFT)
+            );
+        },
+        'IT' => function($city) {
+            $hash = $this->simple_hash($city);
+            $base = 10000 + ($hash % 80000);
+            return array(
+                str_pad($base, 5, '0', STR_PAD_LEFT),
+                str_pad($base + 10, 5, '0', STR_PAD_LEFT),
+                str_pad($base + 20, 5, '0', STR_PAD_LEFT),
+                str_pad($base + 30, 5, '0', STR_PAD_LEFT),
+                str_pad($base + 40, 5, '0', STR_PAD_LEFT)
+            );
+        },
+        'AU' => function($city) {
+            $hash = $this->simple_hash($city);
+            $base = 1000 + ($hash % 8000);
+            return array(
+                str_pad($base, 4, '0', STR_PAD_LEFT),
+                str_pad($base + 10, 4, '0', STR_PAD_LEFT),
+                str_pad($base + 20, 4, '0', STR_PAD_LEFT),
+                str_pad($base + 30, 4, '0', STR_PAD_LEFT),
+                str_pad($base + 40, 4, '0', STR_PAD_LEFT)
+            );
+        }
+    );
+    
+    if (isset($mock_patterns[$country_code])) {
+        return $mock_patterns[$country_code]($city_name);
+    }
+    
+    // Default fallback for unsupported countries
+    $hash = $this->simple_hash($city_name);
+    $base = 10000 + ($hash % 80000);
+    return array(
+        str_pad($base, 5, '0', STR_PAD_LEFT),
+        str_pad($base + 10, 5, '0', STR_PAD_LEFT),
+        str_pad($base + 20, 5, '0', STR_PAD_LEFT)
+    );
+}
+
+
+
     /**
      * AJAX: Toggle area status (legacy support)
      */

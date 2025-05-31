@@ -79,6 +79,21 @@ $supported_countries = array(
             'Sydney', 'Melbourne', 'Brisbane', 'Perth', 'Adelaide', 'Gold Coast', 'Canberra', 'Newcastle', 'Wollongong', 'Logan City',
             'Geelong', 'Hobart', 'Townsville', 'Cairns', 'Darwin', 'Toowoomba', 'Ballarat', 'Bendigo', 'Albury', 'Launceston'
         )
+    ),
+    'CY' => array(
+        'name' => 'Cyprus',
+        'cities' => array(
+            'Nicosia', 'Limassol', 'Larnaca', 'Paphos', 'Famagusta', 'Kyrenia', 'Protaras', 'Ayia Napa', 'Polis', 'Paralimni',
+            'Deryneia', 'Strovolos', 'Lakatamia', 'Aglantzia', 'Engomi', 'Perivolia', 'Livadia', 'Aradippou', 'Kiti', 'Oroklini'
+        )
+    ),
+    'SE' => array(
+        'name' => 'Sweden',
+        'cities' => array(
+            'Stockholm', 'Gothenburg', 'Malmö', 'Uppsala', 'Västerås', 'Örebro', 'Linköping', 'Helsingborg', 'Jönköping', 'Norrköping',
+            'Lund', 'Umeå', 'Gävle', 'Borås', 'Eskilstuna', 'Södertälje', 'Karlstad', 'Täby', 'Växjö', 'Halmstad',
+            'Sundsvall', 'Luleå', 'Trollhättan', 'Östersund', 'Borlänge', 'Tumba', 'Kiruna', 'Kalmar', 'Kristianstad', 'Skövde'
+        )
     )
 );
 ?>
@@ -1076,38 +1091,71 @@ jQuery(document).ready(function($) {
             // Start processing
             processBatch();
         },
+
+
+generateSwedishPostcodes: function(cityName) {
+    const cityHash = this.hashString(cityName);
+    const baseCode = 10000 + (cityHash % 80000);
+    const postcodes = [];
+    
+    for (let i = 0; i < 5; i++) {
+        // Swedish postal codes are 5 digits with a space after 3 digits (XXX XX)
+        const code = (baseCode + i * 10).toString().padStart(5, '0');
+        const formatted = code.substring(0, 3) + ' ' + code.substring(3, 5);
+        postcodes.push(formatted);
+    }
+    
+    return postcodes;
+},
+
+generateCypriotPostcodes: function(cityName) {
+    const cityHash = this.hashString(cityName);
+    const baseCode = 1000 + (cityHash % 8000);
+    const postcodes = [];
+    
+    for (let i = 0; i < 5; i++) {
+        // Cyprus postal codes are 4 digits
+        const code = (baseCode + i * 10).toString().padStart(4, '0');
+        postcodes.push(code);
+    }
+    
+    return postcodes;
+},
+
+// Update the existing generateMockCityData function:
+generateMockCityData: function(cityName, countryCode) {
+    return new Promise((resolve) => {
+        const mockZipPatterns = {
+            // 'US': () => this.generateUSZipCodes(cityName),
+            // 'GB': () => this.generateUKPostcodes(cityName),
+            'CA': () => this.generateCanadianPostalCodes(cityName),
+            'DE': () => this.generateGermanPostcodes(cityName),
+            'FR': () => this.generateFrenchPostcodes(cityName),
+            'ES': () => this.generateSpanishPostcodes(cityName),
+            'IT': () => this.generateItalianPostcodes(cityName),
+            'AU': () => this.generateAustralianPostcodes(cityName),
+            'SE': () => this.generateSwedishPostcodes(cityName),
+            'CY': () => this.generateCypriotPostcodes(cityName)
+        };
         
-        generateMockCityData: function(cityName, countryCode) {
-            return new Promise((resolve) => {
-                const mockZipPatterns = {
-                    'US': () => this.generateUSZipCodes(cityName),
-                    'GB': () => this.generateUKPostcodes(cityName),
-                    'CA': () => this.generateCanadianPostalCodes(cityName),
-                    'DE': () => this.generateGermanPostcodes(cityName),
-                    'FR': () => this.generateFrenchPostcodes(cityName),
-                    'ES': () => this.generateSpanishPostcodes(cityName),
-                    'IT': () => this.generateItalianPostcodes(cityName),
-                    'AU': () => this.generateAustralianPostcodes(cityName)
-                };
-                
-                const generator = mockZipPatterns[countryCode];
-                if (generator) {
-                    const zipCodes = generator();
-                    resolve({
-                        success: true,
-                        cityName: cityName,
-                        state: '',
-                        zipCodes: zipCodes,
-                        source: 'Generated Data'
-                    });
-                } else {
-                    resolve({
-                        success: false,
-                        error: `No pattern available for country: ${countryCode}`
-                    });
-                }
+        const generator = mockZipPatterns[countryCode];
+        if (generator) {
+            const zipCodes = generator();
+            resolve({
+                success: true,
+                cityName: cityName,
+                state: '',
+                zipCodes: zipCodes,
+                source: 'Generated Data'
             });
-        },
+        } else {
+            resolve({
+                success: false,
+                error: `No pattern available for country: ${countryCode}`
+            });
+        }
+    });
+},
         
         generateUSZipCodes: function(cityName) {
             const cityHash = this.hashString(cityName);
