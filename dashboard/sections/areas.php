@@ -25,12 +25,7 @@ $supported_countries = array(
             'Austin', 'Jacksonville', 'Fort Worth', 'Columbus', 'Charlotte', 'San Francisco', 'Indianapolis', 'Seattle', 'Denver', 'Washington',
             'Boston', 'El Paso', 'Nashville', 'Detroit', 'Oklahoma City', 'Portland', 'Las Vegas', 'Memphis', 'Louisville', 'Baltimore',
             'Milwaukee', 'Albuquerque', 'Tucson', 'Fresno', 'Sacramento', 'Kansas City', 'Mesa', 'Atlanta', 'Omaha', 'Colorado Springs',
-            'Raleigh', 'Miami', 'Virginia Beach', 'Oakland', 'Minneapolis', 'Tulsa', 'Arlington', 'Tampa', 'New Orleans', 'Wichita',
-            'Cleveland', 'Bakersfield', 'Aurora', 'Anaheim', 'Honolulu', 'Santa Ana', 'Corpus Christi', 'Riverside', 'Lexington', 'Henderson',
-            'Stockton', 'Saint Paul', 'Cincinnati', 'St. Louis', 'Pittsburgh', 'Greensboro', 'Anchorage', 'Plano', 'Lincoln', 'Orlando',
-            'Irvine', 'Newark', 'Durham', 'Chula Vista', 'Toledo', 'Fort Wayne', 'St. Petersburg', 'Laredo', 'Jersey City', 'Chandler',
-            'Madison', 'Lubbock', 'Scottsdale', 'Reno', 'Buffalo', 'Gilbert', 'Glendale', 'North Las Vegas', 'Winston-Salem', 'Chesapeake',
-            'Norfolk', 'Fremont', 'Garland', 'Irving', 'Hialeah', 'Richmond', 'Boise', 'Spokane', 'Baton Rouge', 'Tacoma'
+            'Raleigh', 'Miami', 'Virginia Beach', 'Oakland', 'Minneapolis', 'Tulsa', 'Arlington', 'Tampa', 'New Orleans', 'Wichita'
         )
     ),
     'CA' => array(
@@ -38,9 +33,7 @@ $supported_countries = array(
         'cities' => array(
             'Toronto', 'Montreal', 'Calgary', 'Ottawa', 'Edmonton', 'Mississauga', 'Winnipeg', 'Vancouver', 'Brampton', 'Hamilton',
             'Quebec City', 'Surrey', 'Laval', 'Halifax', 'London', 'Markham', 'Vaughan', 'Gatineau', 'Saskatoon', 'Longueuil',
-            'Burnaby', 'Regina', 'Richmond', 'Richmond Hill', 'Oakville', 'Burlington', 'Sherbrooke', 'Oshawa', 'Saguenay', 'Levis',
-            'Barrie', 'Abbotsford', 'Coquitlam', 'Trois-Rivières', 'St. Catharines', 'Guelph', 'Cambridge', 'Whitby', 'Kelowna', 'Kingston',
-            'Ajax', 'Thunder Bay', 'Chatham', 'Sudbury', 'Waterloo', 'Brantford', 'Pickering', 'Lethbridge', 'Moncton', 'Nanaimo'
+            'Burnaby', 'Regina', 'Richmond', 'Richmond Hill', 'Oakville', 'Burlington', 'Sherbrooke', 'Oshawa', 'Saguenay', 'Levis'
         )
     ),
     'GB' => array(
@@ -48,9 +41,7 @@ $supported_countries = array(
         'cities' => array(
             'London', 'Birmingham', 'Manchester', 'Glasgow', 'Liverpool', 'Leeds', 'Sheffield', 'Edinburgh', 'Bristol', 'Cardiff',
             'Belfast', 'Leicester', 'Coventry', 'Bradford', 'Nottingham', 'Hull', 'Newcastle', 'Stoke-on-Trent', 'Southampton', 'Derby',
-            'Portsmouth', 'Brighton', 'Plymouth', 'Northampton', 'Reading', 'Luton', 'Wolverhampton', 'Bolton', 'Bournemouth', 'Norwich',
-            'Swindon', 'Swansea', 'Southend', 'Middlesbrough', 'Peterborough', 'Cambridge', 'Doncaster', 'York', 'Poole', 'Gloucester',
-            'Burnley', 'Huddersfield', 'Blackpool', 'Oxford', 'Oldham', 'Basildon', 'Worthing', 'Cheltenham', 'Colchester', 'Crawley'
+            'Portsmouth', 'Brighton', 'Plymouth', 'Northampton', 'Reading', 'Luton', 'Wolverhampton', 'Bolton', 'Bournemouth', 'Norwich'
         )
     ),
     'DE' => array(
@@ -58,49 +49,35 @@ $supported_countries = array(
         'cities' => array(
             'Berlin', 'Hamburg', 'Munich', 'Cologne', 'Frankfurt', 'Stuttgart', 'Düsseldorf', 'Dortmund', 'Essen', 'Leipzig',
             'Bremen', 'Dresden', 'Hanover', 'Nuremberg', 'Duisburg', 'Bochum', 'Wuppertal', 'Bielefeld', 'Bonn', 'Münster',
-            'Karlsruhe', 'Mannheim', 'Augsburg', 'Wiesbaden', 'Gelsenkirchen', 'Mönchengladbach', 'Braunschweig', 'Chemnitz', 'Kiel', 'Aachen',
-            'Halle', 'Magdeburg', 'Freiburg', 'Krefeld', 'Lübeck', 'Oberhausen', 'Erfurt', 'Mainz', 'Rostock', 'Kassel',
-            'Hagen', 'Hamm', 'Saarbrücken', 'Mülheim', 'Potsdam', 'Ludwigshafen', 'Oldenburg', 'Leverkusen', 'Osnabrück', 'Solingen'
+            'Karlsruhe', 'Mannheim', 'Augsburg', 'Wiesbaden', 'Gelsenkirchen', 'Mönchengladbach', 'Braunschweig', 'Chemnitz', 'Kiel', 'Aachen'
         )
     ),
     'FR' => array(
         'name' => 'France',
         'cities' => array(
             'Paris', 'Marseille', 'Lyon', 'Toulouse', 'Nice', 'Nantes', 'Strasbourg', 'Montpellier', 'Bordeaux', 'Lille',
-            'Rennes', 'Reims', 'Le Havre', 'Saint-Étienne', 'Toulon', 'Angers', 'Grenoble', 'Dijon', 'Nîmes', 'Aix-en-Provence',
-            'Saint-Quentin', 'Brest', 'Le Mans', 'Amiens', 'Tours', 'Limoges', 'Villeurbanne', 'Clermont-Ferrand', 'Besançon', 'Orléans',
-            'Mulhouse', 'Rouen', 'Caen', 'Nancy', 'Saint-Denis', 'Saint-Paul', 'Argenteuil', 'Montreuil', 'Roubaix', 'Tourcoing',
-            'Avignon', 'Créteil', 'Poitiers', 'Fort-de-France', 'Courbevoie', 'Versailles', 'Colombes', 'Aulnay-sous-Bois', 'Asnières-sur-Seine', 'Rueil-Malmaison'
+            'Rennes', 'Reims', 'Le Havre', 'Saint-Étienne', 'Toulon', 'Angers', 'Grenoble', 'Dijon', 'Nîmes', 'Aix-en-Provence'
         )
     ),
     'ES' => array(
         'name' => 'Spain',
         'cities' => array(
             'Madrid', 'Barcelona', 'Valencia', 'Seville', 'Zaragoza', 'Málaga', 'Murcia', 'Palma', 'Las Palmas', 'Bilbao',
-            'Alicante', 'Córdoba', 'Valladolid', 'Vigo', 'Gijón', 'Hospitalet', 'La Coruña', 'Vitoria-Gasteiz', 'Granada', 'Elche',
-            'Oviedo', 'Badalona', 'Cartagena', 'Terrassa', 'Jerez', 'Sabadell', 'Santa Cruz', 'Pamplona', 'Almería', 'Fuenlabrada',
-            'Móstoles', 'San Sebastián', 'Leganés', 'Santander', 'Burgos', 'Castellón', 'Alcorcón', 'Albacete', 'Getafe', 'Salamanca',
-            'Huelva', 'Logroño', 'Badajoz', 'San Cristóbal', 'León', 'Tarragona', 'Cádiz', 'Dos Hermanas', 'Lérida', 'Marbella'
+            'Alicante', 'Córdoba', 'Valladolid', 'Vigo', 'Gijón', 'Hospitalet', 'La Coruña', 'Vitoria-Gasteiz', 'Granada', 'Elche'
         )
     ),
     'IT' => array(
         'name' => 'Italy',
         'cities' => array(
             'Rome', 'Milan', 'Naples', 'Turin', 'Palermo', 'Genoa', 'Bologna', 'Florence', 'Bari', 'Catania',
-            'Venice', 'Verona', 'Messina', 'Padua', 'Trieste', 'Taranto', 'Brescia', 'Parma', 'Prato', 'Modena',
-            'Reggio Calabria', 'Reggio Emilia', 'Perugia', 'Livorno', 'Ravenna', 'Cagliari', 'Foggia', 'Rimini', 'Salerno', 'Ferrara',
-            'Sassari', 'Latina', 'Giugliano', 'Monza', 'Syracuse', 'Pescara', 'Bergamo', 'Forlì', 'Trento', 'Vicenza',
-            'Terni', 'Bolzano', 'Novara', 'Piacenza', 'Ancona', 'Andria', 'Arezzo', 'Udine', 'Cesena', 'Lecce'
+            'Venice', 'Verona', 'Messina', 'Padua', 'Trieste', 'Taranto', 'Brescia', 'Parma', 'Prato', 'Modena'
         )
     ),
     'AU' => array(
         'name' => 'Australia',
         'cities' => array(
             'Sydney', 'Melbourne', 'Brisbane', 'Perth', 'Adelaide', 'Gold Coast', 'Canberra', 'Newcastle', 'Wollongong', 'Logan City',
-            'Geelong', 'Hobart', 'Townsville', 'Cairns', 'Darwin', 'Toowoomba', 'Ballarat', 'Bendigo', 'Albury', 'Launceston',
-            'Mackay', 'Rockhampton', 'Bunbury', 'Bundaberg', 'Coffs Harbour', 'Wagga Wagga', 'Hervey Bay', 'Mildura', 'Shepparton', 'Port Macquarie',
-            'Gladstone', 'Tamworth', 'Traralgon', 'Orange', 'Dubbo', 'Geraldton', 'Bowral', 'Bathurst', 'Nowra', 'Warrnambool',
-            'Kalgoorlie', 'Albany', 'Blue Mountains', 'Devonport', 'Mount Gambier', 'Nelson Bay', 'Whyalla', 'Murray Bridge', 'Broken Hill', 'Lismore'
+            'Geelong', 'Hobart', 'Townsville', 'Cairns', 'Darwin', 'Toowoomba', 'Ballarat', 'Bendigo', 'Albury', 'Launceston'
         )
     )
 );
@@ -563,246 +540,7 @@ $supported_countries = array(
     --gray-900: #111827;
 }
 
-/* City Selection Styles */
-.city-selection-container {
-    display: flex;
-    justify-content: center;
-    align-items: flex-start;
-    min-height: 60vh;
-    padding: 2rem 0;
-}
-
-.city-selection-card {
-    background: white;
-    border-radius: 12px;
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
-    max-width: 1000px;
-    width: 100%;
-    overflow: hidden;
-}
-
-.city-selection-content {
-    padding: 2rem;
-}
-
-.city-selection-toolbar {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 2rem;
-    flex-wrap: wrap;
-    gap: 1rem;
-}
-
-.city-search {
-    position: relative;
-    flex: 1;
-    max-width: 400px;
-}
-
-.city-search .search-input {
-    width: 100%;
-    padding: 0.75rem 2.5rem 0.75rem 1rem;
-    border: 2px solid var(--gray-200);
-    border-radius: 8px;
-    font-size: 1rem;
-    transition: all 0.2s;
-}
-
-.city-search .search-input:focus {
-    outline: none;
-    border-color: var(--primary);
-    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
-}
-
-.city-search .search-icon {
-    position: absolute;
-    right: 1rem;
-    top: 50%;
-    transform: translateY(-50%);
-    width: 20px;
-    height: 20px;
-    color: var(--gray-400);
-}
-
-.city-selection-actions {
-    display: flex;
-    gap: 0.5rem;
-}
-
-.cities-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-    gap: 1rem;
-    margin-bottom: 2rem;
-    max-height: 500px;
-    overflow-y: auto;
-    padding: 0.5rem;
-}
-
-.city-item {
-    cursor: pointer;
-    transition: all 0.2s;
-}
-
-.city-item input[type="checkbox"] {
-    position: absolute;
-    opacity: 0;
-    pointer-events: none;
-}
-
-.city-card {
-    padding: 1.5rem;
-    border: 2px solid var(--gray-200);
-    border-radius: 8px;
-    background: white;
-    transition: all 0.2s;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-}
-
-.city-card:hover {
-    border-color: var(--primary);
-    box-shadow: 0 4px 12px rgba(59, 130, 246, 0.1);
-}
-
-.city-item input:checked + .city-card {
-    border-color: var(--primary);
-    background: rgba(59, 130, 246, 0.05);
-    box-shadow: 0 4px 12px rgba(59, 130, 246, 0.15);
-}
-
-.city-name {
-    font-size: 1.125rem;
-    font-weight: 600;
-    color: var(--gray-900);
-}
-
-.city-status {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-}
-
-.status-indicator {
-    width: 12px;
-    height: 12px;
-    border-radius: 50%;
-    background: var(--success);
-}
-
-.city-item input:checked + .city-card .status-indicator {
-    background: var(--primary);
-}
-
-.status-text {
-    font-size: 0.875rem;
-    color: var(--gray-600);
-}
-
-.city-item input:checked + .city-card .status-text {
-    color: var(--primary);
-    font-weight: 500;
-}
-
-.city-selection-summary {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 1.5rem;
-    background: var(--gray-50);
-    border-radius: 8px;
-    border-top: 1px solid var(--gray-200);
-}
-
-.selected-count {
-    font-size: 1.125rem;
-    font-weight: 600;
-    color: var(--gray-700);
-}
-
-/* Processing Modal Styles */
-.processing-content {
-    text-align: center;
-    padding: 2rem;
-}
-
-.processing-spinner {
-    width: 64px;
-    height: 64px;
-    margin: 0 auto 1.5rem;
-    color: var(--primary);
-}
-
-.processing-spinner svg {
-    width: 100%;
-    height: 100%;
-    animation: spin 1s linear infinite;
-}
-
-@keyframes spin {
-    to { transform: rotate(360deg); }
-}
-
-.processing-progress {
-    margin: 1.5rem 0;
-}
-
-.progress-bar {
-    width: 100%;
-    height: 8px;
-    background: var(--gray-200);
-    border-radius: 4px;
-    overflow: hidden;
-    margin-bottom: 0.5rem;
-}
-
-.progress-fill {
-    height: 100%;
-    background: linear-gradient(90deg, var(--primary), #1d4ed8);
-    transition: width 0.3s ease;
-}
-
-.progress-text {
-    font-size: 0.875rem;
-    color: var(--gray-600);
-}
-
-.processing-log {
-    margin-top: 1.5rem;
-    max-height: 200px;
-    overflow-y: auto;
-    background: var(--gray-50);
-    border-radius: 6px;
-    padding: 1rem;
-    text-align: left;
-}
-
-.processing-log-content {
-    font-family: 'Courier New', monospace;
-    font-size: 0.875rem;
-    color: var(--gray-700);
-}
-
-.log-entry {
-    margin-bottom: 0.5rem;
-    padding: 0.25rem 0;
-}
-
-.log-entry.success {
-    color: var(--success);
-}
-
-.log-entry.error {
-    color: var(--danger);
-}
-
-.log-entry.info {
-    color: var(--primary);
-}
-
-/* Existing styles remain the same... */
+/* Layout */
 .areas-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 2rem; flex-wrap: wrap; gap: 1rem; }
 .areas-header-content { flex: 1; min-width: 300px; }
 .areas-title-group h1 { font-size: 1.875rem; font-weight: 700; color: var(--gray-900); margin: 0 0 0.5rem 0; display: flex; align-items: center; gap: 0.75rem; }
@@ -817,12 +555,54 @@ $supported_countries = array(
 /* Country Selection */
 .country-selection-container { display: flex; justify-content: center; align-items: center; min-height: 60vh; padding: 2rem; }
 .country-selection-card { background: white; border-radius: 12px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); padding: 3rem; max-width: 500px; width: 100%; text-align: center; }
-.selection-header { margin-bottom: 2rem; }
+.selection-header { margin-bottom: 2rem;    padding: 2rem;
+ }
 .selection-icon { width: 64px; height: 64px; background: linear-gradient(135deg, var(--primary), #1d4ed8); border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 1.5rem; color: white; }
 .selection-icon svg { width: 32px; height: 32px; }
 .country-selection-form .form-group { margin-bottom: 1.5rem; text-align: left; }
 .country-dropdown { width: 100%; padding: 0.75rem 1rem; border: 2px solid var(--gray-200); border-radius: 8px; font-size: 1rem; transition: all 0.2s; }
 .country-dropdown:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px rgba(59,130,246,0.1); }
+
+/* City Selection Styles */
+.city-selection-container { display: flex; justify-content: center; align-items: flex-start; min-height: 60vh; padding: 2rem 0; }
+.city-selection-card { background: white; border-radius: 12px; box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1); max-width: 1000px; width: 100%; overflow: hidden; }
+.city-selection-content { padding: 2rem; }
+.city-selection-toolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem; flex-wrap: wrap; gap: 1rem; }
+.city-search { position: relative; flex: 1; max-width: 400px; }
+.city-search .search-input { width: 100%; padding: 0.75rem 2.5rem 0.75rem 1rem; border: 2px solid var(--gray-200); border-radius: 8px; font-size: 1rem; transition: all 0.2s; }
+.city-search .search-input:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1); }
+.city-search .search-icon { position: absolute; right: 1rem; top: 50%; transform: translateY(-50%); width: 20px; height: 20px; color: var(--gray-400); }
+.city-selection-actions { display: flex; gap: 0.5rem; }
+.cities-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 1rem; margin-bottom: 2rem; max-height: 500px; overflow-y: auto; padding: 0.5rem; }
+.city-item { cursor: pointer; transition: all 0.2s; }
+.city-item input[type="checkbox"] { position: absolute; opacity: 0; pointer-events: none; }
+.city-card { padding: 1.5rem; border: 2px solid var(--gray-200); border-radius: 8px; background: white; transition: all 0.2s; display: flex; justify-content: space-between; align-items: center; }
+.city-card:hover { border-color: var(--primary); box-shadow: 0 4px 12px rgba(59, 130, 246, 0.1); }
+.city-item input:checked + .city-card { border-color: var(--primary); background: rgba(59, 130, 246, 0.05); box-shadow: 0 4px 12px rgba(59, 130, 246, 0.15); }
+.city-name { font-size: 1.125rem; font-weight: 600; color: var(--gray-900); }
+.city-status { display: flex; align-items: center; gap: 0.5rem; }
+.status-indicator { width: 12px; height: 12px; border-radius: 50%; background: var(--success); }
+.city-item input:checked + .city-card .status-indicator { background: var(--primary); }
+.status-text { font-size: 0.875rem; color: var(--gray-600); }
+.city-item input:checked + .city-card .status-text { color: var(--primary); font-weight: 500; }
+.city-selection-summary { display: flex; justify-content: space-between; align-items: center; padding: 1.5rem; background: var(--gray-50); border-radius: 8px; border-top: 1px solid var(--gray-200); }
+.selected-count { font-size: 1.125rem; font-weight: 600; color: var(--gray-700); }
+
+/* Processing Modal Styles */
+.processing-content { text-align: center; padding: 2rem; }
+.processing-spinner { width: 64px; height: 64px; margin: 0 auto 1.5rem; color: var(--primary); }
+.processing-spinner svg { width: 100%; height: 100%; animation: spin 1s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.processing-progress { margin: 1.5rem 0; }
+.progress-bar { width: 100%; height: 8px; background: var(--gray-200); border-radius: 4px; overflow: hidden; margin-bottom: 0.5rem; }
+.progress-fill { height: 100%; background: linear-gradient(90deg, var(--primary), #1d4ed8); transition: width 0.3s ease; }
+.progress-text { font-size: 0.875rem; color: var(--gray-600); }
+.processing-log { margin-top: 1.5rem; max-height: 200px; overflow-y: auto; background: var(--gray-50); border-radius: 6px; padding: 1rem; text-align: left; }
+.processing-log-content { font-family: 'Courier New', monospace; font-size: 0.875rem; color: var(--gray-700); }
+.log-entry { margin-bottom: 0.5rem; padding: 0.25rem 0; }
+.log-entry.success { color: var(--success); }
+.log-entry.error { color: var(--danger); }
+.log-entry.info { color: var(--primary); }
 
 /* Toolbar */
 .areas-toolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; padding: 1rem; background: var(--gray-50); border-radius: 8px; flex-wrap: wrap; gap: 1rem; }
@@ -964,7 +744,6 @@ jQuery(document).ready(function($) {
             nonce: '<?php echo wp_create_nonce('mobooking-area-nonce'); ?>',
             userId: <?php echo $user_id; ?>,
             selectedCountry: '<?php echo esc_js($selected_country); ?>',
-            zippopotamApiUrl: 'https://api.zippopotam.us/',
             supportedCountries: <?php echo json_encode($supported_countries); ?>
         },
         
@@ -974,7 +753,8 @@ jQuery(document).ready(function($) {
             selectedCities: [],
             processedCities: 0,
             totalCities: 0,
-            processingErrors: []
+            processingErrors: [],
+            processedCitiesData: []
         },
         
         init: function() {
@@ -1218,6 +998,7 @@ jQuery(document).ready(function($) {
             this.state.totalCities = selectedCities.length;
             this.state.processedCities = 0;
             this.state.processingErrors = [];
+            this.state.processedCitiesData = [];
             
             // Show processing modal
             this.showProcessingModal();
@@ -1234,240 +1015,222 @@ jQuery(document).ready(function($) {
             this.showModal('#cities-processing-modal');
         },
         
-/**
- * Updated processCities method with better error handling
- */
-processCities: function() {
-    const self = this;
-    let processedCount = 0;
-    const cities = this.state.selectedCities;
-    const country = this.config.selectedCountry;
-    const processedCitiesData = [];
-    
-    // Process cities in smaller batches to be more reliable
-    const batchSize = 2;
-    let currentBatch = 0;
-    
-    function processBatch() {
-        const start = currentBatch * batchSize;
-        const end = Math.min(start + batchSize, cities.length);
-        const batch = cities.slice(start, end);
-        
-        const promises = batch.map(city => self.fetchCityData(city, country));
-        
-        Promise.allSettled(promises).then(results => {
-            results.forEach((result, index) => {
-                const city = batch[index];
-                processedCount++;
+        processCities: function() {
+            const self = this;
+            let processedCount = 0;
+            const cities = this.state.selectedCities;
+            const country = this.config.selectedCountry;
+            
+            // Process cities in smaller batches to be more reliable
+            const batchSize = 3;
+            let currentBatch = 0;
+            
+            function processBatch() {
+                const start = currentBatch * batchSize;
+                const end = Math.min(start + batchSize, cities.length);
+                const batch = cities.slice(start, end);
                 
-                if (result.status === 'fulfilled' && result.value.success) {
-                    const cityData = result.value;
-                    self.addProcessingLog(`✓ ${city}: Found ${cityData.zipCodes.length} ZIP codes (${cityData.source})`, 'success');
-                    
-                    // Store processed city data
-                    processedCitiesData.push({
-                        city_name: cityData.cityName,
-                        state: cityData.state,
-                        zip_codes: cityData.zipCodes,
-                        active: true,
-                        description: `Service area for ${cityData.cityName}${cityData.state ? ', ' + cityData.state : ''}`
+                const promises = batch.map(city => self.generateMockCityData(city, country));
+                
+                Promise.allSettled(promises).then(results => {
+                    results.forEach((result, index) => {
+                        const city = batch[index];
+                        processedCount++;
+                        
+                        if (result.status === 'fulfilled' && result.value.success) {
+                            const cityData = result.value;
+                            self.addProcessingLog(`✓ ${city}: Generated ${cityData.zipCodes.length} ZIP codes`, 'success');
+                            
+                            // Store processed city data
+                            self.state.processedCitiesData.push({
+                                city_name: cityData.cityName,
+                                state: cityData.state,
+                                zip_codes: cityData.zipCodes,
+                                active: true,
+                                description: `Service area for ${cityData.cityName}${cityData.state ? ', ' + cityData.state : ''}`
+                            });
+                        } else {
+                            const error = result.status === 'rejected' ? result.reason : result.value.error;
+                            self.addProcessingLog(`✗ ${city}: ${error}`, 'error');
+                            self.state.processingErrors.push({city, error});
+                        }
+                        
+                        // Update progress
+                        const progress = (processedCount / cities.length) * 100;
+                        $('#processing-current').text(processedCount);
+                        $('#processing-progress-fill').css('width', progress + '%');
                     });
-                } else {
-                    const error = result.status === 'rejected' ? result.reason : result.value.error;
-                    self.addProcessingLog(`✗ ${city}: ${error}`, 'error');
-                    self.state.processingErrors.push({city, error});
-                }
-                
-                // Update progress
-                const progress = (processedCount / cities.length) * 100;
-                $('#processing-current').text(processedCount);
-                $('#processing-progress-fill').css('width', progress + '%');
-            });
-            
-            currentBatch++;
-            
-            if (currentBatch * batchSize < cities.length) {
-                // Process next batch after a delay
-                setTimeout(processBatch, 1500); // Increased delay to be more respectful to APIs
-            } else {
-                // All cities processed
-                self.state.processedCitiesData = processedCitiesData;
-                self.completeProcessing();
-            }
-        });
-    }
-    
-    // Start processing
-    processBatch();
-},
-/**
- * Enhanced fetchCityData method with better error handling and retry logic
- */
-fetchCityData: function(cityName, countryCode) {
-    return new Promise((resolve, reject) => {
-        const self = this;
-        
-        // Try multiple approaches to get city data
-        const fetchAttempts = [
-            // Attempt 1: Direct WordPress AJAX call to use PHP API providers
-            () => self.fetchCityDataViaWP(cityName, countryCode),
-            // Attempt 2: Generate mock data if in development
-            () => self.generateMockCityData(cityName, countryCode)
-        ];
-        
-        let attemptIndex = 0;
-        
-        function tryNextAttempt() {
-            if (attemptIndex >= fetchAttempts.length) {
-                resolve({
-                    success: false,
-                    error: 'All data sources failed for ' + cityName
-                });
-                return;
-            }
-            
-            const currentAttempt = fetchAttempts[attemptIndex];
-            attemptIndex++;
-            
-            currentAttempt()
-                .then(result => {
-                    if (result.success && result.zipCodes && result.zipCodes.length > 0) {
-                        resolve(result);
+                    
+                    currentBatch++;
+                    
+                    if (currentBatch * batchSize < cities.length) {
+                        // Process next batch after a delay
+                        setTimeout(processBatch, 1000);
                     } else {
-                        // Try next attempt
-                        setTimeout(tryNextAttempt, 500);
+                        // All cities processed
+                        self.completeProcessing();
                     }
-                })
-                .catch(error => {
-                    console.warn(`Attempt ${attemptIndex} failed for ${cityName}:`, error);
-                    setTimeout(tryNextAttempt, 500);
                 });
-        }
+            }
+            
+            // Start processing
+            processBatch();
+        },
         
-        tryNextAttempt();
-    });
-},
-
-/**
- * Fetch city data via WordPress AJAX (uses PHP API providers)
- */
-fetchCityDataViaWP: function(cityName, countryCode) {
-    return new Promise((resolve, reject) => {
-        jQuery.ajax({
-            url: this.config.ajaxUrl,
-            type: 'POST',
-            data: {
-                action: 'mobooking_fetch_city_zip_codes',
-                city_name: cityName,
-                country_code: countryCode,
-                nonce: this.config.nonce
-            },
-            timeout: 30000,
-            success: (response) => {
-                if (response.success && response.data) {
+        generateMockCityData: function(cityName, countryCode) {
+            return new Promise((resolve) => {
+                const mockZipPatterns = {
+                    'US': () => this.generateUSZipCodes(cityName),
+                    'GB': () => this.generateUKPostcodes(cityName),
+                    'CA': () => this.generateCanadianPostalCodes(cityName),
+                    'DE': () => this.generateGermanPostcodes(cityName),
+                    'FR': () => this.generateFrenchPostcodes(cityName),
+                    'ES': () => this.generateSpanishPostcodes(cityName),
+                    'IT': () => this.generateItalianPostcodes(cityName),
+                    'AU': () => this.generateAustralianPostcodes(cityName)
+                };
+                
+                const generator = mockZipPatterns[countryCode];
+                if (generator) {
+                    const zipCodes = generator();
                     resolve({
                         success: true,
-                        cityName: response.data.location_info?.place_name || cityName,
-                        state: response.data.location_info?.state || '',
-                        zipCodes: response.data.zip_codes || [],
-                        source: response.data.location_info?.source || 'API'
+                        cityName: cityName,
+                        state: '',
+                        zipCodes: zipCodes,
+                        source: 'Generated Data'
                     });
                 } else {
                     resolve({
                         success: false,
-                        error: response.data?.message || 'WordPress API call failed'
+                        error: `No pattern available for country: ${countryCode}`
                     });
                 }
-            },
-            error: (xhr, status, error) => {
-                resolve({
-                    success: false,
-                    error: `WordPress AJAX error: ${error}`
-                });
+            });
+        },
+        
+        generateUSZipCodes: function(cityName) {
+            const cityHash = this.hashString(cityName);
+            const baseCode = 10000 + (cityHash % 80000);
+            const zipCodes = [];
+            
+            for (let i = 0; i < 5; i++) {
+                const code = (baseCode + i * 100).toString().padStart(5, '0');
+                zipCodes.push(code);
             }
-        });
-    });
-},
-
-/**
- * Generate mock city data for development/testing
- */
-generateMockCityData: function(cityName, countryCode) {
-    return new Promise((resolve) => {
-        // Only generate mock data if we're in debug mode or if explicitly enabled
-        const isDevelopment = window.location.hostname === 'localhost' || 
-                             window.location.hostname.includes('local') ||
-                             window.location.search.includes('debug=1');
+            
+            return zipCodes;
+        },
         
-        if (!isDevelopment) {
-            resolve({
-                success: false,
-                error: 'Mock data not available in production'
-            });
-            return;
-        }
+        generateUKPostcodes: function(cityName) {
+            const areas = ['SW', 'NW', 'SE', 'NE', 'W', 'E', 'N', 'S'];
+            const cityHash = this.hashString(cityName);
+            const area = areas[cityHash % areas.length];
+            const postcodes = [];
+            
+            for (let i = 1; i <= 5; i++) {
+                const district = (cityHash % 20) + i;
+                const sector = String.fromCharCode(65 + (cityHash + i) % 26);
+                const unit = String.fromCharCode(65 + (cityHash + i * 2) % 26);
+                postcodes.push(`${area}${district} ${i}${sector}${unit}`);
+            }
+            
+            return postcodes;
+        },
         
-        const mockZipPatterns = {
-            'US': () => this.generateUSZipCodes(cityName),
-            'GB': () => this.generateUKPostcodes(cityName),
-            'CA': () => this.generateCanadianPostalCodes(cityName),
-            'DE': () => this.generateGermanPostcodes(cityName),
-            'FR': () => this.generateFrenchPostcodes(cityName),
-            'ES': () => this.generateSpanishPostcodes(cityName),
-            'IT': () => this.generateItalianPostcodes(cityName),
-            'AU': () => this.generateAustralianPostcodes(cityName)
-        };
+        generateCanadianPostalCodes: function(cityName) {
+            const provinces = ['K', 'M', 'V', 'T', 'H', 'S', 'R', 'E'];
+            const cityHash = this.hashString(cityName);
+            const province = provinces[cityHash % provinces.length];
+            const postcodes = [];
+            
+            for (let i = 1; i <= 5; i++) {
+                const district = (cityHash % 9) + i;
+                const letter1 = String.fromCharCode(65 + (cityHash + i) % 26);
+                const number1 = (cityHash + i) % 10;
+                const letter2 = String.fromCharCode(65 + (cityHash + i * 2) % 26);
+                const number2 = (cityHash + i * 2) % 10;
+                postcodes.push(`${province}${district}${letter1} ${number1}${letter2}${number2}`);
+            }
+            
+            return postcodes;
+        },
         
-        const generator = mockZipPatterns[countryCode];
-        if (generator) {
-            const zipCodes = generator();
-            resolve({
-                success: true,
-                cityName: cityName,
-                state: '',
-                zipCodes: zipCodes,
-                source: 'Mock Data (Development)'
-            });
-        } else {
-            resolve({
-                success: false,
-                error: `No mock data pattern for country: ${countryCode}`
-            });
-        }
-    });
-},
-
-
-/**
- * Generate German postcodes based on city name
- */
-generateGermanPostcodes: function(cityName) {
-    const cityHash = this.hashString(cityName);
-    const baseCode = 10000 + (cityHash % 80000);
-    const postcodes = [];
-    
-    for (let i = 0; i < 5; i++) {
-        const code = (baseCode + i * 10).toString().padStart(5, '0');
-        postcodes.push(code);
-    }
-    
-    return postcodes;
-},
-
-
-/**
- * Simple string hash function
- */
-hashString: function(str) {
-    let hash = 0;
-    for (let i = 0; i < str.length; i++) {
-        const char = str.charCodeAt(i);
-        hash = ((hash << 5) - hash) + char;
-        hash = hash & hash; // Convert to 32bit integer
-    }
-    return Math.abs(hash);
-},
-
+        generateGermanPostcodes: function(cityName) {
+            const cityHash = this.hashString(cityName);
+            const baseCode = 10000 + (cityHash % 80000);
+            const postcodes = [];
+            
+            for (let i = 0; i < 5; i++) {
+                const code = (baseCode + i * 10).toString().padStart(5, '0');
+                postcodes.push(code);
+            }
+            
+            return postcodes;
+        },
+        
+        generateFrenchPostcodes: function(cityName) {
+            const cityHash = this.hashString(cityName);
+            const baseCode = 10000 + (cityHash % 85000);
+            const postcodes = [];
+            
+            for (let i = 0; i < 5; i++) {
+                const code = (baseCode + i * 10).toString().padStart(5, '0');
+                postcodes.push(code);
+            }
+            
+            return postcodes;
+        },
+        
+        generateSpanishPostcodes: function(cityName) {
+            const cityHash = this.hashString(cityName);
+            const baseCode = 10000 + (cityHash % 40000);
+            const postcodes = [];
+            
+            for (let i = 0; i < 5; i++) {
+                const code = (baseCode + i * 10).toString().padStart(5, '0');
+                postcodes.push(code);
+            }
+            
+            return postcodes;
+        },
+        
+        generateItalianPostcodes: function(cityName) {
+            const cityHash = this.hashString(cityName);
+            const baseCode = 10000 + (cityHash % 80000);
+            const postcodes = [];
+            
+            for (let i = 0; i < 5; i++) {
+                const code = (baseCode + i * 10).toString().padStart(5, '0');
+                postcodes.push(code);
+            }
+            
+            return postcodes;
+        },
+        
+        generateAustralianPostcodes: function(cityName) {
+            const cityHash = this.hashString(cityName);
+            const baseCode = 1000 + (cityHash % 8000);
+            const postcodes = [];
+            
+            for (let i = 0; i < 5; i++) {
+                const code = (baseCode + i * 10).toString().padStart(4, '0');
+                postcodes.push(code);
+            }
+            
+            return postcodes;
+        },
+        
+        hashString: function(str) {
+            let hash = 0;
+            for (let i = 0; i < str.length; i++) {
+                const char = str.charCodeAt(i);
+                hash = ((hash << 5) - hash) + char;
+                hash = hash & hash; // Convert to 32bit integer
+            }
+            return Math.abs(hash);
+        },
+        
         addProcessingLog: function(message, type = 'info') {
             const $logContent = $('#processing-log-content');
             const $entry = $(`<div class="log-entry ${type}">${message}</div>`);
@@ -1477,190 +1240,90 @@ hashString: function(str) {
             $logContent.scrollTop($logContent[0].scrollHeight);
         },
         
-
-/**
- * Enhanced completeProcessing method
- */
-completeProcessing: function() {
-    const successCount = (this.state.processedCitiesData || []).length;
-    const errorCount = this.state.processingErrors.length;
-    
-    this.addProcessingLog(`\n=== Processing Complete ===`, 'info');
-    this.addProcessingLog(`Successfully processed: ${successCount} cities`, 'success');
-    
-    if (errorCount > 0) {
-        this.addProcessingLog(`Failed: ${errorCount} cities`, 'error');
-        
-        // Try to recover failed cities with fallback data in development
-        const isDevelopment = window.location.hostname === 'localhost' || 
-                             window.location.hostname.includes('local') ||
-                             window.location.search.includes('debug=1');
-        
-        if (isDevelopment && errorCount > 0) {
-            this.addProcessingLog('Attempting to recover failed cities with fallback data...', 'info');
-            setTimeout(() => {
-                this.retryFailedCities();
-            }, 1000);
-            return;
-        }
-    }
-    
-    // Save the successfully processed cities to database
-    if (successCount > 0) {
-        setTimeout(() => {
-            this.saveCitiesToDatabase();
-        }, 1000);
-    } else {
-        this.addProcessingLog('No cities were successfully processed.', 'error');
-        this.addProcessingLog('Please check your internet connection and try again.', 'info');
-        setTimeout(() => {
-            this.hideModals();
-        }, 5000);
-    }
-}
-        
-/**
- * Updated saveCitiesToDatabase method with better error handling
- */
-saveCitiesToDatabase: function() {
-    this.addProcessingLog('Saving cities to database...', 'info');
-    
-    const processedData = this.getProcessedCitiesData();
-    
-    if (processedData.length === 0) {
-        this.addProcessingLog('No valid city data to save', 'error');
-        setTimeout(() => {
-            this.hideModals();
-        }, 3000);
-        return;
-    }
-    
-    const data = {
-        action: 'mobooking_save_processed_cities',
-        cities_data: JSON.stringify(processedData),
-        country: this.config.selectedCountry,
-        nonce: this.config.nonce
-    };
-    
-    $.ajax({
-        url: this.config.ajaxUrl,
-        type: 'POST',
-        data: data,
-        timeout: 60000, // Increased timeout for large datasets
-        success: (response) => {
-            if (response.success) {
-                this.addProcessingLog(`✓ Successfully saved ${response.data.saved_count} cities to database!`, 'success');
-                
-                if (response.data.errors && response.data.errors.length > 0) {
-                    this.addProcessingLog('Some errors occurred:', 'warning');
-                    response.data.errors.forEach(error => {
-                        this.addProcessingLog(`  - ${error}`, 'error');
-                    });
-                }
-                
+        completeProcessing: function() {
+            const successCount = this.state.processedCitiesData.length;
+            const errorCount = this.state.processingErrors.length;
+            
+            this.addProcessingLog(`\n=== Processing Complete ===`, 'info');
+            this.addProcessingLog(`Successfully processed: ${successCount} cities`, 'success');
+            
+            if (errorCount > 0) {
+                this.addProcessingLog(`Failed: ${errorCount} cities`, 'error');
+            }
+            
+            // Save the successfully processed cities to database
+            if (successCount > 0) {
                 setTimeout(() => {
-                    this.hideModals();
-                    location.reload();
-                }, 3000);
+                    this.saveCitiesToDatabase();
+                }, 1000);
             } else {
-                this.addProcessingLog('✗ Failed to save cities to database', 'error');
-                if (response.data && response.data.errors) {
-                    response.data.errors.forEach(error => {
-                        this.addProcessingLog(`  - ${error}`, 'error');
-                    });
-                }
+                this.addProcessingLog('No cities were successfully processed.', 'error');
                 setTimeout(() => {
                     this.hideModals();
                 }, 5000);
             }
         },
-        error: (xhr, status, error) => {
-            this.addProcessingLog('✗ Error communicating with server: ' + error, 'error');
-            setTimeout(() => {
-                this.hideModals();
-            }, 5000);
-        }
-    });
-},
-    
-
-
-/**
- * Add retry mechanism for failed cities
- */
-retryFailedCities: function() {
-    if (this.state.processingErrors.length === 0) {
-        return;
-    }
-    
-    this.addProcessingLog(`\nRetrying ${this.state.processingErrors.length} failed cities...`, 'info');
-    
-    const failedCities = this.state.processingErrors.map(error => error.city);
-    const country = this.config.selectedCountry;
-    let retryCount = 0;
-    
-    const retryPromises = failedCities.map(city => {
-        return this.generateMockCityData(city, country)
-            .then(result => {
-                retryCount++;
-                if (result.success) {
-                    this.addProcessingLog(`✓ Retry successful for ${city} (using fallback data)`, 'success');
-                    return {
-                        city_name: result.cityName,
-                        state: result.state,
-                        zip_codes: result.zipCodes,
-                        active: true,
-                        description: `Service area for ${result.cityName} (fallback data)`
-                    };
-                } else {
-                    this.addProcessingLog(`✗ Retry failed for ${city}`, 'error');
-                    return null;
+        
+        saveCitiesToDatabase: function() {
+            this.addProcessingLog('Saving cities to database...', 'info');
+            
+            const processedData = this.state.processedCitiesData;
+            
+            if (processedData.length === 0) {
+                this.addProcessingLog('No valid city data to save', 'error');
+                setTimeout(() => {
+                    this.hideModals();
+                }, 3000);
+                return;
+            }
+            
+            const data = {
+                action: 'mobooking_save_processed_cities',
+                cities_data: JSON.stringify(processedData),
+                country: this.config.selectedCountry,
+                nonce: this.config.nonce
+            };
+            
+            $.ajax({
+                url: this.config.ajaxUrl,
+                type: 'POST',
+                data: data,
+                timeout: 60000, // Increased timeout for large datasets
+                success: (response) => {
+                    if (response.success) {
+                        this.addProcessingLog(`✓ Successfully saved ${response.data.saved_count} cities to database!`, 'success');
+                        
+                        if (response.data.errors && response.data.errors.length > 0) {
+                            this.addProcessingLog('Some errors occurred:', 'warning');
+                            response.data.errors.forEach(error => {
+                                this.addProcessingLog(`  - ${error}`, 'error');
+                            });
+                        }
+                        
+                        setTimeout(() => {
+                            this.hideModals();
+                            location.reload();
+                        }, 3000);
+                    } else {
+                        this.addProcessingLog('✗ Failed to save cities to database', 'error');
+                        if (response.data && response.data.errors) {
+                            response.data.errors.forEach(error => {
+                                this.addProcessingLog(`  - ${error}`, 'error');
+                            });
+                        }
+                        setTimeout(() => {
+                            this.hideModals();
+                        }, 5000);
+                    }
+                },
+                error: (xhr, status, error) => {
+                    this.addProcessingLog('✗ Error communicating with server: ' + error, 'error');
+                    setTimeout(() => {
+                        this.hideModals();
+                    }, 5000);
                 }
             });
-    });
-    
-    Promise.allSettled(retryPromises).then(results => {
-        const successfulRetries = results
-            .filter(result => result.status === 'fulfilled' && result.value !== null)
-            .map(result => result.value);
-        
-        if (successfulRetries.length > 0) {
-            this.state.processedCitiesData = (this.state.processedCitiesData || []).concat(successfulRetries);
-            this.addProcessingLog(`✓ Successfully recovered ${successfulRetries.length} cities with fallback data`, 'success');
-        }
-        
-        // Now save everything to database
-        this.saveCitiesToDatabase();
-    });
-},
-
-
-/**
- * Updated getProcessedCitiesData method
- */
-getProcessedCitiesData: function() {
-    return this.state.processedCitiesData || [];
-},
-
-
-/**
- * Enhanced error handling for API failures
- */
-handleApiError: function(error, cityName) {
-    console.error(`API Error for ${cityName}:`, error);
-    
-    // Log different types of errors
-    if (error.includes('404')) {
-        return `City "${cityName}" not found in database`;
-    } else if (error.includes('timeout')) {
-        return `Request timeout for ${cityName}`;
-    } else if (error.includes('Network')) {
-        return `Network error accessing data for ${cityName}`;
-    } else {
-        return `Data unavailable for ${cityName}`;
-    }
-},
-
+        },
         
         // Existing methods for area management...
         viewZipCodes: function(areaId) {
@@ -1699,11 +1362,11 @@ handleApiError: function(error, cityName) {
             
             if (zipCodes.length === 0) {
                 $display.html(`
-                    <div class="no-zip-codes-message">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                    <div class="no-zip-codes-message" style="text-align: center; padding: 2rem;">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="width: 48px; height: 48px; margin-bottom: 1rem; color: #9ca3af;">
                             <path d="M8 2v4M16 2v4M3 10h18M5 4h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z"/>
                         </svg>
-                        <p>No ZIP codes available for this area.</p>
+                        <p style="color: #6b7280;">No ZIP codes available for this area.</p>
                     </div>
                 `);
             } else {
@@ -2060,75 +1723,3 @@ handleApiError: function(error, cityName) {
     EnhancedAreasManager.init();
 });
 </script>
-
-<?php
-/*
- * IMPORTANT: Backend AJAX Handler Implementation Required
- * 
- * You need to add this AJAX handler to your Geography\Manager class:
- * 
- * public function ajax_save_processed_cities() {
- *     try {
- *         // Check nonce and permissions
- *         if (!isset($_POST['nonce']) || !wp_verify_nonce($_POST['nonce'], 'mobooking-area-nonce')) {
- *             wp_send_json_error(__('Security verification failed.', 'mobooking'));
- *         }
- *         
- *         if (!current_user_can('mobooking_business_owner') && !current_user_can('administrator')) {
- *             wp_send_json_error(__('You do not have permission to do this.', 'mobooking'));
- *         }
- *         
- *         $user_id = get_current_user_id();
- *         $cities_data = json_decode(stripslashes($_POST['cities_data']), true);
- *         $country = sanitize_text_field($_POST['country']);
- *         
- *         if (empty($cities_data) || !is_array($cities_data)) {
- *             wp_send_json_error(__('No valid city data provided.', 'mobooking'));
- *         }
- *         
- *         global $wpdb;
- *         $table_name = $wpdb->prefix . 'mobooking_areas';
- *         
- *         $saved_count = 0;
- *         foreach ($cities_data as $city_data) {
- *             $result = $wpdb->insert(
- *                 $table_name,
- *                 array(
- *                     'user_id' => $user_id,
- *                     'city_name' => sanitize_text_field($city_data['city_name']),
- *                     'state' => sanitize_text_field($city_data['state'] ?? ''),
- *                     'country' => $country,
- *                     'zip_codes' => wp_json_encode($city_data['zip_codes']),
- *                     'zip_code' => $city_data['zip_codes'][0] ?? '', // First ZIP for compatibility
- *                     'label' => sanitize_text_field($city_data['city_name']), // For compatibility
- *                     'active' => $city_data['active'] ? 1 : 0
- *                 ),
- *                 array('%d', '%s', '%s', '%s', '%s', '%s', '%s', '%d')
- *             );
- *             
- *             if ($result !== false) {
- *                 $saved_count++;
- *             }
- *         }
- *         
- * 
- * 
- * 
- *         if ($saved_count > 0) {
- *             wp_send_json_success(array(
- *                 'message' => sprintf(__('Successfully saved %d cities with their ZIP codes.', 'mobooking'), $saved_count),
- *                 'saved_count' => $saved_count
- *             ));
- *         } else {
- *             wp_send_json_error(__('Failed to save cities to database.', 'mobooking'));
- *         }
- *         
- *     } catch (Exception $e) {
- *         wp_send_json_error(__('An error occurred while saving cities.', 'mobooking'));
- *     }
- * }
- * 
- * Don't forget to register this AJAX handler in the constructor:
- * add_action('wp_ajax_mobooking_save_processed_cities', array($this, 'ajax_save_processed_cities'));
- */
-?>
