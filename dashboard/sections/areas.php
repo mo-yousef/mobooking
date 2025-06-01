@@ -1,5 +1,5 @@
 <?php
-// dashboard/sections/areas.php - Enhanced Service Areas Management with City Selection Flow
+// dashboard/sections/areas.php - Enhanced Service Areas Management with Real API Integration
 // Prevent direct access
 if (!defined('ABSPATH')) {
     exit;
@@ -16,85 +16,25 @@ $active_areas = count(array_filter($areas, function($area) { return $area->activ
 // Get user's selected country
 $selected_country = get_user_meta($user_id, 'mobooking_service_country', true);
 
-// Countries supported by comprehensive city lists
+// Countries supported with comprehensive city lists and API integration
 $supported_countries = array(
-    'US' => array(
-        'name' => 'United States',
-        'cities' => array(
-            'New York', 'Los Angeles', 'Chicago', 'Houston', 'Phoenix', 'Philadelphia', 'San Antonio', 'San Diego', 'Dallas', 'San Jose',
-            'Austin', 'Jacksonville', 'Fort Worth', 'Columbus', 'Charlotte', 'San Francisco', 'Indianapolis', 'Seattle', 'Denver', 'Washington',
-            'Boston', 'El Paso', 'Nashville', 'Detroit', 'Oklahoma City', 'Portland', 'Las Vegas', 'Memphis', 'Louisville', 'Baltimore',
-            'Milwaukee', 'Albuquerque', 'Tucson', 'Fresno', 'Sacramento', 'Kansas City', 'Mesa', 'Atlanta', 'Omaha', 'Colorado Springs',
-            'Raleigh', 'Miami', 'Virginia Beach', 'Oakland', 'Minneapolis', 'Tulsa', 'Arlington', 'Tampa', 'New Orleans', 'Wichita'
-        )
-    ),
-    'CA' => array(
-        'name' => 'Canada',
-        'cities' => array(
-            'Toronto', 'Montreal', 'Calgary', 'Ottawa', 'Edmonton', 'Mississauga', 'Winnipeg', 'Vancouver', 'Brampton', 'Hamilton',
-            'Quebec City', 'Surrey', 'Laval', 'Halifax', 'London', 'Markham', 'Vaughan', 'Gatineau', 'Saskatoon', 'Longueuil',
-            'Burnaby', 'Regina', 'Richmond', 'Richmond Hill', 'Oakville', 'Burlington', 'Sherbrooke', 'Oshawa', 'Saguenay', 'Levis'
-        )
-    ),
-    'GB' => array(
-        'name' => 'United Kingdom',
-        'cities' => array(
-            'London', 'Birmingham', 'Manchester', 'Glasgow', 'Liverpool', 'Leeds', 'Sheffield', 'Edinburgh', 'Bristol', 'Cardiff',
-            'Belfast', 'Leicester', 'Coventry', 'Bradford', 'Nottingham', 'Hull', 'Newcastle', 'Stoke-on-Trent', 'Southampton', 'Derby',
-            'Portsmouth', 'Brighton', 'Plymouth', 'Northampton', 'Reading', 'Luton', 'Wolverhampton', 'Bolton', 'Bournemouth', 'Norwich'
-        )
-    ),
-    'DE' => array(
-        'name' => 'Germany',
-        'cities' => array(
-            'Berlin', 'Hamburg', 'Munich', 'Cologne', 'Frankfurt', 'Stuttgart', 'Düsseldorf', 'Dortmund', 'Essen', 'Leipzig',
-            'Bremen', 'Dresden', 'Hanover', 'Nuremberg', 'Duisburg', 'Bochum', 'Wuppertal', 'Bielefeld', 'Bonn', 'Münster',
-            'Karlsruhe', 'Mannheim', 'Augsburg', 'Wiesbaden', 'Gelsenkirchen', 'Mönchengladbach', 'Braunschweig', 'Chemnitz', 'Kiel', 'Aachen'
-        )
-    ),
-    'FR' => array(
-        'name' => 'France',
-        'cities' => array(
-            'Paris', 'Marseille', 'Lyon', 'Toulouse', 'Nice', 'Nantes', 'Strasbourg', 'Montpellier', 'Bordeaux', 'Lille',
-            'Rennes', 'Reims', 'Le Havre', 'Saint-Étienne', 'Toulon', 'Angers', 'Grenoble', 'Dijon', 'Nîmes', 'Aix-en-Provence'
-        )
-    ),
-    'ES' => array(
-        'name' => 'Spain',
-        'cities' => array(
-            'Madrid', 'Barcelona', 'Valencia', 'Seville', 'Zaragoza', 'Málaga', 'Murcia', 'Palma', 'Las Palmas', 'Bilbao',
-            'Alicante', 'Córdoba', 'Valladolid', 'Vigo', 'Gijón', 'Hospitalet', 'La Coruña', 'Vitoria-Gasteiz', 'Granada', 'Elche'
-        )
-    ),
-    'IT' => array(
-        'name' => 'Italy',
-        'cities' => array(
-            'Rome', 'Milan', 'Naples', 'Turin', 'Palermo', 'Genoa', 'Bologna', 'Florence', 'Bari', 'Catania',
-            'Venice', 'Verona', 'Messina', 'Padua', 'Trieste', 'Taranto', 'Brescia', 'Parma', 'Prato', 'Modena'
-        )
-    ),
-    'AU' => array(
-        'name' => 'Australia',
-        'cities' => array(
-            'Sydney', 'Melbourne', 'Brisbane', 'Perth', 'Adelaide', 'Gold Coast', 'Canberra', 'Newcastle', 'Wollongong', 'Logan City',
-            'Geelong', 'Hobart', 'Townsville', 'Cairns', 'Darwin', 'Toowoomba', 'Ballarat', 'Bendigo', 'Albury', 'Launceston'
-        )
-    ),
-    'CY' => array(
-        'name' => 'Cyprus',
-        'cities' => array(
-            'Nicosia', 'Limassol', 'Larnaca', 'Paphos', 'Famagusta', 'Kyrenia', 'Protaras', 'Ayia Napa', 'Polis', 'Paralimni',
-            'Deryneia', 'Strovolos', 'Lakatamia', 'Aglantzia', 'Engomi', 'Perivolia', 'Livadia', 'Aradippou', 'Kiti', 'Oroklini'
-        )
-    ),
-    'SE' => array(
-        'name' => 'Sweden',
-        'cities' => array(
-            'Stockholm', 'Gothenburg', 'Malmö', 'Uppsala', 'Västerås', 'Örebro', 'Linköping', 'Helsingborg', 'Jönköping', 'Norrköping',
-            'Lund', 'Umeå', 'Gävle', 'Borås', 'Eskilstuna', 'Södertälje', 'Karlstad', 'Täby', 'Växjö', 'Halmstad',
-            'Sundsvall', 'Luleå', 'Trollhättan', 'Östersund', 'Borlänge', 'Tumba', 'Kiruna', 'Kalmar', 'Kristianstad', 'Skövde'
-        )
-    )
+    'US' => array('name' => 'United States', 'has_api' => true),
+    'CA' => array('name' => 'Canada', 'has_api' => true),
+    'GB' => array('name' => 'United Kingdom', 'has_api' => true),
+    'DE' => array('name' => 'Germany', 'has_api' => true),
+    'FR' => array('name' => 'France', 'has_api' => true),
+    'ES' => array('name' => 'Spain', 'has_api' => true),
+    'IT' => array('name' => 'Italy', 'has_api' => true),
+    'AU' => array('name' => 'Australia', 'has_api' => true),
+    'SE' => array('name' => 'Sweden', 'has_api' => true),
+    'CY' => array('name' => 'Cyprus', 'has_api' => true),
+    'NL' => array('name' => 'Netherlands', 'has_api' => true),
+    'BE' => array('name' => 'Belgium', 'has_api' => true),
+    'CH' => array('name' => 'Switzerland', 'has_api' => true),
+    'AT' => array('name' => 'Austria', 'has_api' => true),
+    'NO' => array('name' => 'Norway', 'has_api' => true),
+    'DK' => array('name' => 'Denmark', 'has_api' => true),
+    'FI' => array('name' => 'Finland', 'has_api' => true)
 );
 ?>
 
@@ -109,7 +49,7 @@ $supported_countries = array(
                     </svg>
                     <?php _e('Service Areas', 'mobooking'); ?>
                 </h1>
-                <p class="areas-subtitle"><?php _e('Manage cities and ZIP codes where you provide services', 'mobooking'); ?></p>
+                <p class="areas-subtitle"><?php _e('Manage cities and neighborhoods where you provide services', 'mobooking'); ?></p>
             </div>
             
             <?php if (!empty($areas)) : ?>
@@ -134,12 +74,11 @@ $supported_countries = array(
         
         <div class="areas-header-actions">
             <?php if ($selected_country && !empty($areas)) : ?>
-                <button type="button" id="manage-cities-btn" class="btn-primary">
+                <button type="button" id="add-city-btn" class="btn-primary">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/>
-                        <circle cx="12" cy="10" r="3"/>
+                        <path d="M12 5v14M5 12h14"/>
                     </svg>
-                    <?php _e('Manage Cities', 'mobooking'); ?>
+                    <?php _e('Add City', 'mobooking'); ?>
                 </button>
                 <button type="button" id="change-country-btn" class="btn-secondary">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -148,11 +87,12 @@ $supported_countries = array(
                     <?php _e('Change Country', 'mobooking'); ?>
                 </button>
             <?php elseif ($selected_country) : ?>
-                <button type="button" id="select-cities-btn" class="btn-primary">
+                <button type="button" id="add-first-city-btn" class="btn-primary">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M12 5v14M5 12h14"/>
+                        <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/>
+                        <circle cx="12" cy="10" r="3"/>
                     </svg>
-                    <?php _e('Select Cities', 'mobooking'); ?>
+                    <?php _e('Add Your First City', 'mobooking'); ?>
                 </button>
                 <button type="button" id="change-country-btn" class="btn-secondary">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -184,7 +124,7 @@ $supported_countries = array(
                         </svg>
                     </div>
                     <h2><?php _e('Select Your Service Country', 'mobooking'); ?></h2>
-                    <p><?php _e('Choose the country where you provide services. You can only select one country per business.', 'mobooking'); ?></p>
+                    <p><?php _e('Choose the country where you provide services. We\'ll fetch real area data using external APIs.', 'mobooking'); ?></p>
                 </div>
                 
                 <div class="country-selection-form">
@@ -193,10 +133,15 @@ $supported_countries = array(
                         <select id="country-select" class="country-dropdown">
                             <option value=""><?php _e('Select a country...', 'mobooking'); ?></option>
                             <?php foreach ($supported_countries as $code => $info) : ?>
-                                <option value="<?php echo esc_attr($code); ?>"><?php echo esc_html($info['name']); ?></option>
+                                <option value="<?php echo esc_attr($code); ?>" data-has-api="<?php echo $info['has_api'] ? '1' : '0'; ?>">
+                                    <?php echo esc_html($info['name']); ?>
+                                    <?php if ($info['has_api']) : ?>
+                                        <span class="api-indicator">🌐</span>
+                                    <?php endif; ?>
+                                </option>
                             <?php endforeach; ?>
                         </select>
-                        <p class="field-help"><?php _e('This will determine which cities are available for your service areas.', 'mobooking'); ?></p>
+                        <p class="field-help"><?php _e('Countries with 🌐 have real-time area data available via external APIs.', 'mobooking'); ?></p>
                     </div>
                     
                     <button type="button" id="confirm-country-btn" class="btn-primary" disabled>
@@ -209,9 +154,9 @@ $supported_countries = array(
             </div>
         </div>
     <?php elseif (empty($areas)) : ?>
-        <!-- Step 2: City Selection -->
-        <div class="city-selection-container">
-            <div class="city-selection-card">
+        <!-- Step 2: Add First City -->
+        <div class="first-city-container">
+            <div class="first-city-card">
                 <div class="selection-header">
                     <div class="selection-icon">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
@@ -219,58 +164,27 @@ $supported_countries = array(
                             <circle cx="12" cy="10" r="3"/>
                         </svg>
                     </div>
-                    <h2><?php printf(__('Select Cities in %s', 'mobooking'), $supported_countries[$selected_country]['name']); ?></h2>
-                    <p><?php _e('Choose the cities where you provide services. We\'ll automatically fetch ZIP codes and area names for each selected city.', 'mobooking'); ?></p>
+                    <h2><?php printf(__('Add Your First City in %s', 'mobooking'), $supported_countries[$selected_country]['name']); ?></h2>
+                    <p><?php _e('Enter a city name and we\'ll fetch all available areas and neighborhoods with ZIP codes from external data sources.', 'mobooking'); ?></p>
                 </div>
                 
-                <div class="city-selection-content">
-                    <div class="city-selection-toolbar">
-                        <div class="city-search">
-                            <input type="text" id="city-search-input" placeholder="<?php _e('Search cities...', 'mobooking'); ?>" class="search-input">
-                            <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <circle cx="11" cy="11" r="8"/>
-                                <path d="m21 21-4.35-4.35"/>
-                            </svg>
-                        </div>
-                        <div class="city-selection-actions">
-                            <button type="button" id="select-all-cities-btn" class="btn-secondary btn-sm">
-                                <?php _e('Select All', 'mobooking'); ?>
-                            </button>
-                            <button type="button" id="clear-all-cities-btn" class="btn-secondary btn-sm">
-                                <?php _e('Clear All', 'mobooking'); ?>
-                            </button>
-                        </div>
+                <div class="city-input-form">
+                    <div class="form-group">
+                        <label for="city-name-input"><?php _e('City Name', 'mobooking'); ?></label>
+                        <input type="text" id="city-name-input" class="city-input" 
+                               placeholder="<?php _e('Enter city name (e.g., New York, London, Paris)', 'mobooking'); ?>" 
+                               autocomplete="off">
+                        <div class="city-suggestions" id="city-suggestions" style="display: none;"></div>
+                        <p class="field-help"><?php _e('Start typing to see suggestions, or enter any city name.', 'mobooking'); ?></p>
                     </div>
                     
-                    <div class="cities-grid" id="cities-grid">
-                        <?php foreach ($supported_countries[$selected_country]['cities'] as $city) : ?>
-                            <label class="city-item">
-                                <input type="checkbox" class="city-checkbox" value="<?php echo esc_attr($city); ?>">
-                                <div class="city-card">
-                                    <div class="city-name"><?php echo esc_html($city); ?></div>
-                                    <div class="city-status">
-                                        <span class="status-indicator"></span>
-                                        <span class="status-text"><?php _e('Available', 'mobooking'); ?></span>
-                                    </div>
-                                </div>
-                            </label>
-                        <?php endforeach; ?>
-                    </div>
-                    
-                    <div class="city-selection-summary">
-                        <div class="selected-count">
-                            <span id="selected-cities-count">0</span> <?php _e('cities selected', 'mobooking'); ?>
-                        </div>
-                        <button type="button" id="save-cities-btn" class="btn-primary btn-large" disabled>
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
-                                <polyline points="17,21 17,13 7,13 7,21"/>
-                                <polyline points="7,3 7,8 15,8"/>
-                            </svg>
-                            <span class="btn-text"><?php _e('Save Selected Cities', 'mobooking'); ?></span>
-                            <span class="btn-loading" style="display: none;"><?php _e('Processing...', 'mobooking'); ?></span>
-                        </button>
-                    </div>
+                    <button type="button" id="fetch-city-areas-btn" class="btn-primary btn-large" disabled>
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M21 12a9 9 0 11-6.219-8.56"/>
+                        </svg>
+                        <span class="btn-text"><?php _e('Get Areas for This City', 'mobooking'); ?></span>
+                        <span class="btn-loading" style="display: none;"><?php _e('Fetching...', 'mobooking'); ?></span>
+                    </button>
                 </div>
             </div>
         </div>
@@ -295,14 +209,13 @@ $supported_countries = array(
                             <option value=""><?php _e('Bulk Actions', 'mobooking'); ?></option>
                             <option value="activate"><?php _e('Activate', 'mobooking'); ?></option>
                             <option value="deactivate"><?php _e('Deactivate', 'mobooking'); ?></option>
-                            <option value="refresh_zip_codes"><?php _e('Refresh ZIP Codes', 'mobooking'); ?></option>
                             <option value="delete"><?php _e('Delete', 'mobooking'); ?></option>
                         </select>
                         <button type="button" id="apply-bulk-action" class="btn-secondary"><?php _e('Apply', 'mobooking'); ?></button>
                     </div>
                     
                     <div class="areas-search">
-                        <input type="text" id="areas-search-input" placeholder="<?php _e('Search cities or ZIP codes...', 'mobooking'); ?>" class="search-input">
+                        <input type="text" id="areas-search-input" placeholder="<?php _e('Search areas or ZIP codes...', 'mobooking'); ?>" class="search-input">
                         <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                             <circle cx="11" cy="11" r="8"/>
                             <path d="m21 21-4.35-4.35"/>
@@ -317,8 +230,9 @@ $supported_countries = array(
                     <div class="grid-header-cell select-all">
                         <input type="checkbox" id="select-all-areas" class="select-checkbox">
                     </div>
-                    <div class="grid-header-cell city"><?php _e('City/Area', 'mobooking'); ?></div>
-                    <div class="grid-header-cell zip-codes"><?php _e('ZIP Codes', 'mobooking'); ?></div>
+                    <div class="grid-header-cell area-name"><?php _e('Area Name', 'mobooking'); ?></div>
+                    <div class="grid-header-cell zip-code"><?php _e('ZIP Code', 'mobooking'); ?></div>
+                    <div class="grid-header-cell city"><?php _e('City', 'mobooking'); ?></div>
                     <div class="grid-header-cell status"><?php _e('Status', 'mobooking'); ?></div>
                     <div class="grid-header-cell last-updated"><?php _e('Last Updated', 'mobooking'); ?></div>
                     <div class="grid-header-cell actions"><?php _e('Actions', 'mobooking'); ?></div>
@@ -331,37 +245,31 @@ $supported_countries = array(
                         if (!is_array($zip_codes)) {
                             $zip_codes = !empty($area->zip_code) ? array($area->zip_code) : array();
                         }
-                        $zip_count = count($zip_codes);
+                        $main_zip = !empty($zip_codes) ? $zip_codes[0] : ($area->zip_code ?: 'N/A');
+                        $area_name = $area->city_name ?: $area->label ?: 'Unnamed Area';
                     ?>
-                        <div class="area-row enhanced" data-area-id="<?php echo esc_attr($area->id); ?>" data-city="<?php echo esc_attr($area->city_name ?: $area->label); ?>">
+                        <div class="area-row enhanced" data-area-id="<?php echo esc_attr($area->id); ?>" data-area-name="<?php echo esc_attr($area_name); ?>">
                             <div class="grid-cell select">
                                 <input type="checkbox" class="area-checkbox" value="<?php echo esc_attr($area->id); ?>">
                             </div>
-                            <div class="grid-cell city">
-                                <div class="city-info">
-                                    <span class="city-name"><?php echo esc_html($area->city_name ?: $area->label ?: 'Unnamed Area'); ?></span>
-                                    <?php if (!empty($area->state)) : ?>
-                                        <span class="state-name"><?php echo esc_html($area->state); ?></span>
+                            <div class="grid-cell area-name">
+                                <div class="area-info">
+                                    <span class="area-name-text"><?php echo esc_html($area_name); ?></span>
+                                    <?php if (!empty($area->description)) : ?>
+                                        <span class="area-description"><?php echo esc_html($area->description); ?></span>
                                     <?php endif; ?>
                                 </div>
                             </div>
-                            <div class="grid-cell zip-codes">
-                                <div class="zip-codes-info">
-                                    <span class="zip-count"><?php echo sprintf(_n('%d ZIP code', '%d ZIP codes', $zip_count, 'mobooking'), $zip_count); ?></span>
-                                    <?php if ($zip_count > 0) : ?>
-                                        <div class="zip-preview">
-                                            <?php 
-                                            $preview_zips = array_slice($zip_codes, 0, 3);
-                                            echo esc_html(implode(', ', $preview_zips));
-                                            if ($zip_count > 3) {
-                                                echo '<span class="zip-more">+' . ($zip_count - 3) . ' more</span>';
-                                            }
-                                            ?>
-                                        </div>
-                                    <?php else : ?>
-                                        <span class="no-zip-codes"><?php _e('No ZIP codes', 'mobooking'); ?></span>
+                            <div class="grid-cell zip-code">
+                                <div class="zip-info">
+                                    <span class="zip-code-main"><?php echo esc_html($main_zip); ?></span>
+                                    <?php if (count($zip_codes) > 1) : ?>
+                                        <span class="zip-additional">+<?php echo (count($zip_codes) - 1); ?> more</span>
                                     <?php endif; ?>
                                 </div>
+                            </div>
+                            <div class="grid-cell city">
+                                <span class="city-name"><?php echo esc_html($area->state ? $area->state : ($area->country ?: 'N/A')); ?></span>
                             </div>
                             <div class="grid-cell status">
                                 <span class="status-badge <?php echo $area->active ? 'active' : 'inactive'; ?>">
@@ -386,20 +294,6 @@ $supported_countries = array(
                             </div>
                             <div class="grid-cell actions">
                                 <div class="action-buttons">
-                                    <button type="button" class="btn-icon view-zip-codes-btn" data-area-id="<?php echo esc_attr($area->id); ?>" title="<?php _e('View ZIP Codes', 'mobooking'); ?>">
-                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
-                                            <circle cx="12" cy="12" r="3"/>
-                                        </svg>
-                                    </button>
-                                    <button type="button" class="btn-icon refresh-zip-codes-btn" data-area-id="<?php echo esc_attr($area->id); ?>" title="<?php _e('Refresh ZIP Codes', 'mobooking'); ?>">
-                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                            <path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/>
-                                            <path d="M21 3v5h-5"/>
-                                            <path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/>
-                                            <path d="M8 16H3v5"/>
-                                        </svg>
-                                    </button>
                                     <button type="button" class="btn-icon toggle-area-btn" data-area-id="<?php echo esc_attr($area->id); ?>" data-active="<?php echo $area->active ? '1' : '0'; ?>" title="<?php echo $area->active ? __('Deactivate', 'mobooking') : __('Activate', 'mobooking'); ?>">
                                         <?php if ($area->active) : ?>
                                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -428,8 +322,8 @@ $supported_countries = array(
     <?php endif; ?>
 </div>
 
-<!-- ZIP Codes View Modal -->
-<div id="zip-codes-view-modal" class="mobooking-modal" style="display:none;">
+<!-- Add City Modal -->
+<div id="add-city-modal" class="mobooking-modal" style="display:none;">
     <div class="modal-content modal-lg">
         <button class="modal-close" aria-label="<?php _e('Close', 'mobooking'); ?>">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -437,29 +331,58 @@ $supported_countries = array(
             </svg>
         </button>
         
-        <h3 id="zip-view-modal-title"><?php _e('ZIP Codes', 'mobooking'); ?></h3>
+        <h3 id="add-city-modal-title"><?php _e('Add City Areas', 'mobooking'); ?></h3>
         
-        <div class="zip-codes-viewer">
-            <div class="zip-viewer-header">
-                <div class="zip-search">
-                    <input type="text" id="zip-search-input" placeholder="<?php _e('Search ZIP codes...', 'mobooking'); ?>">
-                    <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <circle cx="11" cy="11" r="8"/>
-                        <path d="m21 21-4.35-4.35"/>
+        <div class="add-city-content">
+            <div class="city-input-section">
+                <div class="form-group">
+                    <label for="modal-city-input"><?php _e('City Name', 'mobooking'); ?></label>
+                    <input type="text" id="modal-city-input" class="city-input" 
+                           placeholder="<?php _e('Enter city name', 'mobooking'); ?>" 
+                           autocomplete="off">
+                    <div class="city-suggestions" id="modal-city-suggestions" style="display: none;"></div>
+                </div>
+                
+                <button type="button" id="modal-fetch-areas-btn" class="btn-primary" disabled>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M21 12a9 9 0 11-6.219-8.56"/>
                     </svg>
-                </div>
-                <div class="zip-actions">
-                    <button type="button" id="export-zip-codes-btn" class="btn-secondary btn-sm">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 4v12"/>
-                        </svg>
-                        <?php _e('Export', 'mobooking'); ?>
-                    </button>
-                </div>
+                    <span class="btn-text"><?php _e('Get Areas', 'mobooking'); ?></span>
+                    <span class="btn-loading" style="display: none;"><?php _e('Fetching...', 'mobooking'); ?></span>
+                </button>
             </div>
             
-            <div id="zip-codes-display" class="zip-codes-display">
-                <!-- ZIP codes will be loaded here -->
+            <div class="areas-results-section" id="areas-results" style="display: none;">
+                <div class="results-header">
+                    <h4><?php _e('Available Areas', 'mobooking'); ?></h4>
+                    <div class="results-actions">
+                        <button type="button" id="select-all-areas-btn" class="btn-secondary btn-sm">
+                            <?php _e('Select All', 'mobooking'); ?>
+                        </button>
+                        <button type="button" id="clear-all-areas-btn" class="btn-secondary btn-sm">
+                            <?php _e('Clear All', 'mobooking'); ?>
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="areas-grid" id="fetched-areas-grid">
+                    <!-- Areas will be populated here -->
+                </div>
+                
+                <div class="areas-summary">
+                    <div class="selected-count">
+                        <span id="selected-areas-count">0</span> <?php _e('areas selected', 'mobooking'); ?>
+                    </div>
+                    <button type="button" id="save-selected-areas-btn" class="btn-primary btn-large" disabled>
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
+                            <polyline points="17,21 17,13 7,13 7,21"/>
+                            <polyline points="7,3 7,8 15,8"/>
+                        </svg>
+                        <span class="btn-text"><?php _e('Save Selected Areas', 'mobooking'); ?></span>
+                        <span class="btn-loading" style="display: none;"><?php _e('Saving...', 'mobooking'); ?></span>
+                    </button>
+                </div>
             </div>
         </div>
     </div>
@@ -488,32 +411,6 @@ $supported_countries = array(
                 <span class="btn-text"><?php _e('Yes, Select This Country', 'mobooking'); ?></span>
                 <span class="btn-loading" style="display: none;"><?php _e('Saving...', 'mobooking'); ?></span>
             </button>
-        </div>
-    </div>
-</div>
-
-<!-- Cities Processing Modal -->
-<div id="cities-processing-modal" class="mobooking-modal" style="display:none;">
-    <div class="modal-content">
-        <h3><?php _e('Processing Cities', 'mobooking'); ?></h3>
-        <div class="processing-content">
-            <div class="processing-spinner">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M21 12a9 9 0 11-6.219-8.56"/>
-                </svg>
-            </div>
-            <p id="processing-message"><?php _e('Fetching ZIP codes for selected cities...', 'mobooking'); ?></p>
-            <div class="processing-progress">
-                <div class="progress-bar">
-                    <div class="progress-fill" id="processing-progress-fill" style="width: 0%;"></div>
-                </div>
-                <div class="progress-text">
-                    <span id="processing-current">0</span> / <span id="processing-total">0</span> cities processed
-                </div>
-            </div>
-            <div class="processing-log">
-                <div id="processing-log-content"></div>
-            </div>
         </div>
     </div>
 </div>
@@ -570,54 +467,23 @@ $supported_countries = array(
 /* Country Selection */
 .country-selection-container { display: flex; justify-content: center; align-items: center; min-height: 60vh; padding: 2rem; }
 .country-selection-card { background: white; border-radius: 12px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); padding: 3rem; max-width: 500px; width: 100%; text-align: center; }
-.selection-header { margin-bottom: 2rem;    padding: 2rem;
- }
+.selection-header { margin-bottom: 2rem; }
 .selection-icon { width: 64px; height: 64px; background: linear-gradient(135deg, var(--primary), #1d4ed8); border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 1.5rem; color: white; }
 .selection-icon svg { width: 32px; height: 32px; }
 .country-selection-form .form-group { margin-bottom: 1.5rem; text-align: left; }
 .country-dropdown { width: 100%; padding: 0.75rem 1rem; border: 2px solid var(--gray-200); border-radius: 8px; font-size: 1rem; transition: all 0.2s; }
 .country-dropdown:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px rgba(59,130,246,0.1); }
 
-/* City Selection Styles */
-.city-selection-container { display: flex; justify-content: center; align-items: flex-start; min-height: 60vh; padding: 2rem 0; }
-.city-selection-card { background: white; border-radius: 12px; box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1); max-width: 1000px; width: 100%; overflow: hidden; }
-.city-selection-content { padding: 2rem; }
-.city-selection-toolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem; flex-wrap: wrap; gap: 1rem; }
-.city-search { position: relative; flex: 1; max-width: 400px; }
-.city-search .search-input { width: 100%; padding: 0.75rem 2.5rem 0.75rem 1rem; border: 2px solid var(--gray-200); border-radius: 8px; font-size: 1rem; transition: all 0.2s; }
-.city-search .search-input:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1); }
-.city-search .search-icon { position: absolute; right: 1rem; top: 50%; transform: translateY(-50%); width: 20px; height: 20px; color: var(--gray-400); }
-.city-selection-actions { display: flex; gap: 0.5rem; }
-.cities-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 1rem; margin-bottom: 2rem; max-height: 500px; overflow-y: auto; padding: 0.5rem; }
-.city-item { cursor: pointer; transition: all 0.2s; }
-.city-item input[type="checkbox"] { position: absolute; opacity: 0; pointer-events: none; }
-.city-card { padding: 1.5rem; border: 2px solid var(--gray-200); border-radius: 8px; background: white; transition: all 0.2s; display: flex; justify-content: space-between; align-items: center; }
-.city-card:hover { border-color: var(--primary); box-shadow: 0 4px 12px rgba(59, 130, 246, 0.1); }
-.city-item input:checked + .city-card { border-color: var(--primary); background: rgba(59, 130, 246, 0.05); box-shadow: 0 4px 12px rgba(59, 130, 246, 0.15); }
-.city-name { font-size: 1.125rem; font-weight: 600; color: var(--gray-900); }
-.city-status { display: flex; align-items: center; gap: 0.5rem; }
-.status-indicator { width: 12px; height: 12px; border-radius: 50%; background: var(--success); }
-.city-item input:checked + .city-card .status-indicator { background: var(--primary); }
-.status-text { font-size: 0.875rem; color: var(--gray-600); }
-.city-item input:checked + .city-card .status-text { color: var(--primary); font-weight: 500; }
-.city-selection-summary { display: flex; justify-content: space-between; align-items: center; padding: 1.5rem; background: var(--gray-50); border-radius: 8px; border-top: 1px solid var(--gray-200); }
-.selected-count { font-size: 1.125rem; font-weight: 600; color: var(--gray-700); }
-
-/* Processing Modal Styles */
-.processing-content { text-align: center; padding: 2rem; }
-.processing-spinner { width: 64px; height: 64px; margin: 0 auto 1.5rem; color: var(--primary); }
-.processing-spinner svg { width: 100%; height: 100%; animation: spin 1s linear infinite; }
-@keyframes spin { to { transform: rotate(360deg); } }
-.processing-progress { margin: 1.5rem 0; }
-.progress-bar { width: 100%; height: 8px; background: var(--gray-200); border-radius: 4px; overflow: hidden; margin-bottom: 0.5rem; }
-.progress-fill { height: 100%; background: linear-gradient(90deg, var(--primary), #1d4ed8); transition: width 0.3s ease; }
-.progress-text { font-size: 0.875rem; color: var(--gray-600); }
-.processing-log { margin-top: 1.5rem; max-height: 200px; overflow-y: auto; background: var(--gray-50); border-radius: 6px; padding: 1rem; text-align: left; }
-.processing-log-content { font-family: 'Courier New', monospace; font-size: 0.875rem; color: var(--gray-700); }
-.log-entry { margin-bottom: 0.5rem; padding: 0.25rem 0; }
-.log-entry.success { color: var(--success); }
-.log-entry.error { color: var(--danger); }
-.log-entry.info { color: var(--primary); }
+/* First City Addition */
+.first-city-container { display: flex; justify-content: center; align-items: center; min-height: 60vh; padding: 2rem; }
+.first-city-card { background: white; border-radius: 12px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); padding: 3rem; max-width: 600px; width: 100%; text-align: center; }
+.city-input-form .form-group { margin-bottom: 1.5rem; text-align: left; position: relative; }
+.city-input { width: 100%; padding: 0.75rem 1rem; border: 2px solid var(--gray-200); border-radius: 8px; font-size: 1rem; transition: all 0.2s; }
+.city-input:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px rgba(59,130,246,0.1); }
+.city-suggestions { position: absolute; top: 100%; left: 0; right: 0; background: white; border: 1px solid var(--gray-200); border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); z-index: 1000; max-height: 200px; overflow-y: auto; }
+.city-suggestion { padding: 0.75rem 1rem; cursor: pointer; transition: background 0.2s; border-bottom: 1px solid var(--gray-100); }
+.city-suggestion:hover { background: var(--gray-50); }
+.city-suggestion:last-child { border-bottom: none; }
 
 /* Toolbar */
 .areas-toolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; padding: 1rem; background: var(--gray-50); border-radius: 8px; flex-wrap: wrap; gap: 1rem; }
@@ -632,23 +498,22 @@ $supported_countries = array(
 
 /* Areas Grid */
 .areas-container { background: white; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); overflow: hidden; }
-.areas-grid-header { display: grid; grid-template-columns: 40px 1fr 150px 100px 120px 140px; gap: 1rem; padding: 1rem; background: var(--gray-50); border-bottom: 1px solid var(--gray-200); font-weight: 600; color: var(--gray-700); }
+.areas-grid-header { display: grid; grid-template-columns: 40px 2fr 1fr 1fr 100px 120px 120px; gap: 1rem; padding: 1rem; background: var(--gray-50); border-bottom: 1px solid var(--gray-200); font-weight: 600; color: var(--gray-700); }
 .areas-grid-body { max-height: 600px; overflow-y: auto; }
-.area-row { display: grid; grid-template-columns: 40px 1fr 150px 100px 120px 140px; gap: 1rem; padding: 1rem; border-bottom: 1px solid var(--gray-100); align-items: center; transition: all 0.2s; border-left: 4px solid transparent; }
+.area-row { display: grid; grid-template-columns: 40px 2fr 1fr 1fr 100px 120px 120px; gap: 1rem; padding: 1rem; border-bottom: 1px solid var(--gray-100); align-items: center; transition: all 0.2s; border-left: 4px solid transparent; }
 .area-row:hover { background: var(--gray-50); border-left-color: var(--primary); }
 .area-row:last-child { border-bottom: none; }
 
 /* Grid Cells */
 .grid-cell { display: flex; align-items: center; }
 .select-checkbox, .area-checkbox { margin: 0; }
-.city-info { display: flex; flex-direction: column; gap: 0.25rem; }
-.city-name { font-weight: 600; color: var(--gray-900); }
-.state-name { font-size: 0.875rem; color: var(--gray-500); }
-.zip-codes-info { display: flex; flex-direction: column; gap: 0.25rem; }
-.zip-count { font-weight: 500; color: var(--gray-700); }
-.zip-preview { font-size: 0.875rem; color: var(--gray-500); font-family: 'Courier New', monospace; }
-.zip-more { color: var(--primary); font-weight: 500; }
-.no-zip-codes { color: var(--warning); font-style: italic; }
+.area-info { display: flex; flex-direction: column; gap: 0.25rem; }
+.area-name-text { font-weight: 600; color: var(--gray-900); }
+.area-description { font-size: 0.875rem; color: var(--gray-500); }
+.zip-info { display: flex; flex-direction: column; gap: 0.25rem; }
+.zip-code-main { font-weight: 500; color: var(--gray-700); font-family: 'Courier New', monospace; }
+.zip-additional { font-size: 0.875rem; color: var(--primary); font-weight: 500; }
+.city-name { font-weight: 500; color: var(--gray-700); }
 
 /* Status Badge */
 .status-badge { display: inline-flex; align-items: center; gap: 0.5rem; padding: 0.375rem 0.75rem; border-radius: 6px; font-size: 0.875rem; font-weight: 500; }
@@ -663,12 +528,31 @@ $supported_countries = array(
 .btn-icon.btn-danger:hover { background: #fee2e2; color: var(--danger); }
 .btn-icon svg { width: 16px; height: 16px; }
 
-/* Modals */
+/* Modal Styles */
 .mobooking-modal { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 10000; padding: 1rem; }
-.modal-content { background: white; border-radius: 12px; max-width: 600px; width: 100%; margin: 2rem auto; position: relative; max-height: 90vh; overflow-y: auto; }
-.modal-lg { max-width: 800px; }
+.modal-content { background: white; border-radius: 12px; max-width: 600px; width: 100%; margin: 2rem auto; position: relative; max-height: 90vh; overflow-y: auto; padding: 2rem; }
+.modal-lg { max-width: 900px; }
 .modal-close { position: absolute; top: 1rem; right: 1rem; width: 32px; height: 32px; border: none; background: var(--gray-100); border-radius: 50%; color: var(--gray-600); cursor: pointer; display: flex; align-items: center; justify-content: center; }
 .modal-close:hover { background: var(--gray-200); }
+
+/* Add City Modal */
+.add-city-content { display: flex; flex-direction: column; gap: 2rem; }
+.city-input-section { padding-bottom: 2rem; border-bottom: 1px solid var(--gray-200); }
+.areas-results-section { padding-top: 2rem; }
+.results-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; }
+.results-actions { display: flex; gap: 0.5rem; }
+.areas-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 1rem; margin-bottom: 2rem; max-height: 400px; overflow-y: auto; padding: 0.5rem; }
+.area-card { padding: 1rem; border: 2px solid var(--gray-200); border-radius: 8px; background: white; transition: all 0.2s; cursor: pointer; }
+.area-card:hover { border-color: var(--primary); box-shadow: 0 4px 12px rgba(59, 130, 246, 0.1); }
+.area-card.selected { border-color: var(--primary); background: rgba(59, 130, 246, 0.05); box-shadow: 0 4px 12px rgba(59, 130, 246, 0.15); }
+.area-card-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 0.75rem; }
+.area-card-title { font-weight: 600; color: var(--gray-900); margin: 0; }
+.area-card-zip { font-family: 'Courier New', monospace; font-weight: 500; color: var(--primary); background: rgba(59, 130, 246, 0.1); padding: 0.25rem 0.5rem; border-radius: 4px; font-size: 0.875rem; }
+.area-card-meta { display: flex; flex-direction: column; gap: 0.25rem; }
+.area-card-source { font-size: 0.875rem; color: var(--gray-500); }
+.area-card-coordinates { font-size: 0.75rem; color: var(--gray-400); font-family: 'Courier New', monospace; }
+.areas-summary { display: flex; justify-content: space-between; align-items: center; padding: 1.5rem; background: var(--gray-50); border-radius: 8px; margin-top: 1rem; }
+.selected-count { font-size: 1.125rem; font-weight: 600; color: var(--gray-700); }
 
 /* Forms */
 .form-group { margin-bottom: 1.5rem; }
@@ -677,23 +561,13 @@ $supported_countries = array(
 .form-control:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px rgba(59,130,246,0.1); }
 .field-help { font-size: 0.875rem; color: var(--gray-500); margin-top: 0.25rem; }
 
-/* ZIP Viewer */
-.zip-codes-viewer { max-height: 70vh; display: flex; flex-direction: column; }
-.zip-viewer-header { display: flex; align-items: center; justify-content: space-between; gap: 1rem; margin-bottom: 1.5rem; padding-bottom: 1rem; border-bottom: 1px solid var(--gray-200); }
-.zip-search { position: relative; flex: 1; max-width: 300px; }
-.zip-search input { width: 100%; padding: 0.5rem 2.5rem 0.5rem 1rem; border: 1px solid var(--gray-300); border-radius: 6px; font-size: 0.875rem; }
-.zip-codes-display { flex: 1; overflow-y: auto; border: 1px solid var(--gray-200); border-radius: 6px; background: white; }
-.zip-codes-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 0.5rem; padding: 1rem; }
-.zip-code-badge { display: flex; align-items: center; justify-content: center; padding: 0.5rem; background: var(--gray-50); border: 1px solid var(--gray-200); border-radius: 6px; font-family: 'Courier New', monospace; font-weight: 500; color: var(--gray-700); transition: all 0.2s; }
-.zip-code-badge:hover { background: var(--primary); color: white; border-color: var(--primary); }
-
 /* Confirmation Modal */
 .confirmation-content { text-align: center; padding: 1rem 0; }
 .warning-icon { width: 64px; height: 64px; background: var(--warning); border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 1rem; color: white; }
 .warning-icon svg { width: 32px; height: 32px; }
 
 /* Form Actions */
-.form-actions { display: flex; align-items: center; gap: 1rem; padding: 1.5rem; border-top: 1px solid var(--gray-200); }
+.form-actions { display: flex; align-items: center; gap: 1rem; padding: 1.5rem; border-top: 1px solid var(--gray-200); margin: 1rem -2rem -2rem; }
 .spacer { flex: 1; }
 
 /* Buttons */
@@ -712,6 +586,9 @@ $supported_countries = array(
 .loading .btn-loading { display: inline-flex; }
 .btn-loading { display: none; }
 
+/* API Indicator */
+.api-indicator { margin-left: 0.5rem; }
+
 /* Responsive */
 @media (max-width: 768px) {
     .areas-header { flex-direction: column; align-items: stretch; }
@@ -723,27 +600,22 @@ $supported_countries = array(
     .area-row { display: flex; flex-direction: column; gap: 1rem; padding: 1rem; border: 1px solid var(--gray-200); border-radius: 8px; margin-bottom: 0.75rem; }
     .grid-cell { justify-content: space-between; }
     .modal-lg { max-width: 95vw; margin: 1rem; }
-    .zip-viewer-header { flex-direction: column; align-items: stretch; }
-    .zip-codes-grid { grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); }
-    .country-selection-card { padding: 2rem 1.5rem; }
-    .cities-grid { grid-template-columns: 1fr; }
-    .city-selection-toolbar { flex-direction: column; align-items: stretch; }
-    .city-search .search-input { max-width: none; }
-    .city-selection-summary { flex-direction: column; gap: 1rem; text-align: center; }
+    .country-selection-card, .first-city-card { padding: 2rem 1.5rem; }
+    .areas-grid { grid-template-columns: 1fr; }
+    .areas-summary { flex-direction: column; gap: 1rem; text-align: center; }
 }
 
 @media (max-width: 480px) {
-    .country-selection-card { padding: 1.5rem 1rem; }
-    .zip-codes-grid { grid-template-columns: repeat(auto-fill, minmax(80px, 1fr)); }
+    .country-selection-card, .first-city-card { padding: 1.5rem 1rem; }
     .form-actions { flex-direction: column-reverse; align-items: stretch; }
     .btn-primary, .btn-secondary, .btn-danger { width: 100%; justify-content: center; }
+    .modal-content { padding: 1rem; margin: 0.5rem; }
 }
 
 /* Animations */
 @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
 .area-row { animation: fadeIn 0.3s ease-out; }
-.zip-code-badge { animation: fadeIn 0.2s ease-out; }
-.city-card { animation: fadeIn 0.2s ease-out; }
+.area-card { animation: fadeIn 0.2s ease-out; }
 
 /* Focus Styles */
 .btn-primary:focus, .btn-secondary:focus, .btn-danger:focus { outline: 2px solid var(--primary); outline-offset: 2px; }
@@ -751,7 +623,7 @@ $supported_countries = array(
 </style>
 
 <script>
-// Enhanced Areas Management JavaScript with City Selection Flow
+// Enhanced Areas Management JavaScript with Real API Integration
 jQuery(document).ready(function($) {
     const EnhancedAreasManager = {
         config: {
@@ -765,15 +637,14 @@ jQuery(document).ready(function($) {
         state: {
             isProcessing: false,
             currentAreaId: null,
-            selectedCities: [],
-            processedCities: 0,
-            totalCities: 0,
-            processingErrors: [],
-            processedCitiesData: []
+            selectedAreas: [],
+            fetchedAreas: [],
+            currentCity: '',
+            confirmAction: null
         },
         
         init: function() {
-            console.log('🚀 Enhanced Areas Manager initializing...');
+            console.log('🚀 Enhanced Areas Manager with API integration initializing...');
             this.attachEventListeners();
             this.initializeComponents();
             console.log('✅ Enhanced Areas Manager initialized');
@@ -801,48 +672,89 @@ jQuery(document).ready(function($) {
                 self.changeCountry();
             });
             
-            // City selection
-            $('#select-cities-btn, #manage-cities-btn').on('click', function() {
-                self.showCitySelection();
+            // City input and fetching
+            $('#city-name-input, #modal-city-input').on('input', function() {
+                const cityName = $(this).val().trim();
+                const targetBtn = $(this).attr('id') === 'city-name-input' ? '#fetch-city-areas-btn' : '#modal-fetch-areas-btn';
+                $(targetBtn).prop('disabled', cityName.length < 2);
+                
+                // Show city suggestions (if available)
+                if (cityName.length >= 2) {
+                    self.showCitySuggestions($(this), cityName);
+                } else {
+                    self.hideCitySuggestions($(this));
+                }
             });
             
-            // City search
-            $('#city-search-input').on('input', function() {
-                self.filterCities($(this).val());
+            // City suggestions
+            $(document).on('click', '.city-suggestion', function() {
+                const cityName = $(this).text();
+                const input = $(this).closest('.form-group').find('.city-input');
+                input.val(cityName);
+                self.hideCitySuggestions(input);
+                
+                const targetBtn = input.attr('id') === 'city-name-input' ? '#fetch-city-areas-btn' : '#modal-fetch-areas-btn';
+                $(targetBtn).prop('disabled', false);
             });
             
-            // City selection actions
-            $('#select-all-cities-btn').on('click', function() {
-                $('.city-checkbox:visible').prop('checked', true);
-                self.updateSelectedCount();
+            // Fetch city areas
+            $('#fetch-city-areas-btn, #add-first-city-btn, #add-city-btn, #modal-fetch-areas-btn').on('click', function() {
+                let cityName = '';
+                
+                if ($(this).attr('id') === 'modal-fetch-areas-btn') {
+                    cityName = $('#modal-city-input').val().trim();
+                    if (!cityName) {
+                        self.showNotification('Please enter a city name', 'warning');
+                        return;
+                    }
+                    self.fetchCityAreas(cityName, true); // true = in modal
+                } else if ($(this).attr('id') === 'fetch-city-areas-btn') {
+                    cityName = $('#city-name-input').val().trim();
+                    if (!cityName) {
+                        self.showNotification('Please enter a city name', 'warning');
+                        return;
+                    }
+                    self.fetchCityAreas(cityName, false); // false = not in modal
+                } else {
+                    // Add city button clicked - show modal
+                    self.showModal('#add-city-modal');
+                }
             });
             
-            $('#clear-all-cities-btn').on('click', function() {
-                $('.city-checkbox').prop('checked', false);
-                self.updateSelectedCount();
+            // Area selection in modal
+            $(document).on('click', '.area-card', function() {
+                const checkbox = $(this).find('.area-checkbox');
+                const isSelected = checkbox.is(':checked');
+                checkbox.prop('checked', !isSelected);
+                $(this).toggleClass('selected', !isSelected);
+                self.updateSelectedAreasCount();
             });
             
-            // City checkboxes
-            $(document).on('change', '.city-checkbox', function() {
-                self.updateSelectedCount();
+            $(document).on('change', '.area-checkbox', function() {
+                const isSelected = $(this).is(':checked');
+                $(this).closest('.area-card').toggleClass('selected', isSelected);
+                self.updateSelectedAreasCount();
             });
             
-            // Save cities
-            $('#save-cities-btn').on('click', function() {
-                self.saveSelectedCities();
+            // Area selection actions
+            $('#select-all-areas-btn').on('click', function() {
+                $('.area-checkbox:visible').prop('checked', true);
+                $('.area-card:visible').addClass('selected');
+                self.updateSelectedAreasCount();
+            });
+            
+            $('#clear-all-areas-btn').on('click', function() {
+                $('.area-checkbox').prop('checked', false);
+                $('.area-card').removeClass('selected');
+                self.updateSelectedAreasCount();
+            });
+            
+            // Save selected areas
+            $('#save-selected-areas-btn').on('click', function() {
+                self.saveSelectedAreas();
             });
             
             // Area management
-            $(document).on('click', '.view-zip-codes-btn', function() {
-                const areaId = $(this).data('area-id');
-                self.viewZipCodes(areaId);
-            });
-            
-            $(document).on('click', '.refresh-zip-codes-btn', function() {
-                const areaId = $(this).data('area-id');
-                self.refreshZipCodes(areaId);
-            });
-            
             $(document).on('click', '.toggle-area-btn', function() {
                 const areaId = $(this).data('area-id');
                 const isActive = $(this).data('active') === 1;
@@ -869,10 +781,6 @@ jQuery(document).ready(function($) {
                 self.filterAreas($(this).val());
             });
             
-            $('#zip-search-input').on('input', function() {
-                self.filterZipCodes($(this).val());
-            });
-            
             // Modal controls
             $('.modal-close, .cancel-action-btn, .cancel-country-btn').on('click', function() {
                 self.hideModals();
@@ -887,15 +795,207 @@ jQuery(document).ready(function($) {
                 self.executeConfirmedAction();
             });
             
-            // Export ZIP codes
-            $('#export-zip-codes-btn').on('click', function() {
-                self.exportZipCodes();
+            // Hide suggestions when clicking outside
+            $(document).on('click', function(e) {
+                if (!$(e.target).closest('.form-group').length) {
+                    $('.city-suggestions').hide();
+                }
             });
         },
         
         initializeComponents: function() {
-            this.updateSelectedCount();
-            this.updateAreaCount();
+            this.updateSelectedAreasCount();
+        },
+        
+        showCitySuggestions: function($input, searchTerm) {
+            const $suggestions = $input.siblings('.city-suggestions');
+            
+            // Get city suggestions for the selected country
+            if (this.config.selectedCountry && this.config.supportedCountries[this.config.selectedCountry]) {
+                // In a real implementation, you would fetch cities from an API
+                // For now, we'll show a simple message
+                $suggestions.html(`
+                    <div class="city-suggestion">
+                        <strong>${searchTerm}</strong> - Search for this city
+                    </div>
+                `).show();
+            } else {
+                $suggestions.hide();
+            }
+        },
+        
+        hideCitySuggestions: function($input) {
+            $input.siblings('.city-suggestions').hide();
+        },
+        
+        fetchCityAreas: function(cityName, inModal = false) {
+            if (this.state.isProcessing) return;
+            
+            this.state.isProcessing = true;
+            this.state.currentCity = cityName;
+            
+            const $btn = inModal ? $('#modal-fetch-areas-btn') : $('#fetch-city-areas-btn');
+            this.setLoading($btn, true);
+            
+            const data = {
+                action: 'mobooking_fetch_city_areas',
+                city_name: cityName,
+                country_code: this.config.selectedCountry,
+                state: '', // You could add state selection
+                nonce: this.config.nonce
+            };
+            
+            $.ajax({
+                url: this.config.ajaxUrl,
+                type: 'POST',
+                data: data,
+                timeout: 30000, // 30 second timeout for API calls
+                success: (response) => {
+                    if (response.success) {
+                        this.state.fetchedAreas = response.data.areas;
+                        this.displayFetchedAreas(response.data.areas, inModal);
+                        this.showNotification(`Found ${response.data.total_areas} areas in ${cityName}`, 'success');
+                    } else {
+                        this.showNotification(response.data?.message || 'Failed to fetch areas', 'error');
+                    }
+                },
+                error: (xhr, status, error) => {
+                    if (status === 'timeout') {
+                        this.showNotification('Request timed out. Please try again.', 'error');
+                    } else {
+                        this.showNotification('Error fetching city areas', 'error');
+                    }
+                },
+                complete: () => {
+                    this.state.isProcessing = false;
+                    this.setLoading($btn, false);
+                }
+            });
+        },
+        
+        displayFetchedAreas: function(areas, inModal = false) {
+            const containerId = inModal ? '#fetched-areas-grid' : '#areas-results-grid';
+            const $container = $(containerId);
+            const $resultsSection = inModal ? $('#areas-results') : $('#areas-results-section');
+            
+            $container.empty();
+            
+            if (!areas || areas.length === 0) {
+                $container.html(`
+                    <div class="no-areas-message" style="text-align: center; padding: 2rem; grid-column: 1 / -1;">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="width: 48px; height: 48px; margin-bottom: 1rem; color: #9ca3af;">
+                            <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/>
+                            <circle cx="12" cy="10" r="3"/>
+                        </svg>
+                        <h3 style="color: #6b7280; margin: 0 0 0.5rem 0;">No areas found</h3>
+                        <p style="color: #9ca3af;">Try a different city name or check the spelling.</p>
+                    </div>
+                `);
+            } else {
+                areas.forEach((area, index) => {
+                    const areaCard = this.createAreaCard(area, index);
+                    $container.append(areaCard);
+                });
+            }
+            
+            $resultsSection.show();
+            this.updateSelectedAreasCount();
+        },
+        
+        createAreaCard: function(area, index) {
+            const coordinates = area.latitude && area.longitude ? 
+                `${parseFloat(area.latitude).toFixed(4)}, ${parseFloat(area.longitude).toFixed(4)}` : 
+                'Coordinates not available';
+            
+            return $(`
+                <div class="area-card" data-area-index="${index}">
+                    <input type="checkbox" class="area-checkbox" value="${index}" style="position: absolute; opacity: 0; pointer-events: none;">
+                    <div class="area-card-header">
+                        <h4 class="area-card-title">${this.escapeHtml(area.area_name)}</h4>
+                        <div class="area-card-zip">${this.escapeHtml(area.zip_code)}</div>
+                    </div>
+                    <div class="area-card-meta">
+                        <div class="area-card-source">Source: ${this.escapeHtml(area.source)}</div>
+                        ${coordinates !== 'Coordinates not available' ? `<div class="area-card-coordinates">${coordinates}</div>` : ''}
+                    </div>
+                </div>
+            `);
+        },
+        
+        updateSelectedAreasCount: function() {
+            const selectedCount = $('.area-checkbox:checked').length;
+            $('#selected-areas-count').text(selectedCount);
+            $('#save-selected-areas-btn').prop('disabled', selectedCount === 0);
+            
+            if (selectedCount > 0) {
+                $('#save-selected-areas-btn').find('.btn-text').text(`Save ${selectedCount} Selected Areas`);
+            } else {
+                $('#save-selected-areas-btn').find('.btn-text').text('Save Selected Areas');
+            }
+        },
+        
+        saveSelectedAreas: function() {
+            const selectedIndices = $('.area-checkbox:checked').map((i, el) => parseInt($(el).val())).get();
+            
+            if (selectedIndices.length === 0) {
+                this.showNotification('Please select at least one area', 'warning');
+                return;
+            }
+            
+            // Get selected areas from fetched data
+            const selectedAreas = selectedIndices.map(index => this.state.fetchedAreas[index]);
+            
+            if (this.state.isProcessing) return;
+            
+            this.state.isProcessing = true;
+            const $btn = $('#save-selected-areas-btn');
+            this.setLoading($btn, true);
+            
+            const data = {
+                action: 'mobooking_save_selected_areas',
+                areas_data: JSON.stringify(selectedAreas),
+                city_name: this.state.currentCity,
+                country_code: this.config.selectedCountry,
+                state: '', // Add state if needed
+                nonce: this.config.nonce
+            };
+            
+            $.ajax({
+                url: this.config.ajaxUrl,
+                type: 'POST',
+                data: data,
+                timeout: 60000, // 60 second timeout for database operations
+                success: (response) => {
+                    if (response.success) {
+                        this.showNotification(response.data.message, 'success');
+                        this.hideModals();
+                        
+                        // Refresh the page to show new areas
+                        setTimeout(() => {
+                            location.reload();
+                        }, 1500);
+                    } else {
+                        this.showNotification(response.data?.message || 'Failed to save areas', 'error');
+                        
+                        // Show additional error details if available
+                        if (response.data?.errors && response.data.errors.length > 0) {
+                            console.error('Save errors:', response.data.errors);
+                        }
+                    }
+                },
+                error: (xhr, status, error) => {
+                    if (status === 'timeout') {
+                        this.showNotification('Save operation timed out. Please try again.', 'error');
+                    } else {
+                        this.showNotification('Error saving areas', 'error');
+                    }
+                    console.error('AJAX Error:', xhr.responseText);
+                },
+                complete: () => {
+                    this.state.isProcessing = false;
+                    this.setLoading($btn, false);
+                }
+            });
         },
         
         showCountryConfirmation: function() {
@@ -959,508 +1059,6 @@ jQuery(document).ready(function($) {
             this.showModal('#confirmation-modal');
         },
         
-        showCitySelection: function() {
-            // Show the city selection interface (already visible in the template)
-            // This could open a modal if needed or scroll to the city selection
-            if ($('.city-selection-container').length) {
-                $('html, body').animate({
-                    scrollTop: $('.city-selection-container').offset().top - 100
-                }, 500);
-            }
-        },
-        
-        filterCities: function(searchTerm) {
-            const $cityItems = $('.city-item');
-            
-            if (!searchTerm) {
-                $cityItems.show();
-                return;
-            }
-            
-            searchTerm = searchTerm.toLowerCase();
-            
-            $cityItems.each(function() {
-                const cityName = $(this).find('.city-name').text().toLowerCase();
-                const matches = cityName.includes(searchTerm);
-                $(this).toggle(matches);
-            });
-        },
-        
-        updateSelectedCount: function() {
-            const selectedCount = $('.city-checkbox:checked').length;
-            $('#selected-cities-count').text(selectedCount);
-            $('#save-cities-btn').prop('disabled', selectedCount === 0);
-            
-            if (selectedCount > 0) {
-                $('#save-cities-btn').find('.btn-text').text(`Save ${selectedCount} Selected Cities`);
-            } else {
-                $('#save-cities-btn').find('.btn-text').text('Save Selected Cities');
-            }
-        },
-        
-        saveSelectedCities: function() {
-            const selectedCities = [];
-            $('.city-checkbox:checked').each(function() {
-                selectedCities.push($(this).val());
-            });
-            
-            if (selectedCities.length === 0) {
-                this.showNotification('Please select at least one city', 'warning');
-                return;
-            }
-            
-            this.state.selectedCities = selectedCities;
-            this.state.totalCities = selectedCities.length;
-            this.state.processedCities = 0;
-            this.state.processingErrors = [];
-            this.state.processedCitiesData = [];
-            
-            // Show processing modal
-            this.showProcessingModal();
-            
-            // Start processing cities
-            this.processCities();
-        },
-        
-        showProcessingModal: function() {
-            $('#processing-total').text(this.state.totalCities);
-            $('#processing-current').text(0);
-            $('#processing-progress-fill').css('width', '0%');
-            $('#processing-log-content').empty();
-            this.showModal('#cities-processing-modal');
-        },
-        
-        processCities: function() {
-            const self = this;
-            let processedCount = 0;
-            const cities = this.state.selectedCities;
-            const country = this.config.selectedCountry;
-            
-            // Process cities in smaller batches to be more reliable
-            const batchSize = 3;
-            let currentBatch = 0;
-            
-            function processBatch() {
-                const start = currentBatch * batchSize;
-                const end = Math.min(start + batchSize, cities.length);
-                const batch = cities.slice(start, end);
-                
-                const promises = batch.map(city => self.generateMockCityData(city, country));
-                
-                Promise.allSettled(promises).then(results => {
-                    results.forEach((result, index) => {
-                        const city = batch[index];
-                        processedCount++;
-                        
-                        if (result.status === 'fulfilled' && result.value.success) {
-                            const cityData = result.value;
-                            self.addProcessingLog(`✓ ${city}: Generated ${cityData.zipCodes.length} ZIP codes`, 'success');
-                            
-                            // Store processed city data
-                            self.state.processedCitiesData.push({
-                                city_name: cityData.cityName,
-                                state: cityData.state,
-                                zip_codes: cityData.zipCodes,
-                                active: true,
-                                description: `Service area for ${cityData.cityName}${cityData.state ? ', ' + cityData.state : ''}`
-                            });
-                        } else {
-                            const error = result.status === 'rejected' ? result.reason : result.value.error;
-                            self.addProcessingLog(`✗ ${city}: ${error}`, 'error');
-                            self.state.processingErrors.push({city, error});
-                        }
-                        
-                        // Update progress
-                        const progress = (processedCount / cities.length) * 100;
-                        $('#processing-current').text(processedCount);
-                        $('#processing-progress-fill').css('width', progress + '%');
-                    });
-                    
-                    currentBatch++;
-                    
-                    if (currentBatch * batchSize < cities.length) {
-                        // Process next batch after a delay
-                        setTimeout(processBatch, 1000);
-                    } else {
-                        // All cities processed
-                        self.completeProcessing();
-                    }
-                });
-            }
-            
-            // Start processing
-            processBatch();
-        },
-
-
-generateSwedishPostcodes: function(cityName) {
-    const cityHash = this.hashString(cityName);
-    const baseCode = 10000 + (cityHash % 80000);
-    const postcodes = [];
-    
-    for (let i = 0; i < 5; i++) {
-        // Swedish postal codes are 5 digits with a space after 3 digits (XXX XX)
-        const code = (baseCode + i * 10).toString().padStart(5, '0');
-        const formatted = code.substring(0, 3) + ' ' + code.substring(3, 5);
-        postcodes.push(formatted);
-    }
-    
-    return postcodes;
-},
-
-generateCypriotPostcodes: function(cityName) {
-    const cityHash = this.hashString(cityName);
-    const baseCode = 1000 + (cityHash % 8000);
-    const postcodes = [];
-    
-    for (let i = 0; i < 5; i++) {
-        // Cyprus postal codes are 4 digits
-        const code = (baseCode + i * 10).toString().padStart(4, '0');
-        postcodes.push(code);
-    }
-    
-    return postcodes;
-},
-
-// Update the existing generateMockCityData function:
-generateMockCityData: function(cityName, countryCode) {
-    return new Promise((resolve) => {
-        const mockZipPatterns = {
-            // 'US': () => this.generateUSZipCodes(cityName),
-            // 'GB': () => this.generateUKPostcodes(cityName),
-            'CA': () => this.generateCanadianPostalCodes(cityName),
-            'DE': () => this.generateGermanPostcodes(cityName),
-            'FR': () => this.generateFrenchPostcodes(cityName),
-            'ES': () => this.generateSpanishPostcodes(cityName),
-            'IT': () => this.generateItalianPostcodes(cityName),
-            'AU': () => this.generateAustralianPostcodes(cityName),
-            'SE': () => this.generateSwedishPostcodes(cityName),
-            'CY': () => this.generateCypriotPostcodes(cityName)
-        };
-        
-        const generator = mockZipPatterns[countryCode];
-        if (generator) {
-            const zipCodes = generator();
-            resolve({
-                success: true,
-                cityName: cityName,
-                state: '',
-                zipCodes: zipCodes,
-                source: 'Generated Data'
-            });
-        } else {
-            resolve({
-                success: false,
-                error: `No pattern available for country: ${countryCode}`
-            });
-        }
-    });
-},
-        
-        generateUSZipCodes: function(cityName) {
-            const cityHash = this.hashString(cityName);
-            const baseCode = 10000 + (cityHash % 80000);
-            const zipCodes = [];
-            
-            for (let i = 0; i < 5; i++) {
-                const code = (baseCode + i * 100).toString().padStart(5, '0');
-                zipCodes.push(code);
-            }
-            
-            return zipCodes;
-        },
-        
-        generateUKPostcodes: function(cityName) {
-            const areas = ['SW', 'NW', 'SE', 'NE', 'W', 'E', 'N', 'S'];
-            const cityHash = this.hashString(cityName);
-            const area = areas[cityHash % areas.length];
-            const postcodes = [];
-            
-            for (let i = 1; i <= 5; i++) {
-                const district = (cityHash % 20) + i;
-                const sector = String.fromCharCode(65 + (cityHash + i) % 26);
-                const unit = String.fromCharCode(65 + (cityHash + i * 2) % 26);
-                postcodes.push(`${area}${district} ${i}${sector}${unit}`);
-            }
-            
-            return postcodes;
-        },
-        
-        generateCanadianPostalCodes: function(cityName) {
-            const provinces = ['K', 'M', 'V', 'T', 'H', 'S', 'R', 'E'];
-            const cityHash = this.hashString(cityName);
-            const province = provinces[cityHash % provinces.length];
-            const postcodes = [];
-            
-            for (let i = 1; i <= 5; i++) {
-                const district = (cityHash % 9) + i;
-                const letter1 = String.fromCharCode(65 + (cityHash + i) % 26);
-                const number1 = (cityHash + i) % 10;
-                const letter2 = String.fromCharCode(65 + (cityHash + i * 2) % 26);
-                const number2 = (cityHash + i * 2) % 10;
-                postcodes.push(`${province}${district}${letter1} ${number1}${letter2}${number2}`);
-            }
-            
-            return postcodes;
-        },
-        
-        generateGermanPostcodes: function(cityName) {
-            const cityHash = this.hashString(cityName);
-            const baseCode = 10000 + (cityHash % 80000);
-            const postcodes = [];
-            
-            for (let i = 0; i < 5; i++) {
-                const code = (baseCode + i * 10).toString().padStart(5, '0');
-                postcodes.push(code);
-            }
-            
-            return postcodes;
-        },
-        
-        generateFrenchPostcodes: function(cityName) {
-            const cityHash = this.hashString(cityName);
-            const baseCode = 10000 + (cityHash % 85000);
-            const postcodes = [];
-            
-            for (let i = 0; i < 5; i++) {
-                const code = (baseCode + i * 10).toString().padStart(5, '0');
-                postcodes.push(code);
-            }
-            
-            return postcodes;
-        },
-        
-        generateSpanishPostcodes: function(cityName) {
-            const cityHash = this.hashString(cityName);
-            const baseCode = 10000 + (cityHash % 40000);
-            const postcodes = [];
-            
-            for (let i = 0; i < 5; i++) {
-                const code = (baseCode + i * 10).toString().padStart(5, '0');
-                postcodes.push(code);
-            }
-            
-            return postcodes;
-        },
-        
-        generateItalianPostcodes: function(cityName) {
-            const cityHash = this.hashString(cityName);
-            const baseCode = 10000 + (cityHash % 80000);
-            const postcodes = [];
-            
-            for (let i = 0; i < 5; i++) {
-                const code = (baseCode + i * 10).toString().padStart(5, '0');
-                postcodes.push(code);
-            }
-            
-            return postcodes;
-        },
-        
-        generateAustralianPostcodes: function(cityName) {
-            const cityHash = this.hashString(cityName);
-            const baseCode = 1000 + (cityHash % 8000);
-            const postcodes = [];
-            
-            for (let i = 0; i < 5; i++) {
-                const code = (baseCode + i * 10).toString().padStart(4, '0');
-                postcodes.push(code);
-            }
-            
-            return postcodes;
-        },
-        
-        hashString: function(str) {
-            let hash = 0;
-            for (let i = 0; i < str.length; i++) {
-                const char = str.charCodeAt(i);
-                hash = ((hash << 5) - hash) + char;
-                hash = hash & hash; // Convert to 32bit integer
-            }
-            return Math.abs(hash);
-        },
-        
-        addProcessingLog: function(message, type = 'info') {
-            const $logContent = $('#processing-log-content');
-            const $entry = $(`<div class="log-entry ${type}">${message}</div>`);
-            $logContent.append($entry);
-            
-            // Auto-scroll to bottom
-            $logContent.scrollTop($logContent[0].scrollHeight);
-        },
-        
-        completeProcessing: function() {
-            const successCount = this.state.processedCitiesData.length;
-            const errorCount = this.state.processingErrors.length;
-            
-            this.addProcessingLog(`\n=== Processing Complete ===`, 'info');
-            this.addProcessingLog(`Successfully processed: ${successCount} cities`, 'success');
-            
-            if (errorCount > 0) {
-                this.addProcessingLog(`Failed: ${errorCount} cities`, 'error');
-            }
-            
-            // Save the successfully processed cities to database
-            if (successCount > 0) {
-                setTimeout(() => {
-                    this.saveCitiesToDatabase();
-                }, 1000);
-            } else {
-                this.addProcessingLog('No cities were successfully processed.', 'error');
-                setTimeout(() => {
-                    this.hideModals();
-                }, 5000);
-            }
-        },
-        
-        saveCitiesToDatabase: function() {
-            this.addProcessingLog('Saving cities to database...', 'info');
-            
-            const processedData = this.state.processedCitiesData;
-            
-            if (processedData.length === 0) {
-                this.addProcessingLog('No valid city data to save', 'error');
-                setTimeout(() => {
-                    this.hideModals();
-                }, 3000);
-                return;
-            }
-            
-            const data = {
-                action: 'mobooking_save_processed_cities',
-                cities_data: JSON.stringify(processedData),
-                country: this.config.selectedCountry,
-                nonce: this.config.nonce
-            };
-            
-            $.ajax({
-                url: this.config.ajaxUrl,
-                type: 'POST',
-                data: data,
-                timeout: 60000, // Increased timeout for large datasets
-                success: (response) => {
-                    if (response.success) {
-                        this.addProcessingLog(`✓ Successfully saved ${response.data.saved_count} cities to database!`, 'success');
-                        
-                        if (response.data.errors && response.data.errors.length > 0) {
-                            this.addProcessingLog('Some errors occurred:', 'warning');
-                            response.data.errors.forEach(error => {
-                                this.addProcessingLog(`  - ${error}`, 'error');
-                            });
-                        }
-                        
-                        setTimeout(() => {
-                            this.hideModals();
-                            location.reload();
-                        }, 3000);
-                    } else {
-                        this.addProcessingLog('✗ Failed to save cities to database', 'error');
-                        if (response.data && response.data.errors) {
-                            response.data.errors.forEach(error => {
-                                this.addProcessingLog(`  - ${error}`, 'error');
-                            });
-                        }
-                        setTimeout(() => {
-                            this.hideModals();
-                        }, 5000);
-                    }
-                },
-                error: (xhr, status, error) => {
-                    this.addProcessingLog('✗ Error communicating with server: ' + error, 'error');
-                    setTimeout(() => {
-                        this.hideModals();
-                    }, 5000);
-                }
-            });
-        },
-        
-        // Existing methods for area management...
-        viewZipCodes: function(areaId) {
-            const data = {
-                action: 'mobooking_get_area_zip_codes',
-                id: areaId,
-                nonce: this.config.nonce
-            };
-            
-            $.ajax({
-                url: this.config.ajaxUrl,
-                type: 'POST',
-                data: data,
-                success: (response) => {
-                    if (response.success && response.data.area) {
-                        this.displayZipCodesModal(response.data.area);
-                    } else {
-                        this.showNotification('Error loading ZIP codes', 'error');
-                    }
-                },
-                error: () => {
-                    this.showNotification('Error loading ZIP codes', 'error');
-                }
-            });
-        },
-        
-        displayZipCodesModal: function(area) {
-            const zipCodes = area.zip_codes ? 
-                (typeof area.zip_codes === 'string' ? JSON.parse(area.zip_codes) : area.zip_codes) :
-                (area.zip_code ? [area.zip_code] : []);
-            
-            $('#zip-view-modal-title').text(`ZIP Codes for ${area.city_name || area.label}`);
-            
-            const $display = $('#zip-codes-display');
-            $display.empty();
-            
-            if (zipCodes.length === 0) {
-                $display.html(`
-                    <div class="no-zip-codes-message" style="text-align: center; padding: 2rem;">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="width: 48px; height: 48px; margin-bottom: 1rem; color: #9ca3af;">
-                            <path d="M8 2v4M16 2v4M3 10h18M5 4h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z"/>
-                        </svg>
-                        <p style="color: #6b7280;">No ZIP codes available for this area.</p>
-                    </div>
-                `);
-            } else {
-                const zipGrid = $('<div class="zip-codes-grid"></div>');
-                zipCodes.forEach(zipCode => {
-                    zipGrid.append(`<div class="zip-code-badge">${this.escapeHtml(zipCode)}</div>`);
-                });
-                $display.append(zipGrid);
-            }
-            
-            this.showModal('#zip-codes-view-modal');
-        },
-        
-        refreshZipCodes: function(areaId) {
-            if (this.state.isProcessing) return;
-            
-            const $btn = $(`.refresh-zip-codes-btn[data-area-id="${areaId}"]`);
-            $btn.addClass('loading');
-            
-            const data = {
-                action: 'mobooking_refresh_area_zip_codes',
-                id: areaId,
-                nonce: this.config.nonce
-            };
-            
-            $.ajax({
-                url: this.config.ajaxUrl,
-                type: 'POST',
-                data: data,
-                success: (response) => {
-                    if (response.success) {
-                        this.showNotification(response.data.message, 'success');
-                        this.refreshAreasTable();
-                    } else {
-                        this.showNotification(response.data?.message || 'Failed to refresh ZIP codes', 'error');
-                    }
-                },
-                error: () => {
-                    this.showNotification('Error refreshing ZIP codes', 'error');
-                },
-                complete: () => {
-                    $btn.removeClass('loading');
-                }
-            });
-        },
-        
         toggleAreaStatus: function(areaId, isActive) {
             const data = {
                 action: 'mobooking_toggle_area_status',
@@ -1476,7 +1074,7 @@ generateMockCityData: function(cityName, countryCode) {
                 success: (response) => {
                     if (response.success) {
                         this.showNotification(response.data.message, 'success');
-                        this.refreshAreasTable();
+                        this.refreshAreasDisplay();
                     } else {
                         this.showNotification('Failed to update area status', 'error');
                     }
@@ -1492,10 +1090,10 @@ generateMockCityData: function(cityName, countryCode) {
             this.state.confirmAction = 'delete_area';
             
             const $row = $(`.area-row[data-area-id="${areaId}"]`);
-            const cityName = $row.find('.city-name').text();
+            const areaName = $row.find('.area-name-text').text();
             
-            const message = `<?php _e('Are you sure you want to delete the service area "[CITY]"? This will also remove all associated ZIP codes. This action cannot be undone.', 'mobooking'); ?>`;
-            $('#confirmation-message').text(message.replace('[CITY]', cityName));
+            const message = `<?php _e('Are you sure you want to delete the service area "[AREA]"? This action cannot be undone.', 'mobooking'); ?>`;
+            $('#confirmation-message').text(message.replace('[AREA]', areaName));
             
             this.showModal('#confirmation-modal');
         },
@@ -1530,7 +1128,7 @@ generateMockCityData: function(cityName, countryCode) {
                     if (response.success) {
                         this.showNotification(response.data.message, 'success');
                         this.hideModals();
-                        this.refreshAreasTable();
+                        this.refreshAreasDisplay();
                     } else {
                         this.showNotification('Failed to delete area', 'error');
                     }
@@ -1615,7 +1213,7 @@ generateMockCityData: function(cityName, countryCode) {
                 success: (response) => {
                     if (response.success) {
                         this.showNotification(response.data.message, 'success');
-                        this.refreshAreasTable();
+                        this.refreshAreasDisplay();
                         
                         // Clear selections
                         $('.area-checkbox').prop('checked', false);
@@ -1643,52 +1241,22 @@ generateMockCityData: function(cityName, countryCode) {
             
             $rows.each(function() {
                 const $row = $(this);
+                const areaName = $row.find('.area-name-text').text().toLowerCase();
+                const zipCode = $row.find('.zip-code-main').text().toLowerCase();
                 const cityName = $row.find('.city-name').text().toLowerCase();
-                const stateName = $row.find('.state-name').text().toLowerCase();
-                const zipCodes = $row.find('.zip-preview').text().toLowerCase();
                 
-                const matches = cityName.includes(searchTerm) || 
-                              stateName.includes(searchTerm) || 
-                              zipCodes.includes(searchTerm);
+                const matches = areaName.includes(searchTerm) || 
+                              zipCode.includes(searchTerm) || 
+                              cityName.includes(searchTerm);
                 
                 $row.toggle(matches);
             });
         },
         
-        filterZipCodes: function(searchTerm) {
-            const $badges = $('.zip-code-badge');
-            
-            if (!searchTerm) {
-                $badges.show();
-                return;
-            }
-            
-            searchTerm = searchTerm.toLowerCase();
-            
-            $badges.each(function() {
-                const zipCode = $(this).text().toLowerCase();
-                $(this).toggle(zipCode.includes(searchTerm));
-            });
-        },
-        
-        exportZipCodes: function() {
-            // This could export ZIP codes for the current area being viewed
-            this.showNotification('Export functionality will be implemented', 'info');
-        },
-        
-        refreshAreasTable: function() {
-            // Reload the page to refresh the areas table
+        refreshAreasDisplay: function() {
+            // Reload the page to refresh the areas display
             // In a more sophisticated implementation, this could be done via AJAX
             location.reload();
-        },
-        
-        updateAreaCount: function() {
-            const totalAreas = $('.area-row').length;
-            const activeAreas = $('.area-row .status-badge.active').length;
-            
-            // Update stats if they exist
-            $('.stat-item .stat-number').first().text(totalAreas);
-            $('.stat-item .stat-number').eq(1).text(activeAreas);
         },
         
         showModal: function(selector) {
@@ -1704,6 +1272,13 @@ generateMockCityData: function(cityName, countryCode) {
             this.state.currentAreaId = null;
             this.state.selectedAreas = [];
             this.state.confirmAction = null;
+            this.state.fetchedAreas = [];
+            this.state.currentCity = '';
+            
+            // Clear forms
+            $('#city-name-input, #modal-city-input').val('');
+            $('#areas-results').hide();
+            $('.city-suggestions').hide();
         },
         
         setLoading: function($btn, loading) {
@@ -1757,10 +1332,11 @@ generateMockCityData: function(cityName, countryCode) {
                     opacity: 0
                 });
                 setTimeout(() => notification.remove(), 300);
-            }, 4000);
+            }, 5000);
         },
         
         escapeHtml: function(text) {
+            if (!text) return '';
             const div = document.createElement('div');
             div.textContent = text;
             return div.innerHTML;
@@ -1769,5 +1345,14 @@ generateMockCityData: function(cityName, countryCode) {
     
     // Initialize the enhanced areas manager
     EnhancedAreasManager.init();
+    
+    // Add modal open/close body class management
+    $('body').on('modal-open', function() {
+        $('body').css('overflow', 'hidden');
+    });
+    
+    $('body').on('modal-close', function() {
+        $('body').css('overflow', '');
+    });
 });
 </script>
