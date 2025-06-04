@@ -82,7 +82,7 @@ $subscription_info = mobooking_get_user_subscription_status($user_id);
         </ul>
     </div>
     
-    <div class="sidebar-subscription">
+    <div class="sidebar-subscription expired">
         <?php if ($subscription_info['is_active']) : ?>
             <div class="subscription-status active">
                 <span class="dashicons dashicons-yes-alt"></span>
@@ -100,11 +100,11 @@ $subscription_info = mobooking_get_user_subscription_status($user_id);
                 </div>
             </div>
         <?php else : ?>
-            <div class="subscription-status inactive">
-                <span class="dashicons dashicons-info"></span>
+            <div class="subscription-status active">
+                <span class="dashicons dashicons-yes-alt"></span>
                 <div class="status-info">
-                    <span class="status-label"><?php _e('No Active Subscription', 'mobooking'); ?></span>
-                    <a href="<?php echo esc_url(home_url('/pricing/')); ?>" class="signup-link"><?php _e('Choose a Plan', 'mobooking'); ?></a>
+                    <span class="status-label"><?php _e('Subscription Active', 'mobooking'); ?></span>
+                    <span class="status-type"><?php echo esc_html(ucfirst($subscription_info['type'])); ?> <?php _e('Plan', 'mobooking'); ?></span>
                 </div>
             </div>
         <?php endif; ?>
