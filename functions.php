@@ -315,3 +315,5 @@ function mobooking_prevent_theme_updates($r, $url) {
     return $r;
 }
 add_filter('http_request_args', 'mobooking_prevent_theme_updates', 5, 2);
+
+

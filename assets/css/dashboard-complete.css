@@ -84,6 +84,61 @@ body {
     min-height: 100vh;
 }
 
+.mobooking-dashboard-container {
+    display: flex;
+    min-height: 100vh;
+}
+
+.mobooking-dashboard-sidebar {
+    width: 260px;
+    flex-shrink: 0;
+    background: #fff;
+    border-right: 1px solid #e5e7eb;
+    position: fixed;
+    height: 100vh;
+    overflow-y: auto;
+    z-index: 10;
+}
+
+.mobooking-dashboard-main {
+    flex: 1;
+    margin-left: 260px;
+    /* Account for fixed sidebar */
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+}
+
+.dashboard-header {
+    background: #fff;
+    border-bottom: 1px solid #e5e7eb;
+    padding: 1rem 2rem;
+    position: sticky;
+    top: 0;
+    z-index: 5;
+}
+
+.dashboard-content {
+    flex: 1;
+    padding: 2rem;
+}
+
+/* Mobile responsive */
+@media (max-width: 768px) {
+    .mobooking-dashboard-sidebar {
+        transform: translateX(-100%);
+        transition: transform 0.3s ease;
+    }
+
+    .mobooking-dashboard-main {
+        margin-left: 0;
+    }
+
+    .sidebar-open .mobooking-dashboard-sidebar {
+        transform: translateX(0);
+    }
+}
+
 /* Header */
 .mobooking-dashboard-header {
     position: fixed;
