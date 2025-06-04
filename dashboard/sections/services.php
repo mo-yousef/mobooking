@@ -1127,7 +1127,7 @@ $available_icons = array(
 
 .tab-nav {
     display: flex;
-    background: hsl(var(--muted) / 0.3);
+    background: hsl(var(--muted));
     border-radius: 8px;
     padding: 0.25rem;
     gap: 0.25rem;
