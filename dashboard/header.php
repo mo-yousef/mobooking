@@ -378,7 +378,7 @@ if ($current_hour < 12) {
 .mobooking-dashboard-header {
     position: sticky;
     top: 0;
-    z-index: 1000;
+    z-index: 2;
     background: hsl(var(--background));
     border-bottom: 1px solid hsl(var(--border));
     backdrop-filter: blur(8px);
@@ -905,6 +905,7 @@ if ($current_hour < 12) {
     align-items: center;
     gap: 0.75rem;
     padding: 0.5rem;
+    justify-content: center;
     background: none;
     border: 1px solid hsl(var(--border));
     border-radius: var(--radius);

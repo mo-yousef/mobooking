@@ -45,6 +45,10 @@ p {
   color: var(--text-color);
 }
 
+svg {
+  max-width: 25px;
+}
+
 /* Links */
 a {
   color: var(--primary-color);

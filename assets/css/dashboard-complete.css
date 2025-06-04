@@ -102,7 +102,7 @@ body {
 
 .mobooking-dashboard-main {
     flex: 1;
-    margin-left: 260px;
+    margin-left: 256px;
     /* Account for fixed sidebar */
     display: flex;
     flex-direction: column;
@@ -120,7 +120,7 @@ body {
 
 .dashboard-content {
     flex: 1;
-    padding: 6rem 2rem 2rem;
+    padding: 2rem 2rem 2rem;
 }
 
 /* Mobile responsive */
