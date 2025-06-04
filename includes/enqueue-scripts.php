@@ -70,6 +70,16 @@ function mobooking_enqueue_dashboard_assets() {
         MOBOOKING_VERSION
     );
     
+
+    // Single unified dashboard CSS
+    wp_enqueue_style(
+        'mobooking-dashboard-overview',
+        MOBOOKING_URL . '/assets/css/dashboard-overview.css',
+        array('dashicons'),
+        MOBOOKING_VERSION
+    );
+    
+
     // Dashboard JavaScript with dependencies
     wp_enqueue_script(
         'mobooking-dashboard',

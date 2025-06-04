@@ -5,7 +5,7 @@
  *
  * @package CleaningSaaSTheme
  */
-\get_header();
+get_header();
 ?>
 
 <!-- Font Awesome CDN for icons -->

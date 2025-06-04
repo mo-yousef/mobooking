@@ -500,8 +500,9 @@ body {
 .kpi-card {
     padding: 1.5rem;
     display: flex;
-    align-items: center;
+    align-items: flex-start;
     gap: 1rem;
+    flex-direction: column;
 }
 
 .kpi-main-value {
