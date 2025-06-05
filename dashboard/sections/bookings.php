@@ -872,12 +872,13 @@ jQuery(document).ready(function($) {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    max-width: 1400px;
+
     margin: 0 auto;
 }
 
 .header-info {
     flex: 1;
+    
 }
 
 .page-title {
@@ -919,7 +920,7 @@ jQuery(document).ready(function($) {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
     gap: 1.5rem;
-    max-width: 1400px;
+
     margin: 0 auto;
 }
 
