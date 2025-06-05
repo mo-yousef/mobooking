@@ -904,7 +904,7 @@ if ($current_hour < 12) {
     display: flex;
     align-items: center;
     gap: 0.75rem;
-    padding: 0.5rem;
+    padding: 5px 10px;
     justify-content: center;
     background: none;
     border: 1px solid hsl(var(--border));
