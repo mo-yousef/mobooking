@@ -872,13 +872,12 @@ jQuery(document).ready(function($) {
     display: flex;
     align-items: center;
     justify-content: space-between;
-
+    max-width: 1400px;
     margin: 0 auto;
 }
 
 .header-info {
     flex: 1;
-    
 }
 
 .page-title {
@@ -920,7 +919,7 @@ jQuery(document).ready(function($) {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
     gap: 1.5rem;
-
+    max-width: 1400px;
     margin: 0 auto;
 }
 
@@ -1459,4 +1458,416 @@ jQuery(document).ready(function($) {
     background: #f3f4f6;
     border-color: #9ca3af;
 }
+
+.action-btn.view-btn:hover {
+    background: #3b82f6;
+    border-color: #3b82f6;
+    color: white;
+}
+
+.action-btn.confirm-btn:hover {
+    background: #059669;
+    border-color: #059669;
+    color: white;
+}
+
+.action-btn.complete-btn:hover {
+    background: #0891b2;
+    border-color: #0891b2;
+    color: white;
+}
+
+.action-btn.cancel-btn:hover {
+    background: #dc2626;
+    border-color: #dc2626;
+    color: white;
+}
+
+.action-btn.loading {
+    opacity: 0.7;
+    pointer-events: none;
+    position: relative;
+}
+
+.action-btn.loading::after {
+    content: '';
+    position: absolute;
+    width: 12px;
+    height: 12px;
+    border: 2px solid currentColor;
+    border-top: 2px solid transparent;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+/* Empty State */
+.empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 4rem 2rem;
+    margin: 2rem 0;
+    border-radius: 12px;
+    background: linear-gradient(135deg, rgba(59, 130, 246, 0.02), rgba(59, 130, 246, 0.05));
+    border: 2px dashed #d1d5db;
+}
+
+.empty-state-icon {
+    width: 4rem;
+    height: 4rem;
+    color: #9ca3af;
+    opacity: 0.6;
+    margin-bottom: 1.5rem;
+}
+
+.empty-state-content h3 {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: #111827;
+    margin: 0 0 1rem 0;
+}
+
+.empty-state-content p {
+    font-size: 1rem;
+    color: #6b7280;
+    margin: 0 0 2rem 0;
+    max-width: 32rem;
+    line-height: 1.6;
+}
+
+.empty-actions {
+    display: flex;
+    gap: 1rem;
+    justify-content: center;
+    flex-wrap: wrap;
+}
+
+/* Pagination */
+.pagination-container {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 1.5rem 2rem;
+    border-top: 1px solid #e5e7eb;
+    background: #f9fafb;
+}
+
+.pagination-info {
+    font-size: 0.875rem;
+    color: #6b7280;
+}
+
+.pagination-controls {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.pagination-btn,
+.pagination-number {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 0.5rem 0.75rem;
+    border: 1px solid #d1d5db;
+    background: white;
+    color: #374151;
+    text-decoration: none;
+    border-radius: 6px;
+    font-size: 0.875rem;
+    font-weight: 500;
+    transition: all 0.2s ease;
+    min-width: 2.5rem;
+    height: 2.5rem;
+}
+
+.pagination-btn:hover,
+.pagination-number:hover {
+    background: #f3f4f6;
+    border-color: #9ca3af;
+}
+
+.pagination-number.current {
+    background: #3b82f6;
+    border-color: #3b82f6;
+    color: white;
+}
+
+.pagination-ellipsis {
+    padding: 0.5rem;
+    color: #9ca3af;
+    font-size: 0.875rem;
+}
+
+.pagination-numbers {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+}
+
+/* Button Styles */
+.btn-primary,
+.btn-secondary {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 0.75rem 1.25rem;
+    border-radius: 8px;
+    font-size: 0.875rem;
+    font-weight: 600;
+    text-decoration: none;
+    border: 1px solid transparent;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    white-space: nowrap;
+}
+
+.btn-primary {
+    background: linear-gradient(135deg, #3b82f6, #2563eb);
+    color: white;
+    border-color: #3b82f6;
+    box-shadow: 0 2px 4px rgba(59, 130, 246, 0.2);
+}
+
+.btn-primary:hover {
+    background: linear-gradient(135deg, #2563eb, #1d4ed8);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 8px rgba(59, 130, 246, 0.3);
+}
+
+.btn-secondary {
+    background: white;
+    color: #374151;
+    border-color: #d1d5db;
+}
+
+.btn-secondary:hover {
+    background: #f9fafb;
+    border-color: #9ca3af;
+    transform: translateY(-1px);
+}
+
+.clear-filters {
+    padding: 0.625rem 1rem;
+}
+
+/* Animations */
+@keyframes pulse {
+    0%, 100% {
+        opacity: 1;
+    }
+    50% {
+        opacity: 0.5;
+    }
+}
+
+@keyframes spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+/* Responsive Design */
+@media (max-width: 1200px) {
+    .analytics-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+    
+    .controls-section {
+        flex-direction: column;
+        gap: 1.5rem;
+        align-items: stretch;
+    }
+    
+    .search-input {
+        min-width: 250px;
+    }
+}
+
+@media (max-width: 768px) {
+    .page-header {
+        padding: 1.5rem;
+    }
+    
+    .header-content {
+        flex-direction: column;
+        gap: 1.5rem;
+        align-items: stretch;
+    }
+    
+    .header-actions {
+        justify-content: center;
+    }
+    
+    .analytics-section {
+        padding: 1.5rem;
+    }
+    
+    .analytics-grid {
+        grid-template-columns: 1fr;
+        gap: 1rem;
+    }
+    
+    .metric-value {
+        font-size: 1.875rem;
+    }
+    
+    .controls-section {
+        padding: 1rem 1.5rem;
+    }
+    
+    .filters-container {
+        flex-wrap: wrap;
+        gap: 0.75rem;
+    }
+    
+    .search-input {
+        min-width: 200px;
+    }
+    
+    /* Table responsive handling */
+    .table-container {
+        overflow-x: auto;
+    }
+    
+    .bookings-table {
+        min-width: 800px;
+    }
+    
+    .pagination-container {
+        flex-direction: column;
+        gap: 1rem;
+        padding: 1rem 1.5rem;
+    }
+    
+    .pagination-controls {
+        flex-wrap: wrap;
+        justify-content: center;
+    }
+}
+
+@media (max-width: 480px) {
+    .page-title {
+        font-size: 1.5rem;
+    }
+    
+    .empty-state {
+        padding: 2rem 1rem;
+    }
+    
+    .empty-actions {
+        flex-direction: column;
+        align-items: center;
+    }
+    
+    .action-buttons {
+        flex-direction: column;
+        gap: 0.25rem;
+    }
+    
+    .action-btn {
+        width: 1.75rem;
+        height: 1.75rem;
+    }
+}
+
+/* Print Styles */
+@media print {
+    .page-header .header-actions,
+    .controls-section,
+    .action-buttons,
+    .pagination-container {
+        display: none;
+    }
+    
+    .bookings-page {
+        background: white;
+    }
+    
+    .bookings-table {
+        border: 2px solid #000;
+    }
+    
+    .bookings-table th,
+    .bookings-table td {
+        border: 1px solid #000;
+        padding: 0.5rem;
+    }
+}
+
+/* High Contrast Mode */
+@media (prefers-contrast: high) {
+    .metric-card,
+    .bookings-table,
+    .filter-select,
+    .search-input,
+    .action-btn {
+        border-width: 2px;
+    }
+    
+    .status-badge {
+        border-width: 2px;
+        font-weight: 700;
+    }
+}
+
+/* Reduced Motion */
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+    }
+    
+    .alert-pulse {
+        animation: none;
+    }
+}
 </style>
+
+<?php
+/**
+ * Additional PHP functions for enhanced functionality
+ */
+?>
+
+<!-- Modal for bulk actions (if needed) -->
+<div id="bulk-actions-modal" class="mobooking-modal" style="display: none;">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3><?php _e('Bulk Actions', 'mobooking'); ?></h3>
+            <button type="button" class="modal-close">&times;</button>
+        </div>
+        <div class="modal-body">
+            <p><?php _e('Select an action to perform on the selected bookings:', 'mobooking'); ?></p>
+            <div class="bulk-actions-list">
+                <button type="button" class="bulk-action-btn" data-action="confirm">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+                        <polyline points="22,4 12,14.01 9,11.01"/>
+                    </svg>
+                    <?php _e('Confirm Selected', 'mobooking'); ?>
+                </button>
+                <button type="button" class="bulk-action-btn" data-action="complete">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2ZM8 12l2 2 4-4"/>
+                    </svg>
+                    <?php _e('Mark as Completed', 'mobooking'); ?>
+                </button>
+                <button type="button" class="bulk-action-btn danger" data-action="cancel">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="12" cy="12" r="10"/>
+                        <path d="M15 9l-6 6M9 9l6 6"/>
+                    </svg>
+                    <?php _e('Cancel Selected', 'mobooking'); ?>
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
