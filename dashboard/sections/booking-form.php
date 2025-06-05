@@ -1667,6 +1667,15 @@ jQuery(document).ready(function($) {
                 formData.append('is_draft', '1');
             }
             
+            // Add action to formData
+            formData.append('action', 'mobooking_save_booking_form_settings');
+            
+            // Debug form data
+            console.log('Form data being sent:');
+            for (let pair of formData.entries()) {
+                console.log(pair[0] + ': ' + pair[1]);
+            }
+            
             // Show loading state
             $saveBtn.addClass('loading').prop('disabled', true);
             $('.btn-text', $saveBtn).hide();
@@ -1679,6 +1688,7 @@ jQuery(document).ready(function($) {
                 processData: false,
                 contentType: false,
                 success: function(response) {
+                    console.log('AJAX Response:', response);
                     if (response.success) {
                         BookingFormManager.showNotification(
                             response.data.message || '<?php _e('Settings saved successfully!', 'mobooking'); ?>',
@@ -1692,13 +1702,21 @@ jQuery(document).ready(function($) {
                             $('#form-preview-iframe').attr('src', response.data.booking_url);
                         }
                     } else {
+                        console.error('AJAX Error Response:', response);
                         BookingFormManager.showNotification(
                             response.data || '<?php _e('Failed to save settings.', 'mobooking'); ?>',
                             'error'
                         );
                     }
                 },
-                error: function() {
+                error: function(jqXHR, textStatus, errorThrown) {
+                    console.error('AJAX Error:', {
+                        status: jqXHR.status,
+                        statusText: jqXHR.statusText,
+                        responseText: jqXHR.responseText,
+                        textStatus: textStatus,
+                        errorThrown: errorThrown
+                    });
                     BookingFormManager.showNotification('<?php _e('An error occurred while saving settings.', 'mobooking'); ?>', 'error');
                 },
                 complete: function() {
@@ -1781,8 +1799,17 @@ jQuery(document).ready(function($) {
 // Add AJAX handler for saving booking form settings
 add_action('wp_ajax_mobooking_save_booking_form_settings', function() {
     try {
+        // Debug incoming data
+        error_log('MoBooking - Received POST data: ' . print_r($_POST, true));
+        
         // Check nonce
-        if (!isset($_POST['nonce']) || !wp_verify_nonce($_POST['nonce'], 'mobooking-booking-form-nonce')) {
+        if (!isset($_POST['nonce'])) {
+            error_log('MoBooking - Nonce not set in POST data');
+            wp_send_json_error(__('Security nonce is missing.', 'mobooking'));
+        }
+        
+        if (!wp_verify_nonce($_POST['nonce'], 'mobooking-booking-form-nonce')) {
+            error_log('MoBooking - Nonce verification failed. Received nonce: ' . $_POST['nonce']);
             wp_send_json_error(__('Security verification failed.', 'mobooking'));
         }
         
