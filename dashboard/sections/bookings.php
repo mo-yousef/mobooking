@@ -1,5 +1,5 @@
 <?php
-// dashboard/sections/bookings.php - ENHANCED Bookings Management Section
+// dashboard/sections/bookings.php - ENHANCED Responsive Bookings Management Section
 // Prevent direct access
 if (!defined('ABSPATH')) {
     exit;
@@ -22,10 +22,11 @@ if ($current_view === 'booking' && $booking_id) {
 $status_filter = isset($_GET['status']) ? sanitize_text_field($_GET['status']) : '';
 $date_filter = isset($_GET['date_range']) ? sanitize_text_field($_GET['date_range']) : '';
 $search_query = isset($_GET['search']) ? sanitize_text_field($_GET['search']) : '';
+$view_mode = isset($_GET['view_mode']) ? sanitize_text_field($_GET['view_mode']) : 'cards';
 
 // Pagination
 $page = isset($_GET['paged']) ? absint($_GET['paged']) : 1;
-$per_page = 20;
+$per_page = ($view_mode === 'compact') ? 50 : 20;
 $offset = ($page - 1) * $per_page;
 
 // Build query arguments
@@ -79,6 +80,15 @@ $stats = array(
 
 // Calculate pagination
 $total_pages = ceil($total_bookings / $per_page);
+
+// Get upcoming bookings (next 7 days)
+$upcoming_args = array(
+    'limit' => 5,
+    'date_from' => date('Y-m-d'),
+    'date_to' => date('Y-m-d', strtotime('+7 days')),
+    'status' => 'confirmed'
+);
+$upcoming_bookings = $bookings_manager->get_user_bookings($user_id, $upcoming_args);
 ?>
 
 <div class="bookings-page">
@@ -91,26 +101,38 @@ $total_pages = ceil($total_bookings / $per_page);
                         <path d="M16 2V6M8 2V6M3 10H21M5 4H19C20.1046 4 21 4.89543 21 6V20C21 21.1046 20.1046 22 19 22H5C3.89543 22 3 21.1046 3 20V6C3 4.89543 3.89543 4 5 4Z"/>
                     </svg>
                     Bookings
+                    <?php if ($total_bookings > 0) : ?>
+                        <span class="bookings-count"><?php echo number_format($total_bookings); ?></span>
+                    <?php endif; ?>
                 </h1>
                 <p class="page-subtitle">Manage and track your service bookings</p>
             </div>
             
             <div class="header-actions">
-                <button type="button" class="btn-secondary" id="export-bookings-btn">
+                <button type="button" class="btn-secondary" id="bulk-actions-btn" style="display: none;">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-15"/>
-                        <path d="M7 10l5 5 5-5"/>
-                        <path d="M12 15V3"/>
+                        <path d="M9 12l2 2 4-4M21 12c0 4.97-4.03 9-9 9s-9-4.03-9-9 4.03-9 9-9c1.94 0 3.73.62 5.18 1.67"/>
                     </svg>
-                    Export
+                    <span class="selected-count">0</span> Selected
                 </button>
                 
-                <button type="button" class="btn-primary" id="new-booking-btn">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M12 5v14M5 12h14"/>
-                    </svg>
-                    New Booking
-                </button>
+                <div class="header-action-group">
+                    <button type="button" class="btn-secondary" id="export-bookings-btn">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-15"/>
+                            <path d="M7 10l5 5 5-5"/>
+                            <path d="M12 15V3"/>
+                        </svg>
+                        Export
+                    </button>
+                    
+                    <button type="button" class="btn-primary" id="new-booking-btn">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M12 5v14M5 12h14"/>
+                        </svg>
+                        New Booking
+                    </button>
+                </div>
             </div>
         </div>
     </div>
@@ -206,64 +228,131 @@ $total_pages = ceil($total_bookings / $per_page);
                 </div>
             </div>
         </div>
+        
+        <!-- Quick Insights -->
+        <?php if (!empty($upcoming_bookings)) : ?>
+            <div class="quick-insights">
+                <div class="insight-card">
+                    <div class="insight-header">
+                        <h3>
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <circle cx="12" cy="12" r="10"/>
+                                <polyline points="12,6 12,12 16,14"/>
+                            </svg>
+                            Upcoming This Week
+                        </h3>
+                        <span class="insight-count"><?php echo count($upcoming_bookings); ?></span>
+                    </div>
+                    <div class="upcoming-list">
+                        <?php foreach (array_slice($upcoming_bookings, 0, 3) as $upcoming) : 
+                            $upcoming_date = new DateTime($upcoming->service_date);
+                        ?>
+                            <div class="upcoming-item">
+                                <div class="upcoming-date">
+                                    <div class="date-day"><?php echo $upcoming_date->format('d'); ?></div>
+                                    <div class="date-month"><?php echo $upcoming_date->format('M'); ?></div>
+                                </div>
+                                <div class="upcoming-details">
+                                    <div class="upcoming-customer"><?php echo esc_html($upcoming->customer_name); ?></div>
+                                    <div class="upcoming-time"><?php echo $upcoming_date->format('g:i A'); ?></div>
+                                </div>
+                                <div class="upcoming-actions">
+                                    <a href="<?php echo esc_url(add_query_arg(array('view' => 'booking', 'booking_id' => $upcoming->id))); ?>" 
+                                       class="upcoming-view-btn">
+                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                            <path d="M9 18l6-6-6-6"/>
+                                        </svg>
+                                    </a>
+                                </div>
+                            </div>
+                        <?php endforeach; ?>
+                    </div>
+                </div>
+            </div>
+        <?php endif; ?>
     </div>
     
-    <!-- Filters and Search -->
+    <!-- Controls Section -->
     <div class="controls-section">
-        <div class="filters-container">
-            <div class="filter-group">
-                <label for="status-filter" class="filter-label">Status</label>
-                <select id="status-filter" name="status" class="filter-select">
-                    <option value=""><?php _e('All Statuses', 'mobooking'); ?></option>
-                    <option value="pending" <?php selected($status_filter, 'pending'); ?>><?php _e('Pending', 'mobooking'); ?></option>
-                    <option value="confirmed" <?php selected($status_filter, 'confirmed'); ?>><?php _e('Confirmed', 'mobooking'); ?></option>
-                    <option value="completed" <?php selected($status_filter, 'completed'); ?>><?php _e('Completed', 'mobooking'); ?></option>
-                    <option value="cancelled" <?php selected($status_filter, 'cancelled'); ?>><?php _e('Cancelled', 'mobooking'); ?></option>
-                </select>
+        <div class="controls-left">
+            <div class="filters-container">
+                <div class="filter-group">
+                    <label for="status-filter" class="filter-label">Status</label>
+                    <select id="status-filter" name="status" class="filter-select">
+                        <option value=""><?php _e('All Statuses', 'mobooking'); ?></option>
+                        <option value="pending" <?php selected($status_filter, 'pending'); ?>><?php _e('Pending', 'mobooking'); ?></option>
+                        <option value="confirmed" <?php selected($status_filter, 'confirmed'); ?>><?php _e('Confirmed', 'mobooking'); ?></option>
+                        <option value="completed" <?php selected($status_filter, 'completed'); ?>><?php _e('Completed', 'mobooking'); ?></option>
+                        <option value="cancelled" <?php selected($status_filter, 'cancelled'); ?>><?php _e('Cancelled', 'mobooking'); ?></option>
+                    </select>
+                </div>
+                
+                <div class="filter-group">
+                    <label for="date-filter" class="filter-label">Date Range</label>
+                    <select id="date-filter" name="date_range" class="filter-select">
+                        <option value=""><?php _e('All Dates', 'mobooking'); ?></option>
+                        <option value="today" <?php selected($date_filter, 'today'); ?>><?php _e('Today', 'mobooking'); ?></option>
+                        <option value="this_week" <?php selected($date_filter, 'this_week'); ?>><?php _e('This Week', 'mobooking'); ?></option>
+                        <option value="this_month" <?php selected($date_filter, 'this_month'); ?>><?php _e('This Month', 'mobooking'); ?></option>
+                        <option value="last_30_days" <?php selected($date_filter, 'last_30_days'); ?>><?php _e('Last 30 Days', 'mobooking'); ?></option>
+                    </select>
+                </div>
+                
+                <button type="button" class="btn-secondary clear-filters" id="clear-filters-btn">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M18 6 6 18M6 6l12 12"/>
+                    </svg>
+                    Clear
+                </button>
             </div>
-            
-            <div class="filter-group">
-                <label for="date-filter" class="filter-label">Date Range</label>
-                <select id="date-filter" name="date_range" class="filter-select">
-                    <option value=""><?php _e('All Dates', 'mobooking'); ?></option>
-                    <option value="today" <?php selected($date_filter, 'today'); ?>><?php _e('Today', 'mobooking'); ?></option>
-                    <option value="this_week" <?php selected($date_filter, 'this_week'); ?>><?php _e('This Week', 'mobooking'); ?></option>
-                    <option value="this_month" <?php selected($date_filter, 'this_month'); ?>><?php _e('This Month', 'mobooking'); ?></option>
-                    <option value="last_30_days" <?php selected($date_filter, 'last_30_days'); ?>><?php _e('Last 30 Days', 'mobooking'); ?></option>
-                </select>
-            </div>
-            
-            <button type="button" class="btn-secondary clear-filters" id="clear-filters-btn">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M18 6 6 18M6 6l12 12"/>
-                </svg>
-                Clear
-            </button>
         </div>
         
-        <div class="search-container">
-            <div class="search-input-wrapper">
-                <svg class="search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <circle cx="11" cy="11" r="8"/>
-                    <path d="M21 21l-4.35-4.35"/>
-                </svg>
-                <input type="text" id="booking-search" name="search" 
-                       placeholder="<?php _e('Search bookings...', 'mobooking'); ?>" 
-                       value="<?php echo esc_attr($search_query); ?>" 
-                       class="search-input">
-                <?php if ($search_query) : ?>
-                    <button type="button" id="clear-search" class="clear-search-btn">
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <path d="M18 6 6 18M6 6l12 12"/>
-                        </svg>
-                    </button>
-                <?php endif; ?>
+        <div class="controls-right">
+            <div class="view-toggle">
+                <button type="button" class="view-btn <?php echo $view_mode === 'cards' ? 'active' : ''; ?>" data-view="cards">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <rect x="3" y="3" width="7" height="7"/>
+                        <rect x="14" y="3" width="7" height="7"/>
+                        <rect x="14" y="14" width="7" height="7"/>
+                        <rect x="3" y="14" width="7" height="7"/>
+                    </svg>
+                </button>
+                <button type="button" class="view-btn <?php echo $view_mode === 'compact' ? 'active' : ''; ?>" data-view="compact">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <line x1="8" y1="6" x2="21" y2="6"/>
+                        <line x1="8" y1="12" x2="21" y2="12"/>
+                        <line x1="8" y1="18" x2="21" y2="18"/>
+                        <line x1="3" y1="6" x2="3.01" y2="6"/>
+                        <line x1="3" y1="12" x2="3.01" y2="12"/>
+                        <line x1="3" y1="18" x2="3.01" y2="18"/>
+                    </svg>
+                </button>
+            </div>
+            
+            <div class="search-container">
+                <div class="search-input-wrapper">
+                    <svg class="search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="11" cy="11" r="8"/>
+                        <path d="M21 21l-4.35-4.35"/>
+                    </svg>
+                    <input type="text" id="booking-search" name="search" 
+                           placeholder="<?php _e('Search bookings...', 'mobooking'); ?>" 
+                           value="<?php echo esc_attr($search_query); ?>" 
+                           class="search-input">
+                    <?php if ($search_query) : ?>
+                        <button type="button" id="clear-search" class="clear-search-btn">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M18 6 6 18M6 6l12 12"/>
+                            </svg>
+                        </button>
+                    <?php endif; ?>
+                </div>
             </div>
         </div>
     </div>
     
-    <!-- Bookings Table -->
-    <div class="table-container">
+    <!-- Bookings Content -->
+    <div class="bookings-content">
         <?php if (empty($bookings)) : ?>
             <!-- Empty State -->
             <div class="empty-state">
@@ -294,55 +383,9 @@ $total_pages = ceil($total_bookings / $per_page);
                 </div>
             </div>
         <?php else : ?>
-            <table class="bookings-table">
-                <thead>
-                    <tr>
-                        <th class="sortable" data-sort="id">
-                            <div class="th-content">
-                                ID
-                                <svg class="sort-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                    <path d="M8 9l4-4 4 4M16 15l-4 4-4-4"/>
-                                </svg>
-                            </div>
-                        </th>
-                        <th class="sortable" data-sort="customer">
-                            <div class="th-content">
-                                Customer
-                                <svg class="sort-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                    <path d="M8 9l4-4 4 4M16 15l-4 4-4-4"/>
-                                </svg>
-                            </div>
-                        </th>
-                        <th class="sortable" data-sort="service_date">
-                            <div class="th-content">
-                                Service Date
-                                <svg class="sort-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                    <path d="M8 9l4-4 4 4M16 15l-4 4-4-4"/>
-                                </svg>
-                            </div>
-                        </th>
-                        <th>Services</th>
-                        <th>Address</th>
-                        <th class="sortable" data-sort="status">
-                            <div class="th-content">
-                                Status
-                                <svg class="sort-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                    <path d="M8 9l4-4 4 4M16 15l-4 4-4-4"/>
-                                </svg>
-                            </div>
-                        </th>
-                        <th class="sortable" data-sort="total_price">
-                            <div class="th-content">
-                                Total
-                                <svg class="sort-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                    <path d="M8 9l4-4 4 4M16 15l-4 4-4-4"/>
-                                </svg>
-                            </div>
-                        </th>
-                        <th>Actions</th>
-                    </tr>
-                </thead>
-                <tbody>
+            <!-- Bookings List -->
+            <div class="bookings-container">
+                <div class="bookings-list <?php echo esc_attr($view_mode); ?>-view">
                     <?php 
                     $services_manager = new \MoBooking\Services\ServicesManager();
                     foreach ($bookings as $booking) : 
@@ -362,11 +405,12 @@ $total_pages = ceil($total_bookings / $per_page);
                         $created_date = new DateTime($booking->created_at);
                         $now = new DateTime();
                         $days_until = $now->diff($service_date)->days;
+                        $is_past = $service_date < $now;
                         
                         // Calculate urgency
                         $urgency_class = '';
                         if ($booking->status !== 'completed' && $booking->status !== 'cancelled') {
-                            if ($service_date < $now) {
+                            if ($is_past) {
                                 $urgency_class = 'overdue';
                             } elseif ($days_until == 0) {
                                 $urgency_class = 'today';
@@ -377,35 +421,43 @@ $total_pages = ceil($total_bookings / $per_page);
                             }
                         }
                     ?>
-                        <tr class="booking-row <?php echo $urgency_class; ?>" data-booking-id="<?php echo $booking->id; ?>">
-                            <td class="booking-id-cell">
-                                <div class="booking-id-wrapper">
+                        <div class="booking-card <?php echo $urgency_class; ?>" data-booking-id="<?php echo $booking->id; ?>">
+                            <div class="booking-card-header">
+                                <div class="booking-select">
+                                    <input type="checkbox" class="booking-checkbox" data-booking-id="<?php echo $booking->id; ?>">
+                                </div>
+                                
+                                <div class="booking-id-section">
                                     <span class="booking-id">#<?php echo $booking->id; ?></span>
                                     <span class="booking-created"><?php echo $created_date->format('M j'); ?></span>
                                 </div>
-                            </td>
-                            
-                            <td class="customer-cell">
-                                <div class="customer-info">
-                                    <div class="customer-avatar">
-                                        <?php echo strtoupper(substr($booking->customer_name, 0, 2)); ?>
-                                    </div>
-                                    <div class="customer-details">
-                                        <div class="customer-name"><?php echo esc_html($booking->customer_name); ?></div>
-                                        <div class="customer-email"><?php echo esc_html($booking->customer_email); ?></div>
-                                        <?php if (!empty($booking->customer_phone)) : ?>
-                                            <div class="customer-phone"><?php echo esc_html($booking->customer_phone); ?></div>
-                                        <?php endif; ?>
-                                    </div>
-                                </div>
-                            </td>
-                            
-                            <td class="service-date-cell">
-                                <div class="date-info">
-                                    <div class="service-date"><?php echo $service_date->format('M j, Y'); ?></div>
-                                    <div class="service-time"><?php echo $service_date->format('g:i A'); ?></div>
+                                
+                                <div class="booking-status">
+                                    <span class="status-badge status-<?php echo esc_attr($booking->status); ?>">
+                                        <?php 
+                                        switch ($booking->status) {
+                                            case 'pending':
+                                                echo '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12,6 12,12 16,14"/></svg>';
+                                                _e('Pending', 'mobooking');
+                                                break;
+                                            case 'confirmed':
+                                                echo '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22,4 12,14.01 9,11.01"/></svg>';
+                                                _e('Confirmed', 'mobooking');
+                                                break;
+                                            case 'completed':
+                                                echo '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2ZM8 12l2 2 4-4"/></svg>';
+                                                _e('Completed', 'mobooking');
+                                                break;
+                                            case 'cancelled':
+                                                echo '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M15 9l-6 6M9 9l6 6"/></svg>';
+                                                _e('Cancelled', 'mobooking');
+                                                break;
+                                        }
+                                        ?>
+                                    </span>
+                                    
                                     <?php if ($urgency_class) : ?>
-                                        <div class="urgency-badge <?php echo $urgency_class; ?>">
+                                        <div class="urgency-indicator <?php echo $urgency_class; ?>">
                                             <?php 
                                             switch($urgency_class) {
                                                 case 'overdue': _e('Overdue', 'mobooking'); break;
@@ -417,95 +469,116 @@ $total_pages = ceil($total_bookings / $per_page);
                                         </div>
                                     <?php endif; ?>
                                 </div>
-                            </td>
+                            </div>
                             
-                            <td class="services-cell">
-                                <div class="services-list">
-                                    <?php if (!empty($services_names)) : ?>
-                                        <?php foreach (array_slice($services_names, 0, 2) as $service_name) : ?>
-                                            <span class="service-tag"><?php echo esc_html($service_name); ?></span>
-                                        <?php endforeach; ?>
-                                        <?php if (count($services_names) > 2) : ?>
-                                            <span class="service-tag more">+<?php echo count($services_names) - 2; ?></span>
+                            <div class="booking-card-body">
+                                <div class="booking-main-info">
+                                    <div class="customer-section">
+                                        <a href="<?php echo esc_url(add_query_arg(array('view' => 'booking', 'booking_id' => $booking->id))); ?>" 
+                                           class="customer-link">
+                                            <div class="customer-avatar">
+                                                <?php echo strtoupper(substr($booking->customer_name, 0, 2)); ?>
+                                            </div>
+                                            <div class="customer-details">
+                                                <div class="customer-name"><?php echo esc_html($booking->customer_name); ?></div>
+                                                <div class="customer-contact">
+                                                    <span class="customer-email"><?php echo esc_html($booking->customer_email); ?></span>
+                                                    <?php if (!empty($booking->customer_phone)) : ?>
+                                                        <span class="customer-phone"><?php echo esc_html($booking->customer_phone); ?></span>
+                                                    <?php endif; ?>
+                                                </div>
+                                            </div>
+                                        </a>
+                                    </div>
+                                    
+                                    <div class="service-date-section">
+                                        <div class="date-info">
+                                            <div class="service-date"><?php echo $service_date->format('M j, Y'); ?></div>
+                                            <div class="service-time"><?php echo $service_date->format('g:i A'); ?></div>
+                                            <div class="service-day"><?php echo $service_date->format('l'); ?></div>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div class="booking-secondary-info">
+                                    <div class="services-section">
+                                        <div class="services-label">Services:</div>
+                                        <div class="services-list">
+                                            <?php if (!empty($services_names)) : ?>
+                                                <?php foreach (array_slice($services_names, 0, 3) as $service_name) : ?>
+                                                    <span class="service-tag"><?php echo esc_html($service_name); ?></span>
+                                                <?php endforeach; ?>
+                                                <?php if (count($services_names) > 3) : ?>
+                                                    <span class="service-tag more">+<?php echo count($services_names) - 3; ?> more</span>
+                                                <?php endif; ?>
+                                            <?php else : ?>
+                                                <span class="no-services">No services</span>
+                                            <?php endif; ?>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="price-section">
+                                        <div class="total-amount">
+                                            <?php echo function_exists('wc_price') ? wc_price($booking->total_price) : '
+                 . number_format($booking->total_price, 2); ?>
+                                        </div>
+                                        <?php if ($booking->discount_amount > 0) : ?>
+                                            <div class="discount-indicator">
+                                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                                    <path d="M19 5L5 19M9 6.5C9 7.88071 7.88071 9 6.5 9C5.11929 9 4 7.88071 4 6.5C4 5.11929 5.11929 4 6.5 4C7.88071 4 9 5.11929 9 6.5ZM20 17.5C20 18.8807 18.8807 20 17.5 20C16.1193 20 15 18.8807 15 17.5C15 16.1193 16.1193 15 17.5 15C18.8807 15 20 16.1193 20 17.5Z"/>
+                                                </svg>
+                                                Discount Applied
+                                            </div>
                                         <?php endif; ?>
-                                    <?php else : ?>
-                                        <span class="no-services">No services</span>
-                                    <?php endif; ?>
+                                    </div>
                                 </div>
-                            </td>
-                            
-                            <td class="address-cell">
-                                <div class="address-info">
-                                    <span class="address-text"><?php echo esc_html(wp_trim_words($booking->customer_address, 6)); ?></span>
-                                    <span class="zip-code"><?php echo esc_html($booking->zip_code); ?></span>
-                                </div>
-                            </td>
-                            
-                            <td class="status-cell">
-                                <span class="status-badge status-<?php echo esc_attr($booking->status); ?>">
-                                    <?php 
-                                    switch ($booking->status) {
-                                        case 'pending':
-                                            echo '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12,6 12,12 16,14"/></svg>';
-                                            _e('Pending', 'mobooking');
-                                            break;
-                                        case 'confirmed':
-                                            echo '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22,4 12,14.01 9,11.01"/></svg>';
-                                            _e('Confirmed', 'mobooking');
-                                            break;
-                                        case 'completed':
-                                            echo '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2ZM8 12l2 2 4-4"/></svg>';
-                                            _e('Completed', 'mobooking');
-                                            break;
-                                        case 'cancelled':
-                                            echo '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M15 9l-6 6M9 9l6 6"/></svg>';
-                                            _e('Cancelled', 'mobooking');
-                                            break;
-                                    }
-                                    ?>
-                                </span>
-                            </td>
-                            
-                            <td class="total-cell">
-                                <div class="total-amount">
-                                    <?php echo function_exists('wc_price') ? wc_price($booking->total_price) : '$' . number_format($booking->total_price, 2); ?>
-                                </div>
-                                <?php if ($booking->discount_amount > 0) : ?>
-                                    <div class="discount-indicator">
-                                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                            <path d="M19 5L5 19M9 6.5C9 7.88071 7.88071 9 6.5 9C5.11929 9 4 7.88071 4 6.5C4 5.11929 5.11929 4 6.5 4C7.88071 4 9 5.11929 9 6.5ZM20 17.5C20 18.8807 18.8807 20 17.5 20C16.1193 20 15 18.8807 15 17.5C15 16.1193 16.1193 15 17.5 15C18.8807 15 20 16.1193 20 17.5Z"/>
-                                        </svg>
-                                        Discount
+                                
+                                <?php if (!empty($booking->notes)) : ?>
+                                    <div class="booking-notes">
+                                        <div class="notes-label">
+                                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                                                <polyline points="14,2 14,8 20,8"/>
+                                                <line x1="16" y1="13" x2="8" y2="13"/>
+                                                <line x1="16" y1="17" x2="8" y2="17"/>
+                                            </svg>
+                                            Notes:
+                                        </div>
+                                        <div class="notes-content"><?php echo esc_html(wp_trim_words($booking->notes, 15)); ?></div>
                                     </div>
                                 <?php endif; ?>
-                            </td>
+                            </div>
                             
-                            <td class="actions-cell">
-                                <div class="action-buttons">
-                                    <a href="<?php echo esc_url(add_query_arg(array('view' => 'booking', 'booking_id' => $booking->id))); ?>" 
-                                       class="action-btn view-btn" title="<?php _e('View Details', 'mobooking'); ?>">
-                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <div class="booking-card-footer">
+                                <div class="booking-actions">
+                                    <button type="button" class="action-btn view-btn" 
+                                            onclick="window.location.href='<?php echo esc_url(add_query_arg(array('view' => 'booking', 'booking_id' => $booking->id))); ?>'"
+                                            title="<?php _e('View Details', 'mobooking'); ?>">
+                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                             <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
                                             <circle cx="12" cy="12" r="3"/>
                                         </svg>
-                                    </a>
+                                        View
+                                    </button>
                                     
                                     <?php if ($booking->status === 'pending') : ?>
                                         <button type="button" class="action-btn confirm-btn" 
                                                 data-booking-id="<?php echo $booking->id; ?>" 
                                                 title="<?php _e('Confirm Booking', 'mobooking'); ?>">
-                                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                                 <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
                                                 <polyline points="22,4 12,14.01 9,11.01"/>
                                             </svg>
+                                            Confirm
                                         </button>
                                     <?php elseif ($booking->status === 'confirmed') : ?>
                                         <button type="button" class="action-btn complete-btn" 
                                                 data-booking-id="<?php echo $booking->id; ?>" 
                                                 title="<?php _e('Mark as Completed', 'mobooking'); ?>">
-                                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                                 <path d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2ZM8 12l2 2 4-4"/>
                                             </svg>
+                                            Complete
                                         </button>
                                     <?php endif; ?>
                                     
@@ -513,18 +586,71 @@ $total_pages = ceil($total_bookings / $per_page);
                                         <button type="button" class="action-btn cancel-btn" 
                                                 data-booking-id="<?php echo $booking->id; ?>" 
                                                 title="<?php _e('Cancel Booking', 'mobooking'); ?>">
-                                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                                 <circle cx="12" cy="12" r="10"/>
                                                 <path d="M15 9l-6 6M9 9l6 6"/>
                                             </svg>
+                                            Cancel
                                         </button>
                                     <?php endif; ?>
+                                    
+                                    <div class="more-actions">
+                                        <button type="button" class="action-btn more-btn" data-booking-id="<?php echo $booking->id; ?>">
+                                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                                <circle cx="12" cy="12" r="1"/>
+                                                <circle cx="12" cy="5" r="1"/>
+                                                <circle cx="12" cy="19" r="1"/>
+                                            </svg>
+                                        </button>
+                                        <div class="more-actions-menu" style="display: none;">
+                                            <button type="button" class="menu-action" data-action="duplicate">
+                                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                                    <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
+                                                    <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+                                                </svg>
+                                                Duplicate
+                                            </button>
+                                            <button type="button" class="menu-action" data-action="send-reminder">
+                                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                                    <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
+                                                    <polyline points="22,6 12,13 2,6"/>
+                                                </svg>
+                                                Send Reminder
+                                            </button>
+                                            <button type="button" class="menu-action" data-action="export-pdf">
+                                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                                                    <polyline points="14,2 14,8 20,8"/>
+                                                    <line x1="16" y1="13" x2="8" y2="13"/>
+                                                    <line x1="16" y1="17" x2="8" y2="17"/>
+                                                    <polyline points="10,9 9,9 8,9"/>
+                                                </svg>
+                                                Export PDF
+                                            </button>
+                                        </div>
+                                    </div>
                                 </div>
-                            </td>
-                        </tr>
+                                
+                                <div class="booking-meta">
+                                    <span class="time-info">
+                                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                            <circle cx="12" cy="12" r="10"/>
+                                            <polyline points="12,6 12,12 16,14"/>
+                                        </svg>
+                                        <?php 
+                                        if ($is_past) {
+                                            printf(__('%s ago', 'mobooking'), human_time_diff(strtotime($booking->service_date)));
+                                        } else {
+                                            printf(__('In %s', 'mobooking'), human_time_diff(time(), strtotime($booking->service_date)));
+                                        }
+                                        ?>
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
                     <?php endforeach; ?>
-                </tbody>
-            </table>
+                </div>
+            </div>
             
             <!-- Pagination -->
             <?php if ($total_pages > 1) : ?>
@@ -591,23 +717,79 @@ $total_pages = ceil($total_bookings / $per_page);
     </div>
 </div>
 
+<!-- Bulk Actions Modal -->
+<div id="bulk-actions-modal" class="mobooking-modal" style="display: none;">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3><?php _e('Bulk Actions', 'mobooking'); ?></h3>
+            <button type="button" class="modal-close">&times;</button>
+        </div>
+        <div class="modal-body">
+            <p><span class="bulk-count">0</span> <?php _e('bookings selected. Choose an action:', 'mobooking'); ?></p>
+            <div class="bulk-actions-grid">
+                <button type="button" class="bulk-action-btn confirm-bulk" data-action="confirmed">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+                        <polyline points="22,4 12,14.01 9,11.01"/>
+                    </svg>
+                    <span><?php _e('Confirm All', 'mobooking'); ?></span>
+                </button>
+                
+                <button type="button" class="bulk-action-btn complete-bulk" data-action="completed">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2ZM8 12l2 2 4-4"/>
+                    </svg>
+                    <span><?php _e('Mark Completed', 'mobooking'); ?></span>
+                </button>
+                
+                <button type="button" class="bulk-action-btn cancel-bulk" data-action="cancelled">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="12" cy="12" r="10"/>
+                        <path d="M15 9l-6 6M9 9l6 6"/>
+                    </svg>
+                    <span><?php _e('Cancel All', 'mobooking'); ?></span>
+                </button>
+                
+                <button type="button" class="bulk-action-btn export-bulk" data-action="export">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-15"/>
+                        <path d="M7 10l5 5 5-5"/>
+                        <path d="M12 15V3"/>
+                    </svg>
+                    <span><?php _e('Export Selected', 'mobooking'); ?></span>
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <!-- Enhanced JavaScript -->
 <script>
 jQuery(document).ready(function($) {
     const BookingsManager = {
+        selectedBookings: new Set(),
+        
         init: function() {
             this.attachEventListeners();
             this.initializeSearch();
             this.initializeFilters();
-            this.initializeSorting();
+            this.initializeSelections();
+            this.initializeMoreActions();
         },
         
         attachEventListeners: function() {
             const self = this;
             
             // Status update buttons
-            $('.confirm-btn, .complete-btn, .cancel-btn').on('click', function() {
+            $('.confirm-btn, .complete-btn, .cancel-btn').on('click', function(e) {
+                e.stopPropagation();
                 self.updateBookingStatus($(this));
+            });
+            
+            // View toggle
+            $('.view-btn').on('click', function() {
+                const view = $(this).data('view');
+                self.changeView(view);
             });
             
             // Search functionality
@@ -636,13 +818,136 @@ jQuery(document).ready(function($) {
                 self.exportBookings();
             });
             
-            // Row clicks (view booking)
-            $('.booking-row').on('click', function(e) {
-                if (!$(e.target).closest('.action-buttons').length) {
-                    const bookingId = $(this).data('booking-id');
-                    window.location.href = '<?php echo esc_url(add_query_arg(array('view' => 'booking', 'booking_id' => ''))); ?>' + bookingId;
-                }
+            // Bulk actions
+            $('#bulk-actions-btn').on('click', function() {
+                self.showBulkActionsModal();
             });
+            
+            // More actions menu
+            $('.more-btn').on('click', function(e) {
+                e.stopPropagation();
+                self.toggleMoreActions($(this));
+            });
+            
+            // Click outside to close menus
+            $(document).on('click', function() {
+                $('.more-actions-menu').hide();
+            });
+            
+            // Prevent menu close when clicking inside
+            $('.more-actions-menu').on('click', function(e) {
+                e.stopPropagation();
+            });
+        },
+        
+        initializeSelections: function() {
+            const self = this;
+            
+            // Individual checkbox selection
+            $('.booking-checkbox').on('change', function() {
+                const bookingId = $(this).data('booking-id');
+                if ($(this).is(':checked')) {
+                    self.selectedBookings.add(bookingId);
+                    $(this).closest('.booking-card').addClass('selected');
+                } else {
+                    self.selectedBookings.delete(bookingId);
+                    $(this).closest('.booking-card').removeClass('selected');
+                }
+                self.updateSelectionUI();
+            });
+            
+            // Select all functionality (you can add a select all checkbox)
+            $('#select-all-bookings').on('change', function() {
+                const isChecked = $(this).is(':checked');
+                $('.booking-checkbox').prop('checked', isChecked).trigger('change');
+            });
+        },
+        
+        updateSelectionUI: function() {
+            const count = this.selectedBookings.size;
+            $('.selected-count').text(count);
+            $('.bulk-count').text(count);
+            
+            if (count > 0) {
+                $('#bulk-actions-btn').show();
+            } else {
+                $('#bulk-actions-btn').hide();
+            }
+        },
+        
+        showBulkActionsModal: function() {
+            if (this.selectedBookings.size === 0) return;
+            
+            $('#bulk-actions-modal').show();
+            $('.bulk-count').text(this.selectedBookings.size);
+            
+            // Attach bulk action handlers
+            $('.bulk-action-btn').off('click').on('click', (e) => {
+                const action = $(e.currentTarget).data('action');
+                this.performBulkAction(action);
+            });
+        },
+        
+        performBulkAction: function(action) {
+            if (this.selectedBookings.size === 0) return;
+            
+            const bookingIds = Array.from(this.selectedBookings);
+            let confirmMessage = '';
+            
+            switch(action) {
+                case 'confirmed':
+                    confirmMessage = `Confirm ${bookingIds.length} booking(s)?`;
+                    break;
+                case 'completed':
+                    confirmMessage = `Mark ${bookingIds.length} booking(s) as completed?`;
+                    break;
+                case 'cancelled':
+                    confirmMessage = `Cancel ${bookingIds.length} booking(s)? This cannot be undone.`;
+                    break;
+                case 'export':
+                    this.exportSelectedBookings();
+                    $('#bulk-actions-modal').hide();
+                    return;
+            }
+            
+            if (confirm(confirmMessage)) {
+                this.processBulkStatusUpdate(bookingIds, action);
+            }
+        },
+        
+        processBulkStatusUpdate: function(bookingIds, status) {
+            const self = this;
+            let completed = 0;
+            const total = bookingIds.length;
+            
+            // Update each booking
+            bookingIds.forEach(bookingId => {
+                $.ajax({
+                    url: '<?php echo admin_url('admin-ajax.php'); ?>',
+                    type: 'POST',
+                    data: {
+                        action: 'mobooking_update_booking_status',
+                        booking_id: bookingId,
+                        status: status,
+                        nonce: '<?php echo wp_create_nonce('mobooking-booking-nonce'); ?>'
+                    },
+                    success: function(response) {
+                        completed++;
+                        if (completed === total) {
+                            location.reload();
+                        }
+                    },
+                    error: function() {
+                        completed++;
+                        if (completed === total) {
+                            alert('Some updates failed. Please refresh the page.');
+                            location.reload();
+                        }
+                    }
+                });
+            });
+            
+            $('#bulk-actions-modal').hide();
         },
         
         updateBookingStatus: function($button) {
@@ -675,7 +980,9 @@ jQuery(document).ready(function($) {
                     },
                     success: function(response) {
                         if (response.success) {
-                            location.reload();
+                            // Update the booking card in place
+                            self.updateBookingCardStatus(bookingId, status);
+                            self.showNotification('Booking status updated successfully', 'success');
                         } else {
                             alert(response.data || '<?php _e('Error updating booking status', 'mobooking'); ?>');
                             $button.prop('disabled', false).removeClass('loading');
@@ -689,29 +996,98 @@ jQuery(document).ready(function($) {
             }
         },
         
+        updateBookingCardStatus: function(bookingId, newStatus) {
+            const $card = $(`.booking-card[data-booking-id="${bookingId}"]`);
+            
+            // Update status badge
+            const $statusBadge = $card.find('.status-badge');
+            $statusBadge.removeClass().addClass('status-badge status-' + newStatus);
+            
+            let statusIcon = '';
+            let statusText = '';
+            
+            switch(newStatus) {
+                case 'confirmed':
+                    statusIcon = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22,4 12,14.01 9,11.01"/></svg>';
+                    statusText = 'Confirmed';
+                    break;
+                case 'completed':
+                    statusIcon = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2ZM8 12l2 2 4-4"/></svg>';
+                    statusText = 'Completed';
+                    break;
+                case 'cancelled':
+                    statusIcon = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M15 9l-6 6M9 9l6 6"/></svg>';
+                    statusText = 'Cancelled';
+                    break;
+            }
+            
+            $statusBadge.html(statusIcon + statusText);
+            
+            // Update action buttons
+            const $actions = $card.find('.booking-actions');
+            $actions.find('.confirm-btn, .complete-btn, .cancel-btn').remove();
+            
+            if (newStatus === 'confirmed') {
+                $actions.prepend(`
+                    <button type="button" class="action-btn complete-btn" data-booking-id="${bookingId}">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2ZM8 12l2 2 4-4"/>
+                        </svg>
+                        Complete
+                    </button>
+                    <button type="button" class="action-btn cancel-btn" data-booking-id="${bookingId}">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <circle cx="12" cy="12" r="10"/>
+                            <path d="M15 9l-6 6M9 9l6 6"/>
+                        </svg>
+                        Cancel
+                    </button>
+                `);
+            }
+            
+            // Re-attach event listeners for new buttons
+            this.attachActionListeners($card);
+        },
+        
+        attachActionListeners: function($container) {
+            const self = this;
+            $container.find('.confirm-btn, .complete-btn, .cancel-btn').off('click').on('click', function(e) {
+                e.stopPropagation();
+                self.updateBookingStatus($(this));
+            });
+        },
+        
+        changeView: function(view) {
+            const currentUrl = new URL(window.location);
+            currentUrl.searchParams.set('view_mode', view);
+            window.location.href = currentUrl.toString();
+        },
+        
         performSearch: function(query) {
-            const $rows = $('.booking-row');
+            const $cards = $('.booking-card');
             
             if (!query.trim()) {
-                $rows.show();
+                $cards.show();
+                $('#clear-search').hide();
                 return;
             }
             
+            $('#clear-search').show();
             const searchTerm = query.toLowerCase();
             
-            $rows.each(function() {
-                const $row = $(this);
+            $cards.each(function() {
+                const $card = $(this);
                 const searchData = [
-                    $row.find('.customer-name').text(),
-                    $row.find('.customer-email').text(),
-                    $row.find('.booking-id').text(),
-                    $row.find('.service-tag').map(function() { return $(this).text(); }).get().join(' ')
+                    $card.find('.customer-name').text(),
+                    $card.find('.customer-email').text(),
+                    $card.find('.booking-id').text(),
+                    $card.find('.service-tag').map(function() { return $(this).text(); }).get().join(' ')
                 ].join(' ').toLowerCase();
                 
                 if (searchData.includes(searchTerm)) {
-                    $row.show();
+                    $card.show();
                 } else {
-                    $row.hide();
+                    $card.hide();
                 }
             });
         },
@@ -719,1155 +1095,4 @@ jQuery(document).ready(function($) {
         applyFilters: function() {
             const currentUrl = new URL(window.location);
             
-            const statusFilter = $('#status-filter').val();
-            const dateFilter = $('#date-filter').val();
-            
-            if (statusFilter) {
-                currentUrl.searchParams.set('status', statusFilter);
-            } else {
-                currentUrl.searchParams.delete('status');
-            }
-            
-            if (dateFilter) {
-                currentUrl.searchParams.set('date_range', dateFilter);
-            } else {
-                currentUrl.searchParams.delete('date_range');
-            }
-            
-            currentUrl.searchParams.delete('paged');
-            window.location.href = currentUrl.toString();
-        },
-        
-        clearAllFilters: function() {
-            const currentUrl = new URL(window.location);
-            currentUrl.searchParams.delete('status');
-            currentUrl.searchParams.delete('date_range');
-            currentUrl.searchParams.delete('search');
-            currentUrl.searchParams.delete('paged');
-            
-            window.location.href = currentUrl.toString();
-        },
-        
-        initializeSorting: function() {
-            $('.sortable').on('click', function() {
-                const $this = $(this);
-                const sortBy = $this.data('sort');
-                
-                // Toggle sort direction
-                let direction = $this.hasClass('sort-asc') ? 'desc' : 'asc';
-                
-                // Remove sort classes from all headers
-                $('.sortable').removeClass('sort-asc sort-desc');
-                
-                // Add appropriate class to current header
-                $this.addClass('sort-' + direction);
-                
-                // Perform sort (simplified client-side sort)
-                this.sortTable(sortBy, direction);
-            });
-        },
-        
-        sortTable: function(column, direction) {
-            const $tbody = $('.bookings-table tbody');
-            const $rows = $tbody.find('tr').get();
-            
-            $rows.sort(function(a, b) {
-                const aVal = $(a).find('[data-sort="' + column + '"]').text() || $(a).find('.' + column + '-cell').text();
-                const bVal = $(b).find('[data-sort="' + column + '"]').text() || $(b).find('.' + column + '-cell').text();
-                
-                if (direction === 'asc') {
-                    return aVal.localeCompare(bVal);
-                } else {
-                    return bVal.localeCompare(aVal);
-                }
-            });
-            
-            $.each($rows, function(index, row) {
-                $tbody.append(row);
-            });
-        },
-        
-        exportBookings: function() {
-            const data = [
-                ['ID', 'Customer Name', 'Email', 'Phone', 'Service Date', 'Services', 'Address', 'Status', 'Total']
-            ];
-            
-            $('.booking-row:visible').each(function() {
-                const $row = $(this);
-                const services = $row.find('.service-tag').map(function() { 
-                    return $(this).text(); 
-                }).get().join(', ');
-                
-                data.push([
-                    $row.find('.booking-id').text(),
-                    $row.find('.customer-name').text(),
-                    $row.find('.customer-email').text(),
-                    $row.find('.customer-phone').text() || '',
-                    $row.find('.service-date').text() + ' ' + $row.find('.service-time').text(),
-                    services,
-                    $row.find('.address-text').text(),
-                    $row.find('.status-badge').text().trim(),
-                    $row.find('.total-amount').text()
-                ]);
-            });
-            
-            this.downloadCSV(data, 'bookings-export-' + new Date().toISOString().split('T')[0] + '.csv');
-        },
-        
-        downloadCSV: function(data, filename) {
-            const csvContent = data.map(row => 
-                row.map(field => '"' + String(field).replace(/"/g, '""') + '"').join(',')
-            ).join('\n');
-            
-            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-            const link = document.createElement('a');
-            const url = URL.createObjectURL(blob);
-            
-            link.setAttribute('href', url);
-            link.setAttribute('download', filename);
-            link.style.visibility = 'hidden';
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-        },
-        
-        initializeSearch: function() {
-            let searchTimeout;
-            $('#booking-search').on('input', function() {
-                clearTimeout(searchTimeout);
-                const query = $(this).val();
-                
-                searchTimeout = setTimeout(() => {
-                    this.performSearch(query);
-                }.bind(this), 300);
-            }.bind(this));
-        },
-        
-        initializeFilters: function() {
-            // Add any filter-specific initialization here
-        }
-    };
-    
-    BookingsManager.init();
-});
-</script>
-
-<style>
-/* Enhanced Bookings Page Styles */
-.bookings-page {
-    background-color: #fdfdfd;
-    min-height: 100vh;
-    padding: 0;
-}
-
-/* Page Header */
-.page-header {
-    background: white;
-    border-bottom: 1px solid #e5e7eb;
-    padding: 2rem;
-    margin-bottom: 0;
-}
-
-.header-content {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    max-width: 1400px;
-    margin: 0 auto;
-}
-
-.header-info {
-    flex: 1;
-}
-
-.page-title {
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-    margin: 0 0 0.5rem 0;
-    font-size: 2rem;
-    font-weight: 700;
-    color: #111827;
-}
-
-.title-icon {
-    color: #3b82f6;
-    flex-shrink: 0;
-}
-
-.page-subtitle {
-    margin: 0;
-    color: #6b7280;
-    font-size: 1rem;
-    line-height: 1.5;
-}
-
-.header-actions {
-    display: flex;
-    gap: 1rem;
-    align-items: center;
-}
-
-/* Analytics Section */
-.analytics-section {
-    background: white;
-    padding: 2rem;
-    border-bottom: 1px solid #e5e7eb;
-}
-
-.analytics-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-    gap: 1.5rem;
-    max-width: 1400px;
-    margin: 0 auto;
-}
-
-.metric-card {
-    background: white;
-    border: 1px solid #e5e7eb;
-    border-radius: 12px;
-    padding: 1.5rem;
-    transition: all 0.2s ease;
-    position: relative;
-    overflow: hidden;
-}
-
-.metric-card:hover {
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-    transform: translateY(-2px);
-}
-
-.metric-card.metric-alert {
-    border-color: #f59e0b;
-    background: linear-gradient(135deg, rgba(245, 158, 11, 0.02), rgba(245, 158, 11, 0.05));
-}
-
-.metric-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    margin-bottom: 1rem;
-}
-
-.metric-icon {
-    width: 2.5rem;
-    height: 2.5rem;
-    border-radius: 8px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background: linear-gradient(135deg, #3b82f6, #2563eb);
-    color: white;
-    flex-shrink: 0;
-}
-
-.metric-total .metric-icon {
-    background: linear-gradient(135deg, #8b5cf6, #7c3aed);
-}
-
-.metric-pending .metric-icon {
-    background: linear-gradient(135deg, #f59e0b, #d97706);
-}
-
-.metric-confirmed .metric-icon {
-    background: linear-gradient(135deg, #06b6d4, #0891b2);
-}
-
-.metric-revenue .metric-icon {
-    background: linear-gradient(135deg, #10b981, #059669);
-}
-
-.metric-trend {
-    display: flex;
-    align-items: center;
-    gap: 0.25rem;
-    padding: 0.25rem 0.5rem;
-    border-radius: 16px;
-    font-size: 0.75rem;
-    font-weight: 600;
-}
-
-.metric-trend.positive {
-    background: rgba(16, 185, 129, 0.1);
-    color: #059669;
-}
-
-.metric-alert-badge {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    padding: 0.25rem 0.75rem;
-    background: rgba(245, 158, 11, 0.1);
-    color: #d97706;
-    border-radius: 16px;
-    font-size: 0.75rem;
-    font-weight: 500;
-}
-
-.alert-pulse {
-    width: 6px;
-    height: 6px;
-    background: #f59e0b;
-    border-radius: 50%;
-    animation: pulse 1.5s infinite;
-}
-
-.metric-content {
-    text-align: left;
-}
-
-.metric-value {
-    font-size: 2.25rem;
-    font-weight: 700;
-    color: #111827;
-    line-height: 1;
-    margin-bottom: 0.5rem;
-}
-
-.metric-label {
-    font-size: 0.875rem;
-    font-weight: 600;
-    color: #374151;
-    margin-bottom: 0.25rem;
-}
-
-.metric-subtitle {
-    font-size: 0.75rem;
-    color: #6b7280;
-}
-
-/* Controls Section */
-.controls-section {
-    background: white;
-    padding: 1.5rem 2rem;
-    border-bottom: 1px solid #e5e7eb;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 2rem;
-}
-
-.filters-container {
-    display: flex;
-    align-items: flex-end;
-    gap: 1rem;
-}
-
-.filter-group {
-    display: flex;
-    flex-direction: column;
-    gap: 0.5rem;
-}
-
-.filter-label {
-    font-size: 0.75rem;
-    font-weight: 500;
-    color: #6b7280;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-}
-
-.filter-select {
-    padding: 0.625rem 0.875rem;
-    border: 1px solid #d1d5db;
-    border-radius: 6px;
-    background: white;
-    color: #374151;
-    font-size: 0.875rem;
-    min-width: 140px;
-    transition: all 0.2s ease;
-}
-
-.filter-select:focus {
-    outline: none;
-    border-color: #3b82f6;
-    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
-}
-
-.search-container {
-    flex-shrink: 0;
-}
-
-.search-input-wrapper {
-    position: relative;
-    display: flex;
-    align-items: center;
-}
-
-.search-icon {
-    position: absolute;
-    left: 0.875rem;
-    color: #9ca3af;
-    z-index: 1;
-}
-
-.search-input {
-    padding: 0.625rem 0.875rem 0.625rem 2.5rem;
-    border: 1px solid #d1d5db;
-    border-radius: 6px;
-    background: white;
-    color: #374151;
-    font-size: 0.875rem;
-    min-width: 300px;
-    transition: all 0.2s ease;
-}
-
-.search-input:focus {
-    outline: none;
-    border-color: #3b82f6;
-    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
-}
-
-.clear-search-btn {
-    position: absolute;
-    right: 0.5rem;
-    background: none;
-    border: none;
-    color: #9ca3af;
-    cursor: pointer;
-    padding: 0.25rem;
-    border-radius: 4px;
-    transition: all 0.2s ease;
-}
-
-.clear-search-btn:hover {
-    background: #f3f4f6;
-    color: #374151;
-}
-
-/* Table Container */
-.table-container {
-    background: white;
-    margin: 0;
-    overflow: hidden;
-}
-
-/* Bookings Table */
-.bookings-table {
-    width: 100%;
-    border-collapse: collapse;
-    font-size: 0.875rem;
-    background: white;
-}
-
-.bookings-table thead {
-    background: #f9fafb;
-    border-bottom: 1px solid #e5e7eb;
-}
-
-.bookings-table th {
-    text-align: left;
-    padding: 1rem;
-    font-weight: 600;
-    color: #374151;
-    font-size: 0.75rem;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-    border-bottom: 1px solid #e5e7eb;
-    position: sticky;
-    top: 0;
-    background: #f9fafb;
-    z-index: 10;
-}
-
-.sortable {
-    cursor: pointer;
-    user-select: none;
-    transition: all 0.2s ease;
-}
-
-.sortable:hover {
-    background: #f3f4f6;
-}
-
-.th-content {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-}
-
-.sort-icon {
-    opacity: 0.5;
-    transition: all 0.2s ease;
-}
-
-.sortable.sort-asc .sort-icon,
-.sortable.sort-desc .sort-icon {
-    opacity: 1;
-    color: #3b82f6;
-}
-
-.sortable.sort-desc .sort-icon {
-    transform: rotate(180deg);
-}
-
-.bookings-table td {
-    padding: 1rem;
-    border-bottom: 1px solid #f3f4f6;
-    vertical-align: top;
-}
-
-.booking-row {
-    transition: all 0.2s ease;
-    cursor: pointer;
-}
-
-.booking-row:hover {
-    background: #f9fafb;
-}
-
-.booking-row.today {
-    background: linear-gradient(90deg, rgba(245, 158, 11, 0.02), transparent);
-    border-left: 3px solid #f59e0b;
-}
-
-.booking-row.overdue {
-    background: linear-gradient(90deg, rgba(239, 68, 68, 0.02), transparent);
-    border-left: 3px solid #ef4444;
-}
-
-/* Table Cell Styles */
-.booking-id-wrapper {
-    display: flex;
-    flex-direction: column;
-    gap: 0.25rem;
-}
-
-.booking-id {
-    font-weight: 600;
-    color: #3b82f6;
-    font-family: ui-monospace, 'SF Mono', 'Monaco', monospace;
-    font-size: 0.875rem;
-}
-
-.booking-created {
-    font-size: 0.75rem;
-    color: #9ca3af;
-}
-
-.customer-info {
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-}
-
-.customer-avatar {
-    width: 2.5rem;
-    height: 2.5rem;
-    border-radius: 50%;
-    background: linear-gradient(135deg, #3b82f6, #2563eb);
-    color: white;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-weight: 600;
-    font-size: 0.875rem;
-    flex-shrink: 0;
-}
-
-.customer-details {
-    flex: 1;
-    min-width: 0;
-}
-
-.customer-name {
-    font-weight: 600;
-    color: #111827;
-    margin-bottom: 0.125rem;
-    font-size: 0.875rem;
-}
-
-.customer-email,
-.customer-phone {
-    font-size: 0.75rem;
-    color: #6b7280;
-    margin-bottom: 0.125rem;
-}
-
-.date-info {
-    display: flex;
-    flex-direction: column;
-    gap: 0.25rem;
-}
-
-.service-date {
-    font-weight: 500;
-    color: #111827;
-    font-size: 0.875rem;
-}
-
-.service-time {
-    font-size: 0.75rem;
-    color: #6b7280;
-}
-
-.urgency-badge {
-    padding: 0.125rem 0.5rem;
-    border-radius: 12px;
-    font-size: 0.625rem;
-    font-weight: 500;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-    margin-top: 0.25rem;
-    display: inline-block;
-}
-
-.urgency-badge.today {
-    background: #fef3c7;
-    color: #92400e;
-}
-
-.urgency-badge.tomorrow {
-    background: #dbeafe;
-    color: #1e40af;
-}
-
-.urgency-badge.overdue {
-    background: #fee2e2;
-    color: #991b1b;
-}
-
-.urgency-badge.soon {
-    background: #f3e8ff;
-    color: #7c3aed;
-}
-
-.services-list {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.375rem;
-}
-
-.service-tag {
-    display: inline-flex;
-    align-items: center;
-    padding: 0.25rem 0.5rem;
-    background: rgba(59, 130, 246, 0.1);
-    color: #2563eb;
-    border-radius: 12px;
-    font-size: 0.75rem;
-    font-weight: 500;
-    border: 1px solid rgba(59, 130, 246, 0.2);
-}
-
-.service-tag.more {
-    background: #f3f4f6;
-    color: #6b7280;
-    border-color: #e5e7eb;
-}
-
-.no-services {
-    color: #9ca3af;
-    font-style: italic;
-    font-size: 0.75rem;
-}
-
-.address-info {
-    display: flex;
-    flex-direction: column;
-    gap: 0.25rem;
-}
-
-.address-text {
-    font-size: 0.875rem;
-    color: #374151;
-    line-height: 1.4;
-}
-
-.zip-code {
-    font-size: 0.75rem;
-    color: #6b7280;
-    font-family: ui-monospace, 'SF Mono', 'Monaco', monospace;
-}
-
-.status-badge {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.375rem;
-    padding: 0.375rem 0.75rem;
-    border-radius: 20px;
-    font-size: 0.75rem;
-    font-weight: 500;
-    text-transform: capitalize;
-    border: 1px solid;
-}
-
-.status-pending {
-    background: rgba(245, 158, 11, 0.1);
-    color: #d97706;
-    border-color: rgba(245, 158, 11, 0.3);
-}
-
-.status-confirmed {
-    background: rgba(6, 182, 212, 0.1);
-    color: #0891b2;
-    border-color: rgba(6, 182, 212, 0.3);
-}
-
-.status-completed {
-    background: rgba(16, 185, 129, 0.1);
-    color: #059669;
-    border-color: rgba(16, 185, 129, 0.3);
-}
-
-.status-cancelled {
-    background: rgba(239, 68, 68, 0.1);
-    color: #dc2626;
-    border-color: rgba(239, 68, 68, 0.3);
-}
-
-.total-amount {
-    font-weight: 700;
-    color: #111827;
-    font-size: 0.875rem;
-    margin-bottom: 0.25rem;
-}
-
-.discount-indicator {
-    display: flex;
-    align-items: center;
-    gap: 0.25rem;
-    font-size: 0.625rem;
-    color: #059669;
-    font-weight: 500;
-}
-
-.action-buttons {
-    display: flex;
-    gap: 0.375rem;
-    align-items: center;
-}
-
-.action-btn {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 2rem;
-    height: 2rem;
-    border: 1px solid #d1d5db;
-    background: white;
-    border-radius: 6px;
-    color: #6b7280;
-    cursor: pointer;
-    transition: all 0.2s ease;
-    text-decoration: none;
-}
-
-.action-btn:hover {
-    background: #f3f4f6;
-    border-color: #9ca3af;
-}
-
-.action-btn.view-btn:hover {
-    background: #3b82f6;
-    border-color: #3b82f6;
-    color: white;
-}
-
-.action-btn.confirm-btn:hover {
-    background: #059669;
-    border-color: #059669;
-    color: white;
-}
-
-.action-btn.complete-btn:hover {
-    background: #0891b2;
-    border-color: #0891b2;
-    color: white;
-}
-
-.action-btn.cancel-btn:hover {
-    background: #dc2626;
-    border-color: #dc2626;
-    color: white;
-}
-
-.action-btn.loading {
-    opacity: 0.7;
-    pointer-events: none;
-    position: relative;
-}
-
-.action-btn.loading::after {
-    content: '';
-    position: absolute;
-    width: 12px;
-    height: 12px;
-    border: 2px solid currentColor;
-    border-top: 2px solid transparent;
-    border-radius: 50%;
-    animation: spin 1s linear infinite;
-}
-
-/* Empty State */
-.empty-state {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    text-align: center;
-    padding: 4rem 2rem;
-    margin: 2rem 0;
-    border-radius: 12px;
-    background: linear-gradient(135deg, rgba(59, 130, 246, 0.02), rgba(59, 130, 246, 0.05));
-    border: 2px dashed #d1d5db;
-}
-
-.empty-state-icon {
-    width: 4rem;
-    height: 4rem;
-    color: #9ca3af;
-    opacity: 0.6;
-    margin-bottom: 1.5rem;
-}
-
-.empty-state-content h3 {
-    font-size: 1.5rem;
-    font-weight: 700;
-    color: #111827;
-    margin: 0 0 1rem 0;
-}
-
-.empty-state-content p {
-    font-size: 1rem;
-    color: #6b7280;
-    margin: 0 0 2rem 0;
-    max-width: 32rem;
-    line-height: 1.6;
-}
-
-.empty-actions {
-    display: flex;
-    gap: 1rem;
-    justify-content: center;
-    flex-wrap: wrap;
-}
-
-/* Pagination */
-.pagination-container {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 1.5rem 2rem;
-    border-top: 1px solid #e5e7eb;
-    background: #f9fafb;
-}
-
-.pagination-info {
-    font-size: 0.875rem;
-    color: #6b7280;
-}
-
-.pagination-controls {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-}
-
-.pagination-btn,
-.pagination-number {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    gap: 0.5rem;
-    padding: 0.5rem 0.75rem;
-    border: 1px solid #d1d5db;
-    background: white;
-    color: #374151;
-    text-decoration: none;
-    border-radius: 6px;
-    font-size: 0.875rem;
-    font-weight: 500;
-    transition: all 0.2s ease;
-    min-width: 2.5rem;
-    height: 2.5rem;
-}
-
-.pagination-btn:hover,
-.pagination-number:hover {
-    background: #f3f4f6;
-    border-color: #9ca3af;
-}
-
-.pagination-number.current {
-    background: #3b82f6;
-    border-color: #3b82f6;
-    color: white;
-}
-
-.pagination-ellipsis {
-    padding: 0.5rem;
-    color: #9ca3af;
-    font-size: 0.875rem;
-}
-
-.pagination-numbers {
-    display: flex;
-    align-items: center;
-    gap: 0.25rem;
-}
-
-/* Button Styles */
-.btn-primary,
-.btn-secondary {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    gap: 0.5rem;
-    padding: 0.75rem 1.25rem;
-    border-radius: 8px;
-    font-size: 0.875rem;
-    font-weight: 600;
-    text-decoration: none;
-    border: 1px solid transparent;
-    cursor: pointer;
-    transition: all 0.2s ease;
-    white-space: nowrap;
-}
-
-.btn-primary {
-    background: linear-gradient(135deg, #3b82f6, #2563eb);
-    color: white;
-    border-color: #3b82f6;
-    box-shadow: 0 2px 4px rgba(59, 130, 246, 0.2);
-}
-
-.btn-primary:hover {
-    background: linear-gradient(135deg, #2563eb, #1d4ed8);
-    transform: translateY(-1px);
-    box-shadow: 0 4px 8px rgba(59, 130, 246, 0.3);
-}
-
-.btn-secondary {
-    background: white;
-    color: #374151;
-    border-color: #d1d5db;
-}
-
-.btn-secondary:hover {
-    background: #f9fafb;
-    border-color: #9ca3af;
-    transform: translateY(-1px);
-}
-
-.clear-filters {
-    padding: 0.625rem 1rem;
-}
-
-/* Animations */
-@keyframes pulse {
-    0%, 100% {
-        opacity: 1;
-    }
-    50% {
-        opacity: 0.5;
-    }
-}
-
-@keyframes spin {
-    to {
-        transform: rotate(360deg);
-    }
-}
-
-/* Responsive Design */
-@media (max-width: 1200px) {
-    .analytics-grid {
-        grid-template-columns: repeat(2, 1fr);
-    }
-    
-    .controls-section {
-        flex-direction: column;
-        gap: 1.5rem;
-        align-items: stretch;
-    }
-    
-    .search-input {
-        min-width: 250px;
-    }
-}
-
-@media (max-width: 768px) {
-    .page-header {
-        padding: 1.5rem;
-    }
-    
-    .header-content {
-        flex-direction: column;
-        gap: 1.5rem;
-        align-items: stretch;
-    }
-    
-    .header-actions {
-        justify-content: center;
-    }
-    
-    .analytics-section {
-        padding: 1.5rem;
-    }
-    
-    .analytics-grid {
-        grid-template-columns: 1fr;
-        gap: 1rem;
-    }
-    
-    .metric-value {
-        font-size: 1.875rem;
-    }
-    
-    .controls-section {
-        padding: 1rem 1.5rem;
-    }
-    
-    .filters-container {
-        flex-wrap: wrap;
-        gap: 0.75rem;
-    }
-    
-    .search-input {
-        min-width: 200px;
-    }
-    
-    /* Table responsive handling */
-    .table-container {
-        overflow-x: auto;
-    }
-    
-    .bookings-table {
-        min-width: 800px;
-    }
-    
-    .pagination-container {
-        flex-direction: column;
-        gap: 1rem;
-        padding: 1rem 1.5rem;
-    }
-    
-    .pagination-controls {
-        flex-wrap: wrap;
-        justify-content: center;
-    }
-}
-
-@media (max-width: 480px) {
-    .page-title {
-        font-size: 1.5rem;
-    }
-    
-    .empty-state {
-        padding: 2rem 1rem;
-    }
-    
-    .empty-actions {
-        flex-direction: column;
-        align-items: center;
-    }
-    
-    .action-buttons {
-        flex-direction: column;
-        gap: 0.25rem;
-    }
-    
-    .action-btn {
-        width: 1.75rem;
-        height: 1.75rem;
-    }
-}
-
-/* Print Styles */
-@media print {
-    .page-header .header-actions,
-    .controls-section,
-    .action-buttons,
-    .pagination-container {
-        display: none;
-    }
-    
-    .bookings-page {
-        background: white;
-    }
-    
-    .bookings-table {
-        border: 2px solid #000;
-    }
-    
-    .bookings-table th,
-    .bookings-table td {
-        border: 1px solid #000;
-        padding: 0.5rem;
-    }
-}
-
-/* High Contrast Mode */
-@media (prefers-contrast: high) {
-    .metric-card,
-    .bookings-table,
-    .filter-select,
-    .search-input,
-    .action-btn {
-        border-width: 2px;
-    }
-    
-    .status-badge {
-        border-width: 2px;
-        font-weight: 700;
-    }
-}
-
-/* Reduced Motion */
-@media (prefers-reduced-motion: reduce) {
-    *,
-    *::before,
-    *::after {
-        animation-duration: 0.01ms !important;
-        animation-iteration-count: 1 !important;
-        transition-duration: 0.01ms !important;
-    }
-    
-    .alert-pulse {
-        animation: none;
-    }
-}
-</style>
-
-<?php
-/**
- * Additional PHP functions for enhanced functionality
- */
-?>
-
-<!-- Modal for bulk actions (if needed) -->
-<div id="bulk-actions-modal" class="mobooking-modal" style="display: none;">
-    <div class="modal-content">
-        <div class="modal-header">
-            <h3><?php _e('Bulk Actions', 'mobooking'); ?></h3>
-            <button type="button" class="modal-close">&times;</button>
-        </div>
-        <div class="modal-body">
-            <p><?php _e('Select an action to perform on the selected bookings:', 'mobooking'); ?></p>
-            <div class="bulk-actions-list">
-                <button type="button" class="bulk-action-btn" data-action="confirm">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
-                        <polyline points="22,4 12,14.01 9,11.01"/>
-                    </svg>
-                    <?php _e('Confirm Selected', 'mobooking'); ?>
-                </button>
-                <button type="button" class="bulk-action-btn" data-action="complete">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2ZM8 12l2 2 4-4"/>
-                    </svg>
-                    <?php _e('Mark as Completed', 'mobooking'); ?>
-                </button>
-                <button type="button" class="bulk-action-btn danger" data-action="cancel">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <circle cx="12" cy="12" r="10"/>
-                        <path d="M15 9l-6 6M9 9l6 6"/>
-                    </svg>
-                    <?php _e('Cancel Selected', 'mobooking'); ?>
-                </button>
-            </div>
-        </div>
-    </div>
-</div>
+            const statusFilter = $('#status-filter').val
