@@ -886,12 +886,6 @@ $can_publish = ($services_count > 0 && $areas_count > 0);
    border-bottom: 1px solid hsl(var(--border));
 }
 
-.tab-list {
-   display: flex;
-   padding: 0.5rem;
-   background: hsl(var(--muted) / 0.3);
-   gap: 0.25rem;
-}
 
 .tab-button {
    display: flex;
@@ -1216,3 +1210,665 @@ $can_publish = ($services_count > 0 && $areas_count > 0);
 
 /* QR Section */
 .qr-section {
+    display: flex;
+   flex-direction: column;
+   gap: 1rem;
+}
+
+.qr-display {
+   width: 8rem;
+   height: 8rem;
+   border: 1px solid hsl(var(--border));
+   border-radius: var(--radius);
+   display: flex;
+   align-items: center;
+   justify-content: center;
+   background: hsl(var(--muted) / 0.3);
+   margin-bottom: 1rem;
+}
+
+.qr-placeholder {
+   display: flex;
+   flex-direction: column;
+   align-items: center;
+   gap: 0.5rem;
+   color: hsl(var(--muted-foreground));
+   text-align: center;
+}
+
+.qr-placeholder span {
+   font-size: 0.75rem;
+}
+
+.qr-actions {
+   display: flex;
+   gap: 0.5rem;
+}
+
+.btn-small {
+   padding: 0.5rem 0.875rem;
+   font-size: 0.8125rem;
+}
+
+/* Form Actions */
+.form-actions {
+   display: flex;
+   align-items: center;
+   justify-content: space-between;
+   padding: 1.5rem 2rem;
+   border-top: 1px solid hsl(var(--border));
+   background: linear-gradient(135deg, hsl(var(--muted) / 0.3), hsl(var(--muted) / 0.1));
+   gap: 1rem;
+}
+
+.actions-left,
+.actions-right {
+   display: flex;
+   align-items: center;
+   gap: 1rem;
+}
+
+/* Modal Styles */
+.modal-large {
+   max-width: 90vw;
+   width: 90vw;
+   height: 90vh;
+   max-height: 90vh;
+}
+
+.modal-header {
+   display: flex;
+   align-items: center;
+   justify-content: space-between;
+   padding: 1.5rem 2rem;
+   border-bottom: 1px solid hsl(var(--border));
+}
+
+.modal-header h3 {
+   margin: 0;
+   font-size: 1.25rem;
+   font-weight: 600;
+   color: hsl(var(--foreground));
+}
+
+.modal-actions {
+   display: flex;
+   gap: 0.75rem;
+}
+
+.modal-close {
+   position: absolute;
+   top: 1rem;
+   right: 1rem;
+   padding: 0.5rem;
+   background: hsl(var(--muted));
+   border: 1px solid hsl(var(--border));
+   border-radius: calc(var(--radius) - 2px);
+   color: hsl(var(--muted-foreground));
+   cursor: pointer;
+   transition: all 0.2s ease;
+   width: 2.25rem;
+   height: 2.25rem;
+   display: flex;
+   align-items: center;
+   justify-content: center;
+}
+
+.modal-close:hover {
+   background: hsl(var(--destructive));
+   color: hsl(var(--destructive-foreground));
+   border-color: hsl(var(--destructive));
+}
+
+.modal-body {
+   padding: 1.5rem 2rem;
+   flex: 1;
+   overflow-y: auto;
+}
+
+.preview-container {
+   width: 100%;
+   height: 100%;
+   border-radius: var(--radius);
+   overflow: hidden;
+   border: 1px solid hsl(var(--border));
+}
+
+/* Responsive Design */
+@media (max-width: 1024px) {
+   .header-content {
+       flex-direction: column;
+       align-items: stretch;
+       gap: 1.5rem;
+   }
+   
+   .header-main {
+       flex-direction: column;
+       gap: 1.5rem;
+   }
+   
+   .header-stats {
+       justify-content: center;
+       flex-wrap: wrap;
+   }
+   
+   .tab-list {
+       flex-direction: column;
+   }
+   
+   .field-row {
+       grid-template-columns: 1fr;
+       gap: 1rem;
+   }
+   
+   .color-fields {
+       grid-template-columns: 1fr;
+   }
+   
+   .checkbox-grid {
+       grid-template-columns: 1fr;
+   }
+}
+
+@media (max-width: 768px) {
+   .section-header {
+       margin-bottom: 1.5rem;
+       padding-bottom: 1rem;
+   }
+   
+   .page-title {
+       font-size: 1.5rem;
+   }
+   
+   .title-icon {
+       width: 1.5rem;
+       height: 1.5rem;
+   }
+   
+   .header-actions {
+       flex-direction: column;
+       width: 100%;
+   }
+   
+   .header-actions .btn-secondary {
+       width: 100%;
+       justify-content: center;
+   }
+   
+   .tab-content {
+       padding: 1.5rem;
+   }
+   
+   .settings-group {
+       padding: 1rem;
+   }
+   
+   .form-actions {
+       flex-direction: column-reverse;
+       gap: 1rem;
+   }
+   
+   .actions-left,
+   .actions-right {
+       width: 100%;
+       justify-content: center;
+   }
+   
+   .actions-right .btn-primary,
+   .actions-right .btn-secondary {
+       flex: 1;
+   }
+   
+   .share-option {
+       flex-direction: column;
+       text-align: center;
+   }
+   
+   .url-input-group {
+       flex-direction: column;
+   }
+   
+   .modal-large {
+       width: 95vw;
+       height: 95vh;
+   }
+   
+   .modal-header {
+       padding: 1rem;
+       flex-direction: column;
+       gap: 1rem;
+   }
+   
+   .modal-actions {
+       width: 100%;
+       justify-content: center;
+   }
+}
+
+@media (max-width: 480px) {
+   .setup-alert {
+       flex-direction: column;
+       text-align: center;
+   }
+   
+   .requirements-list {
+       gap: 0.5rem;
+   }
+   
+   .requirement-item {
+       flex-direction: column;
+       text-align: center;
+       gap: 0.5rem;
+   }
+   
+   .stat-card {
+       flex-direction: column;
+       text-align: center;
+       padding: 0.75rem;
+       min-width: 5rem;
+   }
+   
+   .tab-content {
+       padding: 1rem;
+   }
+   
+   .group-header {
+       margin-bottom: 1rem;
+       padding-bottom: 0.75rem;
+   }
+   
+   .form-actions {
+       padding: 1rem;
+   }
+}
+
+/* Animation */
+@keyframes fadeIn {
+   from {
+       opacity: 0;
+       transform: translateY(10px);
+   }
+   to {
+       opacity: 1;
+       transform: translateY(0);
+   }
+}
+
+/* High Contrast Mode */
+@media (prefers-contrast: high) {
+   .stat-card,
+   .setup-alert,
+   .settings-group,
+   .share-option {
+       border-width: 2px;
+   }
+}
+
+/* Reduced Motion */
+@media (prefers-reduced-motion: reduce) {
+   *, *::before, *::after {
+       animation-duration: 0.01ms !important;
+       animation-iteration-count: 1 !important;
+       transition-duration: 0.01ms !important;
+   }
+}
+</style>
+
+<script>
+jQuery(document).ready(function($) {
+    // Initialize form functionality
+    const BookingFormManager = {
+        // Tab switching
+        initTabs: function() {
+            $('.tab-button').on('click', function() {
+                const target = $(this).data('tab');
+                
+                // Update active tab button
+                $('.tab-button').removeClass('active');
+                $(this).addClass('active');
+                
+                // Update active tab content
+                $('.tab-content').removeClass('active');
+                $('#' + target).addClass('active');
+            });
+        },
+        
+        // Color picker updates
+        initColorPickers: function() {
+            $('.color-picker').on('change', function() {
+                const color = $(this).val();
+                $(this).siblings('.color-text').val(color);
+            });
+        },
+        
+        // Copy functionality
+        initCopyButtons: function() {
+            $('.copy-url-btn, #copy-link-btn').on('click', function() {
+                const url = $(this).data('url') || $(this).closest('.url-input-group').find('.url-display').val();
+                
+                if (navigator.clipboard) {
+                    navigator.clipboard.writeText(url).then(() => {
+                        BookingFormManager.showNotification('URL copied to clipboard!', 'success');
+                    });
+                } else {
+                    // Fallback for older browsers
+                    const textarea = $('<textarea>').val(url).appendTo('body').select();
+                    document.execCommand('copy');
+                    textarea.remove();
+                    BookingFormManager.showNotification('URL copied to clipboard!', 'success');
+                }
+            });
+            
+            $('#copy-embed-btn').on('click', function() {
+                const embedCode = $('#embed-code-display').val();
+                
+                if (navigator.clipboard) {
+                    navigator.clipboard.writeText(embedCode).then(() => {
+                        BookingFormManager.showNotification('Embed code copied to clipboard!', 'success');
+                    });
+                } else {
+                    $('#embed-code-display').select();
+                    document.execCommand('copy');
+                    BookingFormManager.showNotification('Embed code copied to clipboard!', 'success');
+                }
+            });
+        },
+        
+        // Open URL functionality
+        initOpenButtons: function() {
+            $('.open-url-btn, #open-in-new-tab-btn').on('click', function() {
+                const url = $(this).data('url');
+                window.open(url, '_blank');
+            });
+        },
+        
+        // Embed code generation
+        initEmbedGeneration: function() {
+            $('#generate-embed-btn').on('click', function() {
+                const width = $('#embed-width').val() || '100%';
+                const height = $('#embed-height').val() || '800';
+                const embedUrl = '<?php echo esc_js($embed_url); ?>';
+                
+                const embedCode = `<iframe src="${embedUrl}" width="${width}" height="${height}" frameborder="0" style="border: none; border-radius: 8px;"></iframe>`;
+                
+                $('#embed-code-display').val(embedCode);
+                $('#copy-embed-btn').show();
+            });
+        },
+        
+        // QR Code generation
+        initQRGeneration: function() {
+            $('#generate-qr-btn').on('click', function() {
+                const url = '<?php echo esc_js($booking_url); ?>';
+                const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(url)}`;
+                
+                $('#qr-code-container').html(`<img src="${qrCodeUrl}" alt="QR Code" style="width: 100%; height: 100%; object-fit: contain;">`);
+                $('#download-qr-btn').show().data('qr-url', qrCodeUrl);
+            });
+            
+            $('#download-qr-btn').on('click', function() {
+                const qrUrl = $(this).data('qr-url');
+                const link = $('<a>').attr({
+                    href: qrUrl,
+                    download: 'booking-form-qr-code.png'
+                }).appendTo('body');
+                link[0].click();
+                link.remove();
+            });
+        },
+        
+        // Form preview
+        initPreview: function() {
+            $('#preview-form-btn').on('click', function() {
+                $('#form-preview-modal').show();
+            });
+            
+            $('#refresh-preview-btn').on('click', function() {
+                const iframe = $('#form-preview-iframe')[0];
+                iframe.src = iframe.src;
+            });
+            
+            // Modal close functionality
+            $('.modal-close, .mobooking-modal').on('click', function(e) {
+                if (e.target === this) {
+                    $('.mobooking-modal').hide();
+                }
+            });
+        },
+        
+        // Form saving
+        initFormSaving: function() {
+            $('#booking-form-settings').on('submit', function(e) {
+                e.preventDefault();
+                BookingFormManager.saveSettings(false);
+            });
+            
+            $('#save-draft-btn').on('click', function() {
+                BookingFormManager.saveSettings(true);
+            });
+        },
+        
+        // Reset settings
+        initResetSettings: function() {
+            $('#reset-settings-btn').on('click', function() {
+                if (confirm('<?php _e('Are you sure you want to reset all settings to defaults? This action cannot be undone.', 'mobooking'); ?>')) {
+                    BookingFormManager.resetSettings();
+                }
+            });
+        },
+        
+        // Save settings
+        saveSettings: function(isDraft = false) {
+            const $form = $('#booking-form-settings');
+            const $saveBtn = $('#save-settings-btn');
+            const formData = new FormData($form[0]);
+            
+            if (isDraft) {
+                formData.append('is_draft', '1');
+            }
+            
+            // Show loading state
+            $saveBtn.addClass('loading').prop('disabled', true);
+            $('.btn-text', $saveBtn).hide();
+            $('.btn-loading', $saveBtn).show();
+            
+            $.ajax({
+                url: '<?php echo admin_url('admin-ajax.php'); ?>',
+                type: 'POST',
+                data: formData,
+                processData: false,
+                contentType: false,
+                success: function(response) {
+                    if (response.success) {
+                        BookingFormManager.showNotification(
+                            response.data.message || '<?php _e('Settings saved successfully!', 'mobooking'); ?>',
+                            'success'
+                        );
+                        
+                        // Update URLs if they changed
+                        if (response.data.booking_url) {
+                            $('.url-display').val(response.data.booking_url);
+                            $('.copy-url-btn, #copy-link-btn').data('url', response.data.booking_url);
+                            $('#form-preview-iframe').attr('src', response.data.booking_url);
+                        }
+                    } else {
+                        BookingFormManager.showNotification(
+                            response.data || '<?php _e('Failed to save settings.', 'mobooking'); ?>',
+                            'error'
+                        );
+                    }
+                },
+                error: function() {
+                    BookingFormManager.showNotification('<?php _e('An error occurred while saving settings.', 'mobooking'); ?>', 'error');
+                },
+                complete: function() {
+                    // Hide loading state
+                    $saveBtn.removeClass('loading').prop('disabled', false);
+                    $('.btn-text', $saveBtn).show();
+                    $('.btn-loading', $saveBtn).hide();
+                }
+            });
+        },
+        
+        // Reset settings
+        resetSettings: function() {
+            $.ajax({
+                url: '<?php echo admin_url('admin-ajax.php'); ?>',
+                type: 'POST',
+                data: {
+                    action: 'mobooking_reset_booking_form_settings',
+                    nonce: $('input[name="nonce"]').val()
+                },
+                success: function(response) {
+                    if (response.success) {
+                        location.reload();
+                    } else {
+                        BookingFormManager.showNotification(
+                            response.data || '<?php _e('Failed to reset settings.', 'mobooking'); ?>',
+                            'error'
+                        );
+                    }
+                },
+                error: function() {
+                    BookingFormManager.showNotification('<?php _e('An error occurred while resetting settings.', 'mobooking'); ?>', 'error');
+                }
+            });
+        },
+        
+        // Show notification
+        showNotification: function(message, type = 'info') {
+            const notification = $(`
+                <div class="notification ${type} show">
+                    ${message}
+                </div>
+            `).appendTo('body');
+            
+            setTimeout(() => {
+                notification.removeClass('show');
+                setTimeout(() => notification.remove(), 300);
+            }, 3000);
+        },
+        
+        // Initialize all functionality
+        init: function() {
+            this.initTabs();
+            this.initColorPickers();
+            this.initCopyButtons();
+            this.initOpenButtons();
+            this.initEmbedGeneration();
+            this.initQRGeneration();
+            this.initPreview();
+            this.initFormSaving();
+            this.initResetSettings();
+        }
+    };
+    
+    // Initialize the booking form manager
+    BookingFormManager.init();
+    
+    // Auto-save functionality (optional)
+    let autoSaveTimeout;
+    $('input, textarea, select', '#booking-form-settings').on('change input', function() {
+        clearTimeout(autoSaveTimeout);
+        autoSaveTimeout = setTimeout(() => {
+            BookingFormManager.saveSettings(true); // Save as draft
+        }, 5000); // Auto-save after 5 seconds of inactivity
+    });
+});
+</script>
+
+<?php
+// Add AJAX handler for saving booking form settings
+add_action('wp_ajax_mobooking_save_booking_form_settings', function() {
+    try {
+        // Check nonce
+        if (!isset($_POST['nonce']) || !wp_verify_nonce($_POST['nonce'], 'mobooking-booking-form-nonce')) {
+            wp_send_json_error(__('Security verification failed.', 'mobooking'));
+        }
+        
+        // Check permissions
+        if (!current_user_can('mobooking_business_owner') && !current_user_can('administrator')) {
+            wp_send_json_error(__('You do not have permission to do this.', 'mobooking'));
+        }
+        
+        $user_id = get_current_user_id();
+        $is_draft = isset($_POST['is_draft']) && $_POST['is_draft'] === '1';
+        
+        // Prepare settings data
+        $settings_data = array(
+            'form_title' => sanitize_text_field($_POST['form_title'] ?? ''),
+            'form_description' => sanitize_textarea_field($_POST['form_description'] ?? ''),
+            'is_active' => !$is_draft && isset($_POST['is_active']) ? absint($_POST['is_active']) : 0,
+            'show_form_header' => isset($_POST['show_form_header']) ? 1 : 0,
+            'show_service_descriptions' => isset($_POST['show_service_descriptions']) ? 1 : 0,
+            'show_price_breakdown' => isset($_POST['show_price_breakdown']) ? 1 : 0,
+            'enable_zip_validation' => isset($_POST['enable_zip_validation']) ? 1 : 0,
+            'primary_color' => sanitize_hex_color($_POST['primary_color'] ?? '#3b82f6'),
+            'secondary_color' => sanitize_hex_color($_POST['secondary_color'] ?? '#64748b'),
+            'logo_url' => esc_url_raw($_POST['logo_url'] ?? ''),
+            'form_layout' => sanitize_text_field($_POST['form_layout'] ?? 'modern'),
+            'form_width' => sanitize_text_field($_POST['form_width'] ?? 'standard'),
+            'seo_title' => sanitize_text_field($_POST['seo_title'] ?? ''),
+            'seo_description' => sanitize_textarea_field($_POST['seo_description'] ?? ''),
+            'analytics_code' => wp_kses_post($_POST['analytics_code'] ?? ''),
+            'custom_css' => wp_strip_all_tags($_POST['custom_css'] ?? ''),
+            'custom_footer_text' => sanitize_textarea_field($_POST['custom_footer_text'] ?? ''),
+            'contact_info' => sanitize_textarea_field($_POST['contact_info'] ?? ''),
+            'social_links' => sanitize_textarea_field($_POST['social_links'] ?? '')
+        );
+        
+        // Save settings using BookingForm Manager
+        $booking_form_manager = new \MoBooking\BookingForm\Manager();
+        $result = $booking_form_manager->save_settings($user_id, $settings_data);
+        
+        if ($result) {
+            $response_data = array(
+                'message' => $is_draft ? 
+                    __('Settings saved as draft.', 'mobooking') : 
+                    __('Settings saved successfully!', 'mobooking'),
+                'booking_url' => $booking_form_manager->get_booking_form_url($user_id),
+                'embed_url' => $booking_form_manager->get_embed_url($user_id)
+            );
+            
+            wp_send_json_success($response_data);
+        } else {
+            wp_send_json_error(__('Failed to save settings.', 'mobooking'));
+        }
+        
+    } catch (Exception $e) {
+        wp_send_json_error(__('An error occurred while saving settings.', 'mobooking'));
+    }
+});
+
+// Add AJAX handler for resetting booking form settings
+add_action('wp_ajax_mobooking_reset_booking_form_settings', function() {
+    try {
+        // Check nonce
+        if (!isset($_POST['nonce']) || !wp_verify_nonce($_POST['nonce'], 'mobooking-booking-form-nonce')) {
+            wp_send_json_error(__('Security verification failed.', 'mobooking'));
+        }
+        
+        // Check permissions
+        if (!current_user_can('mobooking_business_owner') && !current_user_can('administrator')) {
+            wp_send_json_error(__('You do not have permission to do this.', 'mobooking'));
+        }
+        
+        $user_id = get_current_user_id();
+        
+        // Reset settings using BookingForm Manager
+        $booking_form_manager = new \MoBooking\BookingForm\Manager();
+        $result = $booking_form_manager->reset_settings($user_id);
+        
+        if ($result) {
+            wp_send_json_success(array(
+                'message' => __('Settings reset to defaults successfully.', 'mobooking')
+            ));
+        } else {
+            wp_send_json_error(__('Failed to reset settings.', 'mobooking'));
+        }
+        
+    } catch (Exception $e) {
+        wp_send_json_error(__('An error occurred while resetting settings.', 'mobooking'));
+    }
+});
+?>
