@@ -632,3 +632,154 @@ function mobooking_ajax_logout() {
         wp_send_json_error(__('Error processing logout.', 'mobooking'));
     }
 }
+
+
+// ISSUE 3: Fixed AJAX Handler - Add this to your includes/ajax-handlers.php
+function mobooking_ajax_save_booking_form_settings() {
+    try {
+        // Enhanced debug logging
+        if (defined('WP_DEBUG') && WP_DEBUG) {
+            error_log('MoBooking - Booking Form Settings AJAX called');
+            error_log('POST data: ' . print_r($_POST, true));
+        }
+        
+        // Check nonce first
+        if (!isset($_POST['nonce'])) {
+            if (defined('WP_DEBUG') && WP_DEBUG) {
+                error_log('MoBooking - No nonce in POST data');
+            }
+            wp_send_json_error(__('Security nonce is missing.', 'mobooking'));
+            return;
+        }
+        
+        if (!wp_verify_nonce($_POST['nonce'], 'mobooking-booking-form-nonce')) {
+            if (defined('WP_DEBUG') && WP_DEBUG) {
+                error_log('MoBooking - Nonce verification failed');
+                error_log('Expected nonce action: mobooking-booking-form-nonce');
+                error_log('Received nonce: ' . $_POST['nonce']);
+            }
+            wp_send_json_error(__('Security verification failed.', 'mobooking'));
+            return;
+        }
+        
+        // Check permissions
+        if (!current_user_can('mobooking_business_owner') && !current_user_can('administrator')) {
+            wp_send_json_error(__('You do not have permission to do this.', 'mobooking'));
+            return;
+        }
+        
+        $user_id = get_current_user_id();
+        $is_draft = isset($_POST['is_draft']) && $_POST['is_draft'] === '1';
+        
+        if (defined('WP_DEBUG') && WP_DEBUG) {
+            error_log('MoBooking - User ID: ' . $user_id . ', Is Draft: ' . ($is_draft ? 'Yes' : 'No'));
+        }
+        
+        // Check if BookingForm Manager exists
+        if (!class_exists('\MoBooking\BookingForm\Manager')) {
+            wp_send_json_error(__('Booking form manager not available.', 'mobooking'));
+            return;
+        }
+        
+        // Prepare settings data
+        $settings_data = array(
+            'form_title' => sanitize_text_field($_POST['form_title'] ?? ''),
+            'form_description' => sanitize_textarea_field($_POST['form_description'] ?? ''),
+            'is_active' => !$is_draft && isset($_POST['is_active']) ? absint($_POST['is_active']) : 0,
+            'show_form_header' => isset($_POST['show_form_header']) ? 1 : 0,
+            'show_service_descriptions' => isset($_POST['show_service_descriptions']) ? 1 : 0,
+            'show_price_breakdown' => isset($_POST['show_price_breakdown']) ? 1 : 0,
+            'enable_zip_validation' => isset($_POST['enable_zip_validation']) ? 1 : 0,
+            'primary_color' => sanitize_hex_color($_POST['primary_color'] ?? '#3b82f6'),
+            'secondary_color' => sanitize_hex_color($_POST['secondary_color'] ?? '#1e40af'),
+            'logo_url' => esc_url_raw($_POST['logo_url'] ?? ''),
+            'form_layout' => sanitize_text_field($_POST['form_layout'] ?? 'modern'),
+            'form_width' => sanitize_text_field($_POST['form_width'] ?? 'standard'),
+            'seo_title' => sanitize_text_field($_POST['seo_title'] ?? ''),
+            'seo_description' => sanitize_textarea_field($_POST['seo_description'] ?? ''),
+            'analytics_code' => wp_kses_post($_POST['analytics_code'] ?? ''),
+            'custom_css' => wp_strip_all_tags($_POST['custom_css'] ?? ''),
+            'custom_footer_text' => sanitize_textarea_field($_POST['custom_footer_text'] ?? ''),
+            'contact_info' => sanitize_textarea_field($_POST['contact_info'] ?? ''),
+            'social_links' => sanitize_textarea_field($_POST['social_links'] ?? '')
+        );
+        
+        if (defined('WP_DEBUG') && WP_DEBUG) {
+            error_log('MoBooking - Settings data prepared: ' . print_r($settings_data, true));
+        }
+        
+        // Save settings using BookingForm Manager
+        $booking_form_manager = new \MoBooking\BookingForm\Manager();
+        $result = $booking_form_manager->save_settings($user_id, $settings_data);
+        
+        if (defined('WP_DEBUG') && WP_DEBUG) {
+            error_log('MoBooking - Save result: ' . ($result ? 'SUCCESS' : 'FAILED'));
+        }
+        
+        if ($result) {
+            $response_data = array(
+                'message' => $is_draft ? 
+                    __('Settings saved as draft.', 'mobooking') : 
+                    __('Settings saved successfully!', 'mobooking'),
+                'booking_url' => $booking_form_manager->get_booking_form_url($user_id),
+                'embed_url' => $booking_form_manager->get_embed_url($user_id)
+            );
+            
+            wp_send_json_success($response_data);
+        } else {
+            wp_send_json_error(__('Failed to save settings. Database error.', 'mobooking'));
+        }
+        
+    } catch (Exception $e) {
+        if (defined('WP_DEBUG') && WP_DEBUG) {
+            error_log('MoBooking - Exception in booking form settings: ' . $e->getMessage());
+        }
+        wp_send_json_error(__('An error occurred while saving settings: ' . $e->getMessage(), 'mobooking'));
+    }
+}
+
+// ISSUE 4: Register the AJAX handler properly
+add_action('wp_ajax_mobooking_save_booking_form_settings', 'mobooking_ajax_save_booking_form_settings');
+
+
+
+
+
+// ISSUE 5: Add reset handler
+function mobooking_ajax_reset_booking_form_settings() {
+    try {
+        // Check nonce
+        if (!isset($_POST['nonce']) || !wp_verify_nonce($_POST['nonce'], 'mobooking-booking-form-nonce')) {
+            wp_send_json_error(__('Security verification failed.', 'mobooking'));
+            return;
+        }
+        
+        // Check permissions
+        if (!current_user_can('mobooking_business_owner') && !current_user_can('administrator')) {
+            wp_send_json_error(__('You do not have permission to do this.', 'mobooking'));
+            return;
+        }
+        
+        $user_id = get_current_user_id();
+        
+        // Reset settings using BookingForm Manager
+        $booking_form_manager = new \MoBooking\BookingForm\Manager();
+        $result = $booking_form_manager->reset_settings($user_id);
+        
+        if ($result) {
+            wp_send_json_success(array(
+                'message' => __('Settings reset to defaults successfully.', 'mobooking')
+            ));
+        } else {
+            wp_send_json_error(__('Failed to reset settings.', 'mobooking'));
+        }
+        
+    } catch (Exception $e) {
+        if (defined('WP_DEBUG') && WP_DEBUG) {
+            error_log('MoBooking - Exception in reset booking form settings: ' . $e->getMessage());
+        }
+        wp_send_json_error(__('An error occurred while resetting settings.', 'mobooking'));
+    }
+}
+
+add_action('wp_ajax_mobooking_reset_booking_form_settings', 'mobooking_ajax_reset_booking_form_settings');

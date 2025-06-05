@@ -148,7 +148,7 @@ class Manager {
     }
     
     /**
-     * Save booking form settings
+     * Save booking form settings - FIXED VERSION
      */
     public function save_settings($user_id, $data) {
         global $wpdb;
@@ -157,36 +157,36 @@ class Manager {
         // Create table if it doesn't exist
         $this->maybe_create_settings_table();
         
-        // Sanitize data
+        // Sanitize data with proper validation
         $sanitized_data = array(
-            'form_title' => sanitize_text_field($data['form_title']),
-            'form_description' => sanitize_textarea_field($data['form_description']),
-            'logo_url' => esc_url_raw($data['logo_url']),
-            'primary_color' => sanitize_hex_color($data['primary_color']),
-            'secondary_color' => sanitize_hex_color($data['secondary_color']),
-            'background_color' => sanitize_hex_color($data['background_color']),
-            'text_color' => sanitize_hex_color($data['text_color']),
-            'language' => sanitize_text_field($data['language']),
+            'form_title' => sanitize_text_field($data['form_title'] ?? ''),
+            'form_description' => sanitize_textarea_field($data['form_description'] ?? ''),
+            'logo_url' => esc_url_raw($data['logo_url'] ?? ''),
+            'primary_color' => sanitize_hex_color($data['primary_color'] ?? '#3b82f6'),
+            'secondary_color' => sanitize_hex_color($data['secondary_color'] ?? '#1e40af'),
+            'background_color' => sanitize_hex_color($data['background_color'] ?? '#ffffff'),
+            'text_color' => sanitize_hex_color($data['text_color'] ?? '#1f2937'),
+            'language' => sanitize_text_field($data['language'] ?? 'en'),
             'show_service_descriptions' => isset($data['show_service_descriptions']) ? 1 : 0,
             'show_price_breakdown' => isset($data['show_price_breakdown']) ? 1 : 0,
             'show_form_header' => isset($data['show_form_header']) ? 1 : 0,
             'show_form_footer' => isset($data['show_form_footer']) ? 1 : 0,
             'enable_zip_validation' => isset($data['enable_zip_validation']) ? 1 : 0,
-            'custom_css' => wp_strip_all_tags($data['custom_css']),
-            'custom_js' => wp_strip_all_tags($data['custom_js']),
-            'form_layout' => sanitize_text_field($data['form_layout']),
-            'step_indicator_style' => sanitize_text_field($data['step_indicator_style']),
-            'button_style' => sanitize_text_field($data['button_style']),
-            'form_width' => sanitize_text_field($data['form_width']),
+            'custom_css' => wp_strip_all_tags($data['custom_css'] ?? ''),
+            'custom_js' => wp_strip_all_tags($data['custom_js'] ?? ''),
+            'form_layout' => sanitize_text_field($data['form_layout'] ?? 'modern'),
+            'step_indicator_style' => sanitize_text_field($data['step_indicator_style'] ?? 'progress'),
+            'button_style' => sanitize_text_field($data['button_style'] ?? 'rounded'),
+            'form_width' => sanitize_text_field($data['form_width'] ?? 'standard'),
             'enable_testimonials' => isset($data['enable_testimonials']) ? 1 : 0,
-            'testimonials_data' => wp_kses_post($data['testimonials_data']),
-            'contact_info' => sanitize_textarea_field($data['contact_info']),
-            'social_links' => sanitize_textarea_field($data['social_links']),
-            'custom_footer_text' => wp_kses_post($data['custom_footer_text']),
-            'seo_title' => sanitize_text_field($data['seo_title']),
-            'seo_description' => sanitize_textarea_field($data['seo_description']),
-            'analytics_code' => wp_strip_all_tags($data['analytics_code']),
-            'is_active' => isset($data['is_active']) ? 1 : 0
+            'testimonials_data' => wp_kses_post($data['testimonials_data'] ?? ''),
+            'contact_info' => sanitize_textarea_field($data['contact_info'] ?? ''),
+            'social_links' => sanitize_textarea_field($data['social_links'] ?? ''),
+            'custom_footer_text' => wp_kses_post($data['custom_footer_text'] ?? ''),
+            'seo_title' => sanitize_text_field($data['seo_title'] ?? ''),
+            'seo_description' => sanitize_textarea_field($data['seo_description'] ?? ''),
+            'analytics_code' => wp_strip_all_tags($data['analytics_code'] ?? ''),
+            'is_active' => isset($data['is_active']) ? absint($data['is_active']) : 0
         );
         
         // Check if settings exist
@@ -197,23 +197,47 @@ class Manager {
         
         if ($existing) {
             // Update existing settings
-            return $wpdb->update(
+            $result = $wpdb->update(
                 $table_name,
                 $sanitized_data,
                 array('user_id' => $user_id),
-                array('%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%d', '%d', '%d', '%d', '%d', '%s', '%s', '%s', '%s', '%s', '%s', '%d', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%d'),
+                array(
+                    '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', 
+                    '%d', '%d', '%d', '%d', '%d', '%s', '%s', '%s', 
+                    '%s', '%s', '%s', '%d', '%s', '%s', '%s', '%s', 
+                    '%s', '%s', '%s', '%d'
+                ),
                 array('%d')
             );
         } else {
             // Insert new settings
-            return $wpdb->insert(
+            $result = $wpdb->insert(
                 $table_name,
                 array_merge($sanitized_data, array('user_id' => $user_id)),
-                array('%d', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%d', '%d', '%d', '%d', '%d', '%s', '%s', '%s', '%s', '%s', '%s', '%d', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%d')
+                array(
+                    '%d', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s',
+                    '%d', '%d', '%d', '%d', '%d', '%s', '%s', '%s', 
+                    '%s', '%s', '%s', '%d', '%s', '%s', '%s', '%s', 
+                    '%s', '%s', '%s', '%d'
+                )
             );
         }
+        
+        return $result !== false;
     }
     
+
+// Add reset settings method
+public function reset_settings($user_id) {
+    global $wpdb;
+    $table_name = $wpdb->prefix . 'mobooking_booking_form_settings';
+    
+    // Delete existing settings
+    $wpdb->delete($table_name, array('user_id' => $user_id), array('%d'));
+    
+    return true;
+}
+
     /**
      * Generate unique booking form URL
      */

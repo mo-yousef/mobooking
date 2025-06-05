@@ -1514,14 +1514,75 @@ $can_publish = ($services_count > 0 && $areas_count > 0);
 }
 </style>
 
+<style>
+/* Enhanced notification styles */
+.mobooking-notification {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    padding: 1rem 1.5rem;
+    border-radius: 8px;
+    color: white;
+    font-weight: 500;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+    z-index: 10000;
+    opacity: 0;
+    transform: translateX(100%);
+    transition: all 0.3s ease;
+    max-width: 400px;
+    min-width: 250px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+}
+
+.mobooking-notification.show {
+    opacity: 1;
+    transform: translateX(0);
+}
+
+.mobooking-notification.success {
+    background: linear-gradient(135deg, #10b981, #059669);
+}
+
+.mobooking-notification.error {
+    background: linear-gradient(135deg, #ef4444, #dc2626);
+}
+
+.mobooking-notification.info {
+    background: linear-gradient(135deg, #3b82f6, #2563eb);
+}
+
+.notification-close {
+    background: rgba(255, 255, 255, 0.2);
+    border: none;
+    color: white;
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+    line-height: 1;
+    flex-shrink: 0;
+}
+
+.notification-close:hover {
+    background: rgba(255, 255, 255, 0.3);
+}
+</style>
 <script>
 jQuery(document).ready(function($) {
-    // Initialize form functionality
+    // Enhanced Booking Form Manager with Fixed Save Settings
     const BookingFormManager = {
         // Tab switching
         initTabs: function() {
             $('.tab-button').on('click', function() {
                 const target = $(this).data('tab');
+                console.log('Tab clicked:', target);
                 
                 // Update active tab button
                 $('.tab-button').removeClass('active');
@@ -1587,7 +1648,7 @@ jQuery(document).ready(function($) {
             $('#generate-embed-btn').on('click', function() {
                 const width = $('#embed-width').val() || '100%';
                 const height = $('#embed-height').val() || '800';
-                const embedUrl = '<?php echo esc_js($embed_url); ?>';
+                const embedUrl = $('input[name="embed_url"]').val() || $('.url-display').val();
                 
                 const embedCode = `<iframe src="${embedUrl}" width="${width}" height="${height}" frameborder="0" style="border: none; border-radius: 8px;"></iframe>`;
                 
@@ -1599,7 +1660,7 @@ jQuery(document).ready(function($) {
         // QR Code generation
         initQRGeneration: function() {
             $('#generate-qr-btn').on('click', function() {
-                const url = '<?php echo esc_js($booking_url); ?>';
+                const url = $('.url-display').val();
                 const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(url)}`;
                 
                 $('#qr-code-container').html(`<img src="${qrCodeUrl}" alt="QR Code" style="width: 100%; height: 100%; object-fit: contain;">`);
@@ -1636,94 +1697,195 @@ jQuery(document).ready(function($) {
             });
         },
         
-        // Form saving
+        // FIXED: Form saving with proper event handling
         initFormSaving: function() {
+            console.log('Initializing form saving...');
+            
+            // CRITICAL FIX: Handle form submission properly
             $('#booking-form-settings').on('submit', function(e) {
-                e.preventDefault();
+                console.log('Form submit event triggered');
+                e.preventDefault(); // Prevent default form submission
+                e.stopPropagation(); // Stop event bubbling
+                
+                // Call save settings with publish flag
                 BookingFormManager.saveSettings(false);
+                return false;
             });
             
-            $('#save-draft-btn').on('click', function() {
+            // FIXED: Save Settings button click handler
+            $('#save-settings-btn').on('click', function(e) {
+                console.log('Save Settings button clicked');
+                e.preventDefault();
+                e.stopPropagation();
+                
+                // Trigger form submission (which will call saveSettings)
+                $('#booking-form-settings').trigger('submit');
+                return false;
+            });
+            
+            // Save Draft button
+            $('#save-draft-btn').on('click', function(e) {
+                console.log('Save Draft button clicked');
+                e.preventDefault();
+                e.stopPropagation();
+                
                 BookingFormManager.saveSettings(true);
+                return false;
             });
         },
         
         // Reset settings
         initResetSettings: function() {
             $('#reset-settings-btn').on('click', function() {
-                if (confirm('<?php _e('Are you sure you want to reset all settings to defaults? This action cannot be undone.', 'mobooking'); ?>')) {
+                if (confirm('Are you sure you want to reset all settings to defaults? This action cannot be undone.')) {
                     BookingFormManager.resetSettings();
                 }
             });
         },
         
-        // Save settings
+        // ENHANCED: Save settings with better error handling and debugging
         saveSettings: function(isDraft = false) {
+            console.log('=== SAVE SETTINGS CALLED ===');
+            console.log('isDraft:', isDraft);
+            
             const $form = $('#booking-form-settings');
             const $saveBtn = $('#save-settings-btn');
+            const $draftBtn = $('#save-draft-btn');
+            
+            // Determine which button triggered the save
+            const $currentBtn = isDraft ? $draftBtn : $saveBtn;
+            
+            console.log('Form element:', $form.length ? 'Found' : 'NOT FOUND');
+            console.log('Button element:', $currentBtn.length ? 'Found' : 'NOT FOUND');
+            
+            if ($form.length === 0) {
+                console.error('Form not found!');
+                BookingFormManager.showNotification('Form not found!', 'error');
+                return;
+            }
+            
+            // Create FormData object
             const formData = new FormData($form[0]);
             
+            // Add draft flag if needed
             if (isDraft) {
                 formData.append('is_draft', '1');
+                console.log('Added is_draft flag');
             }
             
-            // Add action to formData
+            // CRITICAL: Add the action
             formData.append('action', 'mobooking_save_booking_form_settings');
+            console.log('Added action: mobooking_save_booking_form_settings');
             
-            // Debug form data
-            console.log('Form data being sent:');
+            // Debug: Log all form data
+            console.log('=== FORM DATA BEING SENT ===');
             for (let pair of formData.entries()) {
-                console.log(pair[0] + ': ' + pair[1]);
+                console.log(pair[0] + ':', pair[1]);
             }
             
-            // Show loading state
-            $saveBtn.addClass('loading').prop('disabled', true);
-            $('.btn-text', $saveBtn).hide();
-            $('.btn-loading', $saveBtn).show();
+            // Show loading state on the correct button
+            $currentBtn.addClass('loading').prop('disabled', true);
+            $('.btn-text', $currentBtn).hide();
+            $('.btn-loading', $currentBtn).show();
+            
+            // Disable other buttons during save
+            $('#save-settings-btn, #save-draft-btn').prop('disabled', true);
+            
+            console.log('Starting AJAX request...');
             
             $.ajax({
-                url: '<?php echo admin_url('admin-ajax.php'); ?>',
+                url: mobookingDashboard.ajaxUrl, // Use localized ajax URL
                 type: 'POST',
                 data: formData,
                 processData: false,
                 contentType: false,
+                timeout: 30000, // 30 second timeout
+                beforeSend: function(xhr) {
+                    console.log('AJAX request starting...');
+                },
                 success: function(response) {
-                    console.log('AJAX Response:', response);
-                    if (response.success) {
-                        BookingFormManager.showNotification(
-                            response.data.message || '<?php _e('Settings saved successfully!', 'mobooking'); ?>',
-                            'success'
-                        );
+                    console.log('=== AJAX SUCCESS ===');
+                    console.log('Response:', response);
+                    
+                    if (response && response.success) {
+                        const message = response.data && response.data.message ? 
+                            response.data.message : 
+                            (isDraft ? 'Settings saved as draft!' : 'Settings saved successfully!');
+                            
+                        BookingFormManager.showNotification(message, 'success');
                         
                         // Update URLs if they changed
-                        if (response.data.booking_url) {
+                        if (response.data && response.data.booking_url) {
                             $('.url-display').val(response.data.booking_url);
                             $('.copy-url-btn, #copy-link-btn').data('url', response.data.booking_url);
                             $('#form-preview-iframe').attr('src', response.data.booking_url);
+                            console.log('Updated URLs');
                         }
+                        
+                        // If this was a publish action, update the status indicator
+                        if (!isDraft && response.data && response.data.booking_url) {
+                            $('.stat-icon.status').removeClass('inactive').addClass('success');
+                            $('.stat-label:contains("Draft")').text('Published');
+                        }
+                        
                     } else {
-                        console.error('AJAX Error Response:', response);
-                        BookingFormManager.showNotification(
-                            response.data || '<?php _e('Failed to save settings.', 'mobooking'); ?>',
-                            'error'
-                        );
+                        console.error('AJAX Success but response.success is false:', response);
+                        const errorMessage = response && response.data ? 
+                            response.data : 
+                            'Failed to save settings. Please try again.';
+                        BookingFormManager.showNotification(errorMessage, 'error');
                     }
                 },
                 error: function(jqXHR, textStatus, errorThrown) {
-                    console.error('AJAX Error:', {
-                        status: jqXHR.status,
-                        statusText: jqXHR.statusText,
-                        responseText: jqXHR.responseText,
-                        textStatus: textStatus,
-                        errorThrown: errorThrown
-                    });
-                    BookingFormManager.showNotification('<?php _e('An error occurred while saving settings.', 'mobooking'); ?>', 'error');
+                    console.error('=== AJAX ERROR ===');
+                    console.error('Status:', jqXHR.status);
+                    console.error('Status Text:', jqXHR.statusText);
+                    console.error('Response Text:', jqXHR.responseText);
+                    console.error('Text Status:', textStatus);
+                    console.error('Error Thrown:', errorThrown);
+                    
+                    let errorMessage = 'An error occurred while saving settings.';
+                    
+                    // Try to extract more specific error information
+                    if (jqXHR.status === 0) {
+                        errorMessage = 'Network error. Please check your internet connection.';
+                    } else if (jqXHR.status === 403) {
+                        errorMessage = 'Permission denied. Please refresh the page and try again.';
+                    } else if (jqXHR.status === 404) {
+                        errorMessage = 'AJAX endpoint not found. Please contact support.';
+                    } else if (jqXHR.status === 500) {
+                        errorMessage = 'Server error. Please check the error logs.';
+                    } else if (textStatus === 'timeout') {
+                        errorMessage = 'Request timed out. Please try again.';
+                    }
+                    
+                    // Try to parse JSON error response
+                    if (jqXHR.responseText) {
+                        try {
+                            const errorResponse = JSON.parse(jqXHR.responseText);
+                            if (errorResponse.data) {
+                                errorMessage = errorResponse.data;
+                            }
+                        } catch (e) {
+                            // If it's a PHP error, extract the error message
+                            if (jqXHR.responseText.includes('Fatal error') || jqXHR.responseText.includes('Parse error')) {
+                                errorMessage = 'PHP Error occurred. Please check server logs.';
+                            }
+                        }
+                    }
+                    
+                    BookingFormManager.showNotification(errorMessage, 'error');
                 },
                 complete: function() {
-                    // Hide loading state
-                    $saveBtn.removeClass('loading').prop('disabled', false);
-                    $('.btn-text', $saveBtn).show();
-                    $('.btn-loading', $saveBtn).hide();
+                    console.log('AJAX request completed');
+                    
+                    // Restore button states
+                    $currentBtn.removeClass('loading').prop('disabled', false);
+                    $('.btn-text', $currentBtn).show();
+                    $('.btn-loading', $currentBtn).hide();
+                    
+                    // Re-enable all buttons
+                    $('#save-settings-btn, #save-draft-btn').prop('disabled', false);
                 }
             });
         },
@@ -1731,7 +1893,7 @@ jQuery(document).ready(function($) {
         // Reset settings
         resetSettings: function() {
             $.ajax({
-                url: '<?php echo admin_url('admin-ajax.php'); ?>',
+                url: mobookingDashboard.ajaxUrl,
                 type: 'POST',
                 data: {
                     action: 'mobooking_reset_booking_form_settings',
@@ -1739,36 +1901,89 @@ jQuery(document).ready(function($) {
                 },
                 success: function(response) {
                     if (response.success) {
-                        location.reload();
+                        BookingFormManager.showNotification('Settings reset successfully!', 'success');
+                        setTimeout(() => location.reload(), 1000);
                     } else {
                         BookingFormManager.showNotification(
-                            response.data || '<?php _e('Failed to reset settings.', 'mobooking'); ?>',
+                            response.data || 'Failed to reset settings.',
                             'error'
                         );
                     }
                 },
                 error: function() {
-                    BookingFormManager.showNotification('<?php _e('An error occurred while resetting settings.', 'mobooking'); ?>', 'error');
+                    BookingFormManager.showNotification('An error occurred while resetting settings.', 'error');
                 }
             });
         },
         
-        // Show notification
+        // ENHANCED: Show notification with better styling and behavior
         showNotification: function(message, type = 'info') {
+            console.log('Showing notification:', message, type);
+            
+            // Remove existing notifications
+            $('.mobooking-notification').remove();
+            
             const notification = $(`
-                <div class="notification ${type} show">
-                    ${message}
+                <div class="mobooking-notification notification ${type}">
+                    <div class="notification-content">
+                        <div class="notification-icon">
+                            ${type === 'success' ? '✓' : type === 'error' ? '✗' : 'ℹ'}
+                        </div>
+                        <div class="notification-message">${message}</div>
+                    </div>
+                    <button class="notification-close" aria-label="Close">&times;</button>
                 </div>
             `).appendTo('body');
             
-            setTimeout(() => {
+            // Show notification with animation
+            setTimeout(() => notification.addClass('show'), 100);
+            
+            // Auto hide after 5 seconds
+            const autoHideTimer = setTimeout(() => {
                 notification.removeClass('show');
                 setTimeout(() => notification.remove(), 300);
-            }, 3000);
+            }, 5000);
+            
+            // Manual close
+            notification.find('.notification-close').on('click', function() {
+                clearTimeout(autoHideTimer);
+                notification.removeClass('show');
+                setTimeout(() => notification.remove(), 300);
+            });
+        },
+        
+        // Auto-save functionality
+        initAutoSave: function() {
+            let autoSaveTimeout;
+            
+            $('input, textarea, select', '#booking-form-settings').on('change input', function() {
+                clearTimeout(autoSaveTimeout);
+                
+                // Only auto-save after 10 seconds of inactivity
+                autoSaveTimeout = setTimeout(() => {
+                    console.log('Auto-saving as draft...');
+                    BookingFormManager.saveSettings(true);
+                }, 10000);
+            });
         },
         
         // Initialize all functionality
         init: function() {
+            console.log('=== INITIALIZING BOOKING FORM MANAGER ===');
+            
+            // Check if required elements exist
+            if ($('#booking-form-settings').length === 0) {
+                console.error('Booking form not found!');
+                return;
+            }
+            
+            if ($('#save-settings-btn').length === 0) {
+                console.error('Save settings button not found!');
+                return;
+            }
+            
+            console.log('Required elements found, proceeding with initialization...');
+            
             this.initTabs();
             this.initColorPickers();
             this.initCopyButtons();
@@ -1776,22 +1991,23 @@ jQuery(document).ready(function($) {
             this.initEmbedGeneration();
             this.initQRGeneration();
             this.initPreview();
-            this.initFormSaving();
+            this.initFormSaving(); // This is the critical one for Save Settings
             this.initResetSettings();
+            this.initAutoSave();
+            
+            console.log('BookingFormManager initialization complete');
         }
     };
     
     // Initialize the booking form manager
     BookingFormManager.init();
     
-    // Auto-save functionality (optional)
-    let autoSaveTimeout;
-    $('input, textarea, select', '#booking-form-settings').on('change input', function() {
-        clearTimeout(autoSaveTimeout);
-        autoSaveTimeout = setTimeout(() => {
-            BookingFormManager.saveSettings(true); // Save as draft
-        }, 5000); // Auto-save after 5 seconds of inactivity
-    });
+    // Make it globally available for debugging
+    window.BookingFormManager = BookingFormManager;
+    
+    // Additional debugging
+    console.log('jQuery ready function completed');
+    console.log('mobookingDashboard object:', window.mobookingDashboard);
 });
 </script>
 
