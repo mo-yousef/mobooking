@@ -179,7 +179,7 @@ $can_publish = ($services_count > 0 && $areas_count > 0);
                     <div class="tab-icon">
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                             <circle cx="12" cy="12" r="3"/>
-                            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1 1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+                            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>
                         </svg>
                     </div>
                     <span><?php _e('General Settings', 'mobooking'); ?></span>
@@ -426,1108 +426,1157 @@ $can_publish = ($services_count > 0 && $areas_count > 0);
                                         </button>
                                         <button type="button" class="btn-secondary open-url-btn" data-url="<?php echo esc_attr($booking_url); ?>">
                                             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                                <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>
-                                                <polyline points="15,3 21,3 21,9"/>
-                                                <line x1="10" y1="14" x2="21" y2="3"/>
-                                            </svg>
-                                            <?php _e('Open', 'mobooking'); ?>
-                                        </button>
-                                    </div>
-                                </div>
-                            </div>
-                            
-                            <div class="share-option">
-                                <div class="share-icon">
-                                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                        <polyline points="16 18 22 12 16 6"/>
-                                        <polyline points="8 6 2 12 8 18"/>
-                                    </svg>
-                                </div>
-                                <div class="share-content">
-                                    <h4><?php _e('Embed Code', 'mobooking'); ?></h4>
-                                    <p><?php _e('Add this form to your website', 'mobooking'); ?></p>
-                                    <div class="embed-controls">
-                                        <div class="embed-settings">
-                                            <div class="field-row">
-                                                <div class="form-group">
-                                                    <label for="embed-width"><?php _e('Width', 'mobooking'); ?></label>
-                                                    <input type="text" id="embed-width" class="form-control" value="100%" placeholder="100%">
-                                                </div>
-                                                <div class="form-group">
-                                                    <label for="embed-height"><?php _e('Height', 'mobooking'); ?></label>
-                                                    <input type="text" id="embed-height" class="form-control" value="800" placeholder="800">
-                                                </div>
-                                            </div>
-                                            <button type="button" id="generate-embed-btn" class="btn-secondary btn-small">
-                                                <?php _e('Generate Code', 'mobooking'); ?>
-                                            </button>
-                                        </div>
-                                        <div class="embed-code-section">
-                                            <textarea id="embed-code-display" class="form-control code-textarea" rows="4" readonly 
-                                                      placeholder="<?php _e('Click "Generate Code" to create your embed code', 'mobooking'); ?>"></textarea>
-                                            <button type="button" id="copy-embed-btn" class="btn-secondary btn-small" style="display: none;">
-                                                <?php _e('Copy Code', 'mobooking'); ?>
-                                            </button>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                            
-                            <div class="share-option">
-                                <div class="share-icon">
-                                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                        <rect width="3" height="3" x="7" y="3"/>
-                                        <rect width="3" height="3" x="14" y="3"/>
-                                        <rect width="3" height="3" x="7" y="10"/>
-                                        <rect width="3" height="3" x="14" y="10"/>
-                                        <rect width="3" height="3" x="7" y="17"/>
-                                        <rect width="3" height="3" x="14" y="17"/>
-                                    </svg>
-                                </div>
-                                <div class="share-content">
-                                    <h4><?php _e('QR Code', 'mobooking'); ?></h4>
-                                    <p><?php _e('Generate a QR code for easy mobile access', 'mobooking'); ?></p>
-                                    <div class="qr-section">
-                                        <div class="qr-display" id="qr-code-container">
-                                            <div class="qr-placeholder">
-                                                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1">
-                                                    <rect width="3" height="3" x="7" y="3"/>
-                                                    <rect width="3" height="3" x="14" y="3"/>
-                                                    <rect width="3" height="3" x="7" y="10"/>
-                                                    <rect width="3" height="3" x="14" y="10"/>
-                                                    <rect width="3" height="3" x="7" y="17"/>
-                                                    <rect width="3" height="3" x="14" y="17"/>
-                                                </svg>
-                                                <span><?php _e('QR Code will appear here', 'mobooking'); ?></span>
-                                            </div>
-                                        </div>
-                                        <div class="qr-actions">
-                                            <button type="button" id="generate-qr-btn" class="btn-secondary btn-small">
-                                                <?php _e('Generate QR', 'mobooking'); ?>
-                                            </button>
-                                            <button type="button" id="download-qr-btn" class="btn-secondary btn-small" style="display: none;">
-                                                <?php _e('Download', 'mobooking'); ?>
-                                            </button>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            
-            <!-- Advanced Tab -->
-            <div id="advanced" class="tab-content">
-                <div class="content-grid">
-                    <!-- SEO Settings -->
-                    <div class="settings-group">
-                        <div class="group-header">
-                            <h3><?php _e('SEO Optimization', 'mobooking'); ?></h3>
-                            <p><?php _e('Improve your form\'s search engine visibility', 'mobooking'); ?></p>
-                        </div>
-                        
-                        <div class="form-fields">
-                            <div class="form-group">
-                                <label for="seo-title" class="field-label"><?php _e('Page Title', 'mobooking'); ?></label>
-                                <input type="text" id="seo-title" name="seo_title" class="form-control" 
-                                       value="<?php echo esc_attr($settings->seo_title); ?>" 
-                                       placeholder="<?php _e('Book Our Professional Services - Your Company Name', 'mobooking'); ?>">
-                                <small class="field-note"><?php _e('Recommended: 50-60 characters', 'mobooking'); ?></small>
-                            </div>
-                            
-                            <div class="form-group">
-                                <label for="seo-description" class="field-label"><?php _e('Meta Description', 'mobooking'); ?></label>
-                                <textarea id="seo-description" name="seo_description" class="form-control" rows="3" 
-                                          placeholder="<?php _e('Book our professional services online. Quick, easy, and secure booking process...', 'mobooking'); ?>"><?php echo esc_textarea($settings->seo_description); ?></textarea>
-                                <small class="field-note"><?php _e('Recommended: 150-160 characters', 'mobooking'); ?></small>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <!-- Custom Code -->
-                    <div class="settings-group">
-                        <div class="group-header">
-                            <h3><?php _e('Custom Code', 'mobooking'); ?></h3>
-                            <p><?php _e('Add custom styling and tracking codes', 'mobooking'); ?></p>
-                        </div>
-                        
-                        <div class="form-fields">
-                            <div class="form-group">
-                                <label for="analytics-code" class="field-label"><?php _e('Analytics & Tracking', 'mobooking'); ?></label>
-                                <textarea id="analytics-code" name="analytics_code" class="form-control code-textarea" rows="6" 
-                                          placeholder="<!-- Google Analytics, Facebook Pixel, or other tracking codes -->"><?php echo esc_textarea($settings->analytics_code); ?></textarea>
-                                <small class="field-note"><?php _e('Add Google Analytics, Facebook Pixel, or other tracking codes', 'mobooking'); ?></small>
-                            </div>
-                            
-                            <div class="form-group">
-                                <label for="custom-css" class="field-label"><?php _e('Custom CSS', 'mobooking'); ?></label>
-                                <textarea id="custom-css" name="custom_css" class="form-control code-textarea" rows="8" 
-                                          placeholder="/* Add your custom CSS here */
+<path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>
+                                               <polyline points="15,3 21,3 21,9"/>
+                                               <line x1="10" y1="14" x2="21" y2="3"/>
+                                           </svg>
+                                           <?php _e('Open', 'mobooking'); ?>
+                                       </button>
+                                   </div>
+                               </div>
+                           </div>
+                           
+                           <div class="share-option">
+                               <div class="share-icon">
+                                   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                       <polyline points="16 18 22 12 16 6"/>
+                                       <polyline points="8 6 2 12 8 18"/>
+                                   </svg>
+                               </div>
+                               <div class="share-content">
+                                   <h4><?php _e('Embed Code', 'mobooking'); ?></h4>
+                                   <p><?php _e('Add this form to your website', 'mobooking'); ?></p>
+                                   <div class="embed-controls">
+                                       <div class="embed-settings">
+                                           <div class="field-row">
+                                               <div class="form-group">
+                                                   <label for="embed-width"><?php _e('Width', 'mobooking'); ?></label>
+                                                   <input type="text" id="embed-width" class="form-control" value="100%" placeholder="100%">
+                                               </div>
+                                               <div class="form-group">
+                                                   <label for="embed-height"><?php _e('Height', 'mobooking'); ?></label>
+                                                   <input type="text" id="embed-height" class="form-control" value="800" placeholder="800">
+                                               </div>
+                                           </div>
+                                           <button type="button" id="generate-embed-btn" class="btn-secondary btn-small">
+                                               <?php _e('Generate Code', 'mobooking'); ?>
+                                           </button>
+                                       </div>
+                                       <div class="embed-code-section">
+                                           <textarea id="embed-code-display" class="form-control code-textarea" rows="4" readonly 
+                                                     placeholder="<?php _e('Click "Generate Code" to create your embed code', 'mobooking'); ?>"></textarea>
+                                           <button type="button" id="copy-embed-btn" class="btn-secondary btn-small" style="display: none;">
+                                               <?php _e('Copy Code', 'mobooking'); ?>
+                                           </button>
+                                       </div>
+                                   </div>
+                               </div>
+                           </div>
+                           
+                           <div class="share-option">
+                               <div class="share-icon">
+                                   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                       <rect width="3" height="3" x="7" y="3"/>
+                                       <rect width="3" height="3" x="14" y="3"/>
+                                       <rect width="3" height="3" x="7" y="10"/>
+                                       <rect width="3" height="3" x="14" y="10"/>
+                                       <rect width="3" height="3" x="7" y="17"/>
+                                       <rect width="3" height="3" x="14" y="17"/>
+                                   </svg>
+                               </div>
+                               <div class="share-content">
+                                   <h4><?php _e('QR Code', 'mobooking'); ?></h4>
+                                   <p><?php _e('Generate a QR code for easy mobile access', 'mobooking'); ?></p>
+                                   <div class="qr-section">
+                                       <div class="qr-display" id="qr-code-container">
+                                           <div class="qr-placeholder">
+                                               <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1">
+                                                   <rect width="3" height="3" x="7" y="3"/>
+                                                   <rect width="3" height="3" x="14" y="3"/>
+                                                   <rect width="3" height="3" x="7" y="10"/>
+                                                   <rect width="3" height="3" x="14" y="10"/>
+                                                   <rect width="3" height="3" x="7" y="17"/>
+                                                   <rect width="3" height="3" x="14" y="17"/>
+                                               </svg>
+                                               <span><?php _e('QR Code will appear here', 'mobooking'); ?></span>
+                                           </div>
+                                       </div>
+                                       <div class="qr-actions">
+                                           <button type="button" id="generate-qr-btn" class="btn-secondary btn-small">
+                                               <?php _e('Generate QR', 'mobooking'); ?>
+                                           </button>
+                                           <button type="button" id="download-qr-btn" class="btn-secondary btn-small" style="display: none;">
+                                               <?php _e('Download', 'mobooking'); ?>
+                                           </button>
+                                       </div>
+                                   </div>
+                               </div>
+                           </div>
+                       </div>
+                   </div>
+               </div>
+           </div>
+           
+           <!-- Advanced Tab -->
+           <div id="advanced" class="tab-content">
+               <div class="content-grid">
+                   <!-- SEO Settings -->
+                   <div class="settings-group">
+                       <div class="group-header">
+                           <h3><?php _e('SEO Optimization', 'mobooking'); ?></h3>
+                           <p><?php _e('Improve your form\'s search engine visibility', 'mobooking'); ?></p>
+                       </div>
+                       
+                       <div class="form-fields">
+                           <div class="form-group">
+                               <label for="seo-title" class="field-label"><?php _e('Page Title', 'mobooking'); ?></label>
+                               <input type="text" id="seo-title" name="seo_title" class="form-control" 
+                                      value="<?php echo esc_attr($settings->seo_title); ?>" 
+                                      placeholder="<?php _e('Book Our Professional Services - Your Company Name', 'mobooking'); ?>">
+                               <small class="field-note"><?php _e('Recommended: 50-60 characters', 'mobooking'); ?></small>
+                           </div>
+                           
+                           <div class="form-group">
+                               <label for="seo-description" class="field-label"><?php _e('Meta Description', 'mobooking'); ?></label>
+                               <textarea id="seo-description" name="seo_description" class="form-control" rows="3" 
+                                         placeholder="<?php _e('Book our professional services online. Quick, easy, and secure booking process...', 'mobooking'); ?>"><?php echo esc_textarea($settings->seo_description); ?></textarea>
+                               <small class="field-note"><?php _e('Recommended: 150-160 characters', 'mobooking'); ?></small>
+                           </div>
+                       </div>
+                   </div>
+                   
+                   <!-- Custom Code -->
+                   <div class="settings-group">
+                       <div class="group-header">
+                           <h3><?php _e('Custom Code', 'mobooking'); ?></h3>
+                           <p><?php _e('Add custom styling and tracking codes', 'mobooking'); ?></p>
+                       </div>
+                       
+                       <div class="form-fields">
+                           <div class="form-group">
+                               <label for="analytics-code" class="field-label"><?php _e('Analytics & Tracking', 'mobooking'); ?></label>
+                               <textarea id="analytics-code" name="analytics_code" class="form-control code-textarea" rows="6" 
+                                         placeholder="<!-- Google Analytics, Facebook Pixel, or other tracking codes -->"><?php echo esc_textarea($settings->analytics_code); ?></textarea>
+                               <small class="field-note"><?php _e('Add Google Analytics, Facebook Pixel, or other tracking codes', 'mobooking'); ?></small>
+                           </div>
+                           
+                           <div class="form-group">
+                               <label for="custom-css" class="field-label"><?php _e('Custom CSS', 'mobooking'); ?></label>
+                               <textarea id="custom-css" name="custom_css" class="form-control code-textarea" rows="8" 
+                                         placeholder="/* Add your custom CSS here */
 .mobooking-booking-form-container {
    /* Your custom styles */
 }"><?php echo esc_textarea($settings->custom_css); ?></textarea>
-                                <small class="field-note"><?php _e('Advanced users only. Custom CSS will override default styles.', 'mobooking'); ?></small>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <!-- Footer Content -->
-                    <div class="settings-group">
-                        <div class="group-header">
-                            <h3><?php _e('Form Footer', 'mobooking'); ?></h3>
-                            <p><?php _e('Add additional information to the bottom of your form', 'mobooking'); ?></p>
-                        </div>
-                        
-                        <div class="form-fields">
-                            <div class="form-group">
-                                <label for="custom-footer-text" class="field-label"><?php _e('Footer Text', 'mobooking'); ?></label>
-                                <textarea id="custom-footer-text" name="custom_footer_text" class="form-control" rows="4" 
-                                          placeholder="<?php _e('Contact us at info@yourcompany.com or call (555) 123-4567', 'mobooking'); ?>"><?php echo esc_textarea($settings->custom_footer_text); ?></textarea>
-                            </div>
-                            
-                            <div class="field-row">
-                                <div class="form-group">
-                                    <label for="contact-info" class="field-label"><?php _e('Contact Information', 'mobooking'); ?></label>
-                                    <textarea id="contact-info" name="contact_info" class="form-control" rows="3" 
-                                              placeholder="<?php _e('Phone: (555) 123-4567\nEmail: info@company.com\nAddress: 123 Main St', 'mobooking'); ?>"><?php echo esc_textarea($settings->contact_info); ?></textarea>
-                                </div>
-                                
-                                <div class="form-group">
-                                    <label for="social-links" class="field-label"><?php _e('Social Media', 'mobooking'); ?></label>
-                                    <textarea id="social-links" name="social_links" class="form-control" rows="3" 
-                                              placeholder="<?php _e('Facebook: https://facebook.com/yourpage\nInstagram: https://instagram.com/yourprofile', 'mobooking'); ?>"><?php echo esc_textarea($settings->social_links); ?></textarea>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </form>
-        
-        <!-- Form Actions -->
-        <div class="form-actions">
-            <div class="actions-left">
-                <button type="button" id="reset-settings-btn" class="btn-secondary">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <polyline points="1 4 1 10 7 10"/>
-                        <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/>
-                    </svg>
-                    <?php _e('Reset to Defaults', 'mobooking'); ?>
-                </button>
-            </div>
-            
-            <div class="actions-right">
-                <button type="submit" id="save-settings-btn" class="btn-primary">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
-                        <polyline points="17,21 17,13 7,13 7,21"/>
-                        <polyline points="7,3 7,8 15,8"/>
-                    </svg>
-                    <span class="btn-text"><?php _e('Save Settings', 'mobooking'); ?></span>
-                    <span class="btn-loading" style="display: none;">
-                        <div class="spinner-modern"></div>
-                        <?php _e('Saving...', 'mobooking'); ?>
-                    </span>
-                </button>
-            </div>
-        </div>
-    </div>
+                               <small class="field-note"><?php _e('Advanced users only. Custom CSS will override default styles.', 'mobooking'); ?></small>
+                           </div>
+                       </div>
+                   </div>
+                   
+                   <!-- Footer Content -->
+                   <div class="settings-group">
+                       <div class="group-header">
+                           <h3><?php _e('Form Footer', 'mobooking'); ?></h3>
+                           <p><?php _e('Add additional information to the bottom of your form', 'mobooking'); ?></p>
+                       </div>
+                       
+                       <div class="form-fields">
+                           <div class="form-group">
+                               <label for="custom-footer-text" class="field-label"><?php _e('Footer Text', 'mobooking'); ?></label>
+                               <textarea id="custom-footer-text" name="custom_footer_text" class="form-control" rows="4" 
+                                         placeholder="<?php _e('Contact us at info@yourcompany.com or call (555) 123-4567', 'mobooking'); ?>"><?php echo esc_textarea($settings->custom_footer_text); ?></textarea>
+                           </div>
+                           
+                           <div class="field-row">
+                               <div class="form-group">
+                                   <label for="contact-info" class="field-label"><?php _e('Contact Information', 'mobooking'); ?></label>
+                                   <textarea id="contact-info" name="contact_info" class="form-control" rows="3" 
+                                             placeholder="<?php _e('Phone: (555) 123-4567\nEmail: info@company.com\nAddress: 123 Main St', 'mobooking'); ?>"><?php echo esc_textarea($settings->contact_info); ?></textarea>
+                               </div>
+                               
+                               <div class="form-group">
+                                   <label for="social-links" class="field-label"><?php _e('Social Media', 'mobooking'); ?></label>
+                                   <textarea id="social-links" name="social_links" class="form-control" rows="3" 
+                                             placeholder="<?php _e('Facebook: https://facebook.com/yourpage\nInstagram: https://instagram.com/yourprofile', 'mobooking'); ?>"><?php echo esc_textarea($settings->social_links); ?></textarea>
+                               </div>
+                           </div>
+                       </div>
+                   </div>
+               </div>
+           </div>
+       </form>
+       
+       <!-- Form Actions -->
+       <div class="form-actions">
+           <div class="actions-left">
+               <button type="button" id="reset-settings-btn" class="btn-secondary">
+                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                       <polyline points="1 4 1 10 7 10"/>
+                       <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/>
+                   </svg>
+                   <?php _e('Reset to Defaults', 'mobooking'); ?>
+               </button>
+           </div>
+           
+           <div class="actions-right">
+               <button type="button" id="save-draft-btn" class="btn-secondary">
+                   <?php _e('Save as Draft', 'mobooking'); ?>
+               </button>
+               <button type="submit" id="save-settings-btn" class="btn-primary">
+                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                       <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
+                       <polyline points="17,21 17,13 7,13 7,21"/>
+                       <polyline points="7,3 7,8 15,8"/>
+                   </svg>
+                   <span class="btn-text"><?php _e('Save Settings', 'mobooking'); ?></span>
+                   <span class="btn-loading" style="display: none;"><?php _e('Saving...', 'mobooking'); ?></span>
+               </button>
+           </div>
+       </div>
+   </div>
 </div>
 
 <!-- Preview Modal -->
 <div id="form-preview-modal" class="mobooking-modal" style="display:none;">
-    <div class="modal-content modal-large">
-        <div class="modal-header">
-            <h3><?php _e('Form Preview', 'mobooking'); ?></h3>
-            <div class="modal-actions">
-                <button type="button" id="refresh-preview-btn" class="btn-secondary btn-small">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <polyline points="1 4 1 10 7 10"/>
-                        <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/>
-                    </svg>
-                    <?php _e('Refresh', 'mobooking'); ?>
-                </button>
-                <button type="button" id="open-in-new-tab-btn" class="btn-secondary btn-small" data-url="<?php echo esc_attr($booking_url); ?>">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>
-                        <polyline points="15,3 21,3 21,9"/>
-                        <line x1="10" y1="14" x2="21" y2="3"/>
-                    </svg>
-                    <?php _e('Open in New Tab', 'mobooking'); ?>
-                </button>
-            </div>
-            <button class="modal-close" aria-label="<?php _e('Close', 'mobooking'); ?>">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M18 6 6 18M6 6l12 12"/>
-                </svg>
-            </button>
-        </div>
-        
-        <div class="modal-body">
-            <div class="preview-container">
-                <iframe id="form-preview-iframe" src="<?php echo esc_url($booking_url); ?>" 
-                        style="width: 100%; height: 600px; border: none; border-radius: 8px;"></iframe>
-            </div>
-        </div>
-    </div>
+   <div class="modal-content modal-large">
+       <div class="modal-header">
+           <h3><?php _e('Form Preview', 'mobooking'); ?></h3>
+           <div class="modal-actions">
+               <button type="button" id="refresh-preview-btn" class="btn-secondary btn-small">
+                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                       <polyline points="1 4 1 10 7 10"/>
+                       <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/>
+                   </svg>
+                   <?php _e('Refresh', 'mobooking'); ?>
+               </button>
+               <button type="button" id="open-in-new-tab-btn" class="btn-secondary btn-small" data-url="<?php echo esc_attr($booking_url); ?>">
+                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                       <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>
+                       <polyline points="15,3 21,3 21,9"/>
+                       <line x1="10" y1="14" x2="21" y2="3"/>
+                   </svg>
+                   <?php _e('Open in New Tab', 'mobooking'); ?>
+               </button>
+           </div>
+           <button class="modal-close" aria-label="<?php _e('Close', 'mobooking'); ?>">
+               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                   <path d="M18 6 6 18M6 6l12 12"/>
+               </svg>
+           </button>
+       </div>
+       
+       <div class="modal-body">
+           <div class="preview-container">
+               <iframe id="form-preview-iframe" src="<?php echo esc_url($booking_url); ?>" 
+                       style="width: 100%; height: 600px; border: none; border-radius: 8px;"></iframe>
+           </div>
+       </div>
+   </div>
 </div>
 
 <style>
-/* Existing styles remain the same - just keeping the essential CSS */
+/* Booking Form Section Styles */
 .booking-form-section {
-    animation: fadeIn 0.4s ease-out;
+   animation: fadeIn 0.4s ease-out;
 }
 
+/* Section Header */
 .section-header {
-    margin-bottom: 2rem;
-    padding-bottom: 1.5rem;
-    border-bottom: 1px solid hsl(var(--border));
+   margin-bottom: 2rem;
+   padding-bottom: 1.5rem;
+   border-bottom: 1px solid hsl(var(--border));
 }
 
 .header-content {
-    display: flex;
-    align-items: flex-start;
-    justify-content: space-between;
-    gap: 2rem;
+   display: flex;
+   align-items: flex-start;
+   justify-content: space-between;
+   gap: 2rem;
 }
 
 .header-main {
-    flex: 1;
-    display: flex;
-    align-items: flex-start;
-    gap: 3rem;
+   flex: 1;
+   display: flex;
+   align-items: flex-start;
+   gap: 3rem;
 }
 
 .title-group {
-    flex: 1;
+   flex: 1;
 }
 
 .page-title {
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-    margin: 0 0 0.5rem 0;
-    font-size: 1.875rem;
-    font-weight: 700;
-    color: hsl(var(--foreground));
-    line-height: 1.2;
+   display: flex;
+   align-items: center;
+   gap: 0.75rem;
+   margin: 0 0 0.5rem 0;
+   font-size: 1.875rem;
+   font-weight: 700;
+   color: hsl(var(--foreground));
+   line-height: 1.2;
 }
 
 .title-icon {
-    width: 2rem;
-    height: 2rem;
-    color: hsl(var(--primary));
-    flex-shrink: 0;
+   width: 2rem;
+   height: 2rem;
+   color: hsl(var(--primary));
+   flex-shrink: 0;
 }
 
 .page-subtitle {
-    margin: 0;
-    font-size: 1rem;
-    color: hsl(var(--muted-foreground));
-    line-height: 1.5;
+   margin: 0;
+   font-size: 1rem;
+   color: hsl(var(--muted-foreground));
+   line-height: 1.5;
 }
 
 .header-stats {
-    display: flex;
-    gap: 1rem;
-    flex-shrink: 0;
+   display: flex;
+   gap: 1rem;
+   flex-shrink: 0;
 }
 
 .stat-card {
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-    padding: 1rem 1.25rem;
-    background: hsl(var(--card));
-    border: 1px solid hsl(var(--border));
-    border-radius: var(--radius);
-    min-width: 7rem;
+   display: flex;
+   align-items: center;
+   gap: 0.75rem;
+   padding: 1rem 1.25rem;
+   background: hsl(var(--card));
+   border: 1px solid hsl(var(--border));
+   border-radius: var(--radius);
+   min-width: 7rem;
 }
 
 .stat-icon {
-    width: 2rem;
-    height: 2rem;
-    border-radius: calc(var(--radius) - 2px);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex-shrink: 0;
+   width: 2rem;
+   height: 2rem;
+   border-radius: calc(var(--radius) - 2px);
+   display: flex;
+   align-items: center;
+   justify-content: center;
+   flex-shrink: 0;
 }
 
 .stat-icon.success {
-    background: hsl(var(--success) / 0.1);
-    color: hsl(var(--success));
+   background: hsl(var(--success) / 0.1);
+   color: hsl(var(--success));
 }
 
 .stat-icon.warning {
-    background: hsl(var(--warning) / 0.1);
-    color: hsl(var(--warning));
+   background: hsl(var(--warning) / 0.1);
+   color: hsl(var(--warning));
 }
 
 .stat-icon.inactive {
-    background: hsl(var(--muted) / 0.1);
-    color: hsl(var(--muted-foreground));
+   background: hsl(var(--muted) / 0.1);
+   color: hsl(var(--muted-foreground));
 }
 
 .stat-number {
-    font-size: 1.25rem;
-    font-weight: 700;
-    color: hsl(var(--foreground));
-    line-height: 1;
+   font-size: 1.25rem;
+   font-weight: 700;
+   color: hsl(var(--foreground));
+   line-height: 1;
 }
 
 .stat-label {
-    font-size: 0.75rem;
-    color: hsl(var(--muted-foreground));
-    margin-top: 0.125rem;
+   font-size: 0.75rem;
+   color: hsl(var(--muted-foreground));
+   margin-top: 0.125rem;
 }
 
 .header-actions {
-    display: flex;
-    gap: 0.75rem;
-    flex-shrink: 0;
+   display: flex;
+   gap: 0.75rem;
+   flex-shrink: 0;
 }
 
+/* Setup Alert */
 .setup-alert {
-    display: flex;
-    gap: 1rem;
-    padding: 1.5rem;
-    background: hsl(var(--warning) / 0.1);
-    border: 1px solid hsl(var(--warning) / 0.3);
-    border-radius: var(--radius);
-    margin-bottom: 2rem;
+   display: flex;
+   gap: 1rem;
+   padding: 1.5rem;
+   background: hsl(var(--warning) / 0.1);
+   border: 1px solid hsl(var(--warning) / 0.3);
+   border-radius: var(--radius);
+   margin-bottom: 2rem;
 }
 
 .alert-icon {
-    width: 2.5rem;
-    height: 2.5rem;
-    border-radius: 50%;
-    background: hsl(var(--warning) / 0.2);
-    color: hsl(var(--warning));
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex-shrink: 0;
+   width: 2.5rem;
+   height: 2.5rem;
+   border-radius: 50%;
+   background: hsl(var(--warning) / 0.2);
+   color: hsl(var(--warning));
+   display: flex;
+   align-items: center;
+   justify-content: center;
+   flex-shrink: 0;
 }
 
 .alert-content {
-    flex: 1;
+   flex: 1;
 }
 
 .alert-content h3 {
-    margin: 0 0 0.5rem 0;
-    font-size: 1.125rem;
-    font-weight: 600;
-    color: hsl(var(--warning));
+   margin: 0 0 0.5rem 0;
+   font-size: 1.125rem;
+   font-weight: 600;
+   color: hsl(var(--warning));
 }
 
 .alert-content p {
-    margin: 0 0 1rem 0;
-    color: hsl(var(--foreground));
+   margin: 0 0 1rem 0;
+   color: hsl(var(--foreground));
 }
 
 .requirements-list {
-    display: flex;
-    flex-direction: column;
-    gap: 0.75rem;
+   display: flex;
+   flex-direction: column;
+   gap: 0.75rem;
 }
 
 .requirement-item {
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-    padding: 0.75rem;
-    background: hsl(var(--background));
-    border-radius: calc(var(--radius) - 2px);
+   display: flex;
+   align-items: center;
+   gap: 0.75rem;
+   padding: 0.75rem;
+   background: hsl(var(--background));
+   border-radius: calc(var(--radius) - 2px);
 }
 
 .requirement-item.completed {
-    background: hsl(var(--success) / 0.1);
+   background: hsl(var(--success) / 0.1);
 }
 
 .check-icon {
-    color: hsl(var(--success));
+   color: hsl(var(--success));
 }
 
 .cross-icon {
-    color: hsl(var(--destructive));
+   color: hsl(var(--destructive));
 }
 
 .setup-link {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.25rem;
-    margin-left: auto;
-    font-size: 0.875rem;
-    font-weight: 500;
-    color: hsl(var(--primary));
-    text-decoration: none;
-    transition: all 0.2s ease;
+   display: inline-flex;
+   align-items: center;
+   gap: 0.25rem;
+   margin-left: auto;
+   font-size: 0.875rem;
+   font-weight: 500;
+   color: hsl(var(--primary));
+   text-decoration: none;
+   transition: all 0.2s ease;
 }
 
 .setup-link:hover {
-    color: hsl(var(--primary) / 0.8);
-    gap: 0.5rem;
+   color: hsl(var(--primary) / 0.8);
+   gap: 0.5rem;
 }
 
+/* Form Container */
 .form-container {
-    background: hsl(var(--card));
-    border: 1px solid hsl(var(--border));
-    border-radius: calc(var(--radius) + 4px);
-    overflow: hidden;
+   background: hsl(var(--card));
+   border: 1px solid hsl(var(--border));
+   border-radius: calc(var(--radius) + 4px);
+   overflow: hidden;
 }
 
+/* Form Tabs */
 .form-tabs {
-    border-bottom: 1px solid hsl(var(--border));
+   border-bottom: 1px solid hsl(var(--border));
 }
 
-.tab-list {
-    display: flex;
-}
 
 .tab-button {
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-    padding: 1rem 1.25rem;
-    border: none;
-    background: none;
-    border-radius: var(--radius);
-    cursor: pointer;
-    transition: all 0.2s ease;
-    flex: 1;
-    min-width: 0;
-    font-size: 0.875rem;
-    font-weight: 500;
-    color: hsl(var(--muted-foreground));
+   display: flex;
+   align-items: center;
+   gap: 0.75rem;
+   padding: 1rem 1.25rem;
+   border: none;
+   background: none;
+   border-radius: var(--radius);
+   cursor: pointer;
+   transition: all 0.2s ease;
+   flex: 1;
+   min-width: 0;
+   font-size: 0.875rem;
+   font-weight: 500;
+   color: hsl(var(--muted-foreground));
 }
 
 .tab-button:hover {
-    background: hsl(var(--accent) / 0.5);
-    color: hsl(var(--foreground));
+   background: hsl(var(--accent) / 0.5);
+   color: hsl(var(--foreground));
 }
 
 .tab-button.active {
-    background: hsl(var(--background));
-    color: hsl(var(--foreground));
-    box-shadow: var(--shadow-sm);
-    border: 1px solid hsl(var(--border));
+   background: hsl(var(--background));
+   color: hsl(var(--foreground));
+   box-shadow: var(--shadow-sm);
+   border: 1px solid hsl(var(--border));
 }
 
 .tab-icon {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 1.5rem;
-    height: 1.5rem;
-    border-radius: calc(var(--radius) - 2px);
-    background: hsl(var(--muted) / 0.5);
-    transition: all 0.2s ease;
-    flex-shrink: 0;
+   display: flex;
+   align-items: center;
+   justify-content: center;
+   width: 1.5rem;
+   height: 1.5rem;
+   border-radius: calc(var(--radius) - 2px);
+   background: hsl(var(--muted) / 0.5);
+   transition: all 0.2s ease;
+   flex-shrink: 0;
 }
 
 .tab-button.active .tab-icon {
-    background: hsl(var(--primary));
-    color: white;
+   background: hsl(var(--primary));
+   color: white;
 }
 
+/* Form Content */
 .form-content {
-    position: relative;
+   position: relative;
 }
 
 .tab-content {
-    display: none;
-    padding: 2rem;
+   display: none;
+   padding: 2rem;
 }
 
 .tab-content.active {
-    display: block;
+   display: block;
 }
 
 .content-grid {
-    display: flex;
-    flex-direction: column;
-    gap: 2rem;
+   display: flex;
+   flex-direction: column;
+   gap: 2rem;
 }
 
+/* Settings Groups */
 .settings-group {
-    padding: 1.5rem;
-    border: 1px solid hsl(var(--border));
-    border-radius: var(--radius);
-    background: hsl(var(--card));
+   padding: 1.5rem;
+   border: 1px solid hsl(var(--border));
+   border-radius: var(--radius);
+   background: hsl(var(--card));
 }
 
 .group-header {
-    margin-bottom: 1.5rem;
-    padding-bottom: 1rem;
-    border-bottom: 1px solid hsl(var(--border));
+   margin-bottom: 1.5rem;
+   padding-bottom: 1rem;
+   border-bottom: 1px solid hsl(var(--border));
 }
 
 .group-header h3 {
-    margin: 0 0 0.5rem 0;
-    font-size: 1.125rem;
-    font-weight: 600;
-    color: hsl(var(--foreground));
+   margin: 0 0 0.5rem 0;
+   font-size: 1.125rem;
+   font-weight: 600;
+   color: hsl(var(--foreground));
 }
 
 .group-header p {
-    margin: 0;
-    font-size: 0.875rem;
-    color: hsl(var(--muted-foreground));
-    line-height: 1.5;
+   margin: 0;
+   font-size: 0.875rem;
+   color: hsl(var(--muted-foreground));
+   line-height: 1.5;
 }
 
+/* Form Fields */
 .form-fields {
-    display: flex;
-    flex-direction: column;
-    gap: 1.5rem;
+   display: flex;
+   flex-direction: column;
+   gap: 1.5rem;
 }
 
 .field-row {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 1.5rem;
+   display: grid;
+   grid-template-columns: 1fr 1fr;
+   gap: 1.5rem;
 }
 
 .form-group {
-    display: flex;
-    flex-direction: column;
-    gap: 0.5rem;
+   display: flex;
+   flex-direction: column;
+   gap: 0.5rem;
 }
 
 .field-label {
-    font-size: 0.875rem;
-    font-weight: 600;
-    color: hsl(var(--foreground));
+   font-size: 0.875rem;
+   font-weight: 600;
+   color: hsl(var(--foreground));
 }
 
 .field-label.required::after {
-    content: " *";
-    color: hsl(var(--destructive));
+   content: " *";
+   color: hsl(var(--destructive));
 }
 
 .form-control {
-    width: 100%;
-    padding: 0.75rem 1rem;
-    border: 1px solid hsl(var(--border));
-    border-radius: var(--radius);
-    background: hsl(var(--background));
-    font-size: 0.875rem;
-    color: hsl(var(--foreground));
-    transition: all 0.2s ease;
+   width: 100%;
+   padding: 0.75rem 1rem;
+   border: 1px solid hsl(var(--border));
+   border-radius: var(--radius);
+   background: hsl(var(--background));
+   font-size: 0.875rem;
+   color: hsl(var(--foreground));
+   transition: all 0.2s ease;
 }
 
 .form-control:focus {
-    outline: none;
-    border-color: hsl(var(--ring));
-    box-shadow: 0 0 0 2px hsl(var(--ring) / 0.2);
+   outline: none;
+   border-color: hsl(var(--ring));
+   box-shadow: 0 0 0 2px hsl(var(--ring) / 0.2);
 }
 
 .field-note {
-    font-size: 0.75rem;
-    color: hsl(var(--muted-foreground));
-    line-height: 1.4;
+   font-size: 0.75rem;
+   color: hsl(var(--muted-foreground));
+   line-height: 1.4;
 }
 
 .field-note.warning {
-    color: hsl(var(--warning));
+   color: hsl(var(--warning));
 }
 
+/* Color Fields */
 .color-fields {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-    gap: 1.5rem;
+   display: grid;
+   grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+   gap: 1.5rem;
 }
 
 .color-input-group {
-    display: flex;
-    gap: 0.5rem;
-    align-items: center;
+   display: flex;
+   gap: 0.5rem;
+   align-items: center;
 }
 
 .color-picker {
-    width: 3rem;
-    height: 2.5rem;
-    padding: 0;
-    border: 1px solid hsl(var(--border));
-    border-radius: var(--radius);
-    cursor: pointer;
+   width: 3rem;
+   height: 2.5rem;
+   padding: 0;
+   border: 1px solid hsl(var(--border));
+   border-radius: var(--radius);
+   cursor: pointer;
 }
 
 .color-text {
-    flex: 1;
-    font-family: ui-monospace, 'SF Mono', 'Monaco', 'Cascadia Code', monospace;
-    font-size: 0.8125rem;
+   flex: 1;
+   font-family: ui-monospace, 'SF Mono', 'Monaco', 'Cascadia Code', monospace;
+   font-size: 0.8125rem;
 }
 
+/* Input with Action */
 .input-with-action {
-    display: flex;
-    gap: 0.75rem;
-    align-items: stretch;
+   display: flex;
+   gap: 0.75rem;
+   align-items: stretch;
 }
 
 .input-with-action .form-control {
-    flex: 1;
+   flex: 1;
 }
 
+/* Checkbox Options */
 .checkbox-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-    gap: 1rem;
+   display: grid;
+   grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+   gap: 1rem;
 }
 
 .checkbox-option {
-    display: flex;
-    align-items: flex-start;
-    gap: 0.75rem;
-    padding: 1rem;
-    border: 1px solid hsl(var(--border));
-    border-radius: var(--radius);
-    cursor: pointer;
-    transition: all 0.2s ease;
+   display: flex;
+   align-items: flex-start;
+   gap: 0.75rem;
+   padding: 1rem;
+   border: 1px solid hsl(var(--border));
+   border-radius: var(--radius);
+   cursor: pointer;
+   transition: all 0.2s ease;
 }
 
 .checkbox-option:hover {
-    background: hsl(var(--accent) / 0.5);
-    border-color: hsl(var(--primary) / 0.3);
+   background: hsl(var(--accent) / 0.5);
+   border-color: hsl(var(--primary) / 0.3);
 }
 
 .checkbox-option input[type="checkbox"] {
-    width: 1.25rem;
-    height: 1.25rem;
-    margin: 0;
-    flex-shrink: 0;
+   width: 1.25rem;
+   height: 1.25rem;
+   margin: 0;
+   flex-shrink: 0;
 }
 
 .checkbox-content {
-    flex: 1;
+   flex: 1;
 }
 
 .checkbox-title {
-    font-weight: 500;
-    color: hsl(var(--foreground));
-    margin-bottom: 0.125rem;
+   font-weight: 500;
+   color: hsl(var(--foreground));
+   margin-bottom: 0.125rem;
 }
 
 .checkbox-desc {
-    font-size: 0.75rem;
-    color: hsl(var(--muted-foreground));
-    line-height: 1.4;
+   font-size: 0.75rem;
+   color: hsl(var(--muted-foreground));
+   line-height: 1.4;
 }
 
+/* Share Options */
 .share-options {
-    display: flex;
-    flex-direction: column;
-    gap: 2rem;
+   display: flex;
+   flex-direction: column;
+   gap: 2rem;
 }
 
 .share-option {
-    display: flex;
-    gap: 1rem;
-    padding: 1.5rem;
-    border: 1px solid hsl(var(--border));
-    border-radius: var(--radius);
-    background: hsl(var(--card));
+   display: flex;
+   gap: 1rem;
+   padding: 1.5rem;
+   border: 1px solid hsl(var(--border));
+   border-radius: var(--radius);
+   background: hsl(var(--card));
 }
 
 .share-icon {
-    width: 3rem;
-    height: 3rem;
-    border-radius: var(--radius);
-    background: hsl(var(--primary) / 0.1);
-    color: hsl(var(--primary));
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex-shrink: 0;
+   width: 3rem;
+   height: 3rem;
+   border-radius: var(--radius);
+   background: hsl(var(--primary) / 0.1);
+   color: hsl(var(--primary));
+   display: flex;
+   align-items: center;
+   justify-content: center;
+   flex-shrink: 0;
 }
 
 .share-content {
-    flex: 1;
+   flex: 1;
 }
 
 .share-content h4 {
-    margin: 0 0 0.5rem 0;
-    font-size: 1rem;
-    font-weight: 600;
-    color: hsl(var(--foreground));
+   margin: 0 0 0.5rem 0;
+   font-size: 1rem;
+   font-weight: 600;
+   color: hsl(var(--foreground));
 }
 
 .share-content p {
-    margin: 0 0 1rem 0;
-    font-size: 0.875rem;
-    color: hsl(var(--muted-foreground));
+   margin: 0 0 1rem 0;
+   font-size: 0.875rem;
+   color: hsl(var(--muted-foreground));
 }
 
+/* URL Input Group */
 .url-input-group {
-    display: flex;
-    gap: 0.5rem;
-    align-items: stretch;
+   display: flex;
+   gap: 0.5rem;
+   align-items: stretch;
 }
 
 .url-display {
-    flex: 1;
-    font-family: ui-monospace, 'SF Mono', 'Monaco', 'Cascadia Code', monospace;
-    font-size: 0.8125rem;
-    background: hsl(var(--muted) / 0.5);
+   flex: 1;
+   font-family: ui-monospace, 'SF Mono', 'Monaco', 'Cascadia Code', monospace;
+   font-size: 0.8125rem;
+   background: hsl(var(--muted) / 0.5);
 }
 
+/* Embed Controls */
 .embed-controls {
-    display: flex;
-    flex-direction: column;
-    gap: 1rem;
+   display: flex;
+   flex-direction: column;
+   gap: 1rem;
 }
 
 .embed-settings {
-    display: flex;
-    flex-direction: column;
-    gap: 1rem;
+   display: flex;
+   flex-direction: column;
+   gap: 1rem;
 }
 
 .embed-code-section {
-    display: flex;
-    flex-direction: column;
-    gap: 0.75rem;
+   display: flex;
+   flex-direction: column;
+   gap: 0.75rem;
 }
 
 .code-textarea {
-    font-family: ui-monospace, 'SF Mono', 'Monaco', 'Cascadia Code', monospace;
-    font-size: 0.8125rem;
-    background: hsl(var(--muted) / 0.5);
-    resize: vertical;
+   font-family: ui-monospace, 'SF Mono', 'Monaco', 'Cascadia Code', monospace;
+   font-size: 0.8125rem;
+   background: hsl(var(--muted) / 0.5);
+   resize: vertical;
 }
 
+/* QR Section */
 .qr-section {
     display: flex;
-    flex-direction: column;
-    gap: 1rem;
+   flex-direction: column;
+   gap: 1rem;
 }
 
 .qr-display {
-    width: 8rem;
-    height: 8rem;
-    border: 1px solid hsl(var(--border));
-    border-radius: var(--radius);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background: hsl(var(--muted) / 0.3);
-    margin-bottom: 1rem;
+   width: 8rem;
+   height: 8rem;
+   border: 1px solid hsl(var(--border));
+   border-radius: var(--radius);
+   display: flex;
+   align-items: center;
+   justify-content: center;
+   background: hsl(var(--muted) / 0.3);
+   margin-bottom: 1rem;
 }
 
 .qr-placeholder {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 0.5rem;
-    color: hsl(var(--muted-foreground));
-    text-align: center;
+   display: flex;
+   flex-direction: column;
+   align-items: center;
+   gap: 0.5rem;
+   color: hsl(var(--muted-foreground));
+   text-align: center;
 }
 
 .qr-placeholder span {
-    font-size: 0.75rem;
+   font-size: 0.75rem;
 }
 
 .qr-actions {
-    display: flex;
-    gap: 0.5rem;
+   display: flex;
+   gap: 0.5rem;
 }
 
 .btn-small {
-    padding: 0.5rem 0.875rem;
-    font-size: 0.8125rem;
+   padding: 0.5rem 0.875rem;
+   font-size: 0.8125rem;
 }
 
+/* Form Actions */
 .form-actions {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 1.5rem 2rem;
-    border-top: 1px solid hsl(var(--border));
-    background: linear-gradient(135deg, hsl(var(--muted) / 0.3), hsl(var(--muted) / 0.1));
-    gap: 1rem;
+   display: flex;
+   align-items: center;
+   justify-content: space-between;
+   padding: 1.5rem 2rem;
+   border-top: 1px solid hsl(var(--border));
+   background: linear-gradient(135deg, hsl(var(--muted) / 0.3), hsl(var(--muted) / 0.1));
+   gap: 1rem;
 }
 
 .actions-left,
 .actions-right {
-    display: flex;
-    align-items: center;
-    gap: 1rem;
+   display: flex;
+   align-items: center;
+   gap: 1rem;
 }
 
-.btn-primary {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    padding: 0.75rem 1.5rem;
-    background: linear-gradient(135deg, hsl(var(--primary)), hsl(var(--primary) / 0.9));
-    color: hsl(var(--primary-foreground));
-    border: none;
-    border-radius: 6px;
-    font-size: 0.875rem;
-    font-weight: 600;
-    cursor: pointer;
-    transition: all 0.2s ease;
-    box-shadow: 0 2px 4px hsl(var(--primary) / 0.2);
-}
-
-.btn-primary:hover {
-    background: linear-gradient(135deg, hsl(var(--primary) / 0.9), hsl(var(--primary) / 0.8));
-    transform: translateY(-1px);
-    box-shadow: 0 4px 12px hsl(var(--primary) / 0.3);
-}
-
-.btn-secondary {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    padding: 0.5rem 1rem;
-    background: hsl(var(--secondary));
-    color: hsl(var(--secondary-foreground));
-    border: 1px solid hsl(var(--border));
-    border-radius: 6px;
-    text-decoration: none;
-    font-size: 0.875rem;
-    cursor: pointer;
-    transition: all 0.2s ease;
-}
-
-.btn-secondary:hover {
-    background: hsl(var(--accent));
-}
-
-.btn-secondary svg {
-    width: 1rem;
-    height: 1rem;
-}
-
-.btn-loading {
-    display: none;
-}
-
-.loading .btn-text {
-    display: none;
-}
-
-.loading .btn-loading {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-}
-
-.spinner-modern {
-    width: 1rem;
-    height: 1rem;
-    border: 2px solid transparent;
-    border-top: 2px solid currentColor;
-    border-radius: 50%;
-    animation: spin 1s linear infinite;
-}
-
-@keyframes spin {
-    to { transform: rotate(360deg); }
-}
-
-.mobooking-modal {
-    position: fixed;
-    inset: 0;
-    z-index: 100;
-    background: rgba(0, 0, 0, 0.6);
-    backdrop-filter: blur(4px);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    opacity: 0;
-    visibility: hidden;
-    transition: all 0.3s ease;
-}
-
-.mobooking-modal:not([style*="display: none"]) {
-    opacity: 1;
-    visibility: visible;
-}
-
-.modal-content {
-    background: hsl(var(--card));
-    border: 1px solid hsl(var(--border));
-    border-radius: 12px;
-    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.2);
-    width: 90vw;
-    max-width: 600px;
-    max-height: 90vh;
-    overflow: hidden;
-    animation: modalSlideUp 0.3s ease;
-}
-
+/* Modal Styles */
 .modal-large {
-    max-width: 90vw;
-    width: 90vw;
-    height: 90vh;
-    max-height: 90vh;
-}
-
-@keyframes modalSlideUp {
-    from {
-        opacity: 0;
-        transform: translateY(2rem) scale(0.95);
-    }
-    to {
-        opacity: 1;
-        transform: translateY(0) scale(1);
-    }
+   max-width: 90vw;
+   width: 90vw;
+   height: 90vh;
+   max-height: 90vh;
 }
 
 .modal-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 1.5rem 2rem;
-    border-bottom: 1px solid hsl(var(--border));
-    background: linear-gradient(135deg, hsl(var(--muted) / 0.3), hsl(var(--muted) / 0.1));
+   display: flex;
+   align-items: center;
+   justify-content: space-between;
+   padding: 1.5rem 2rem;
+   border-bottom: 1px solid hsl(var(--border));
 }
 
 .modal-header h3 {
-    margin: 0;
-    font-size: 1.125rem;
-    font-weight: 600;
-    color: hsl(var(--foreground));
+   margin: 0;
+   font-size: 1.25rem;
+   font-weight: 600;
+   color: hsl(var(--foreground));
 }
 
 .modal-actions {
-    display: flex;
-    gap: 0.75rem;
+   display: flex;
+   gap: 0.75rem;
 }
 
 .modal-close {
-    width: 2rem;
-    height: 2rem;
-    border: 1px solid hsl(var(--border));
-    background: hsl(var(--background));
-    border-radius: 6px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-    transition: all 0.2s ease;
+   position: absolute;
+   top: 1rem;
+   right: 1rem;
+   padding: 0.5rem;
+   background: hsl(var(--muted));
+   border: 1px solid hsl(var(--border));
+   border-radius: calc(var(--radius) - 2px);
+   color: hsl(var(--muted-foreground));
+   cursor: pointer;
+   transition: all 0.2s ease;
+   width: 2.25rem;
+   height: 2.25rem;
+   display: flex;
+   align-items: center;
+   justify-content: center;
 }
 
 .modal-close:hover {
-    background: hsl(var(--destructive));
-    border-color: hsl(var(--destructive));
-    color: white;
-}
-
-.modal-close svg {
-    width: 1rem;
-    height: 1rem;
+   background: hsl(var(--destructive));
+   color: hsl(var(--destructive-foreground));
+   border-color: hsl(var(--destructive));
 }
 
 .modal-body {
-    padding: 1.5rem 2rem;
-    flex: 1;
-    overflow-y: auto;
+   padding: 1.5rem 2rem;
+   flex: 1;
+   overflow-y: auto;
 }
 
 .preview-container {
-    width: 100%;
-    height: 100%;
-    border-radius: var(--radius);
-    overflow: hidden;
-    border: 1px solid hsl(var(--border));
+   width: 100%;
+   height: 100%;
+   border-radius: var(--radius);
+   overflow: hidden;
+   border: 1px solid hsl(var(--border));
+}
+
+/* Responsive Design */
+@media (max-width: 1024px) {
+   .header-content {
+       flex-direction: column;
+       align-items: stretch;
+       gap: 1.5rem;
+   }
+   
+   .header-main {
+       flex-direction: column;
+       gap: 1.5rem;
+   }
+   
+   .header-stats {
+       justify-content: center;
+       flex-wrap: wrap;
+   }
+   
+   .tab-list {
+       flex-direction: column;
+   }
+   
+   .field-row {
+       grid-template-columns: 1fr;
+       gap: 1rem;
+   }
+   
+   .color-fields {
+       grid-template-columns: 1fr;
+   }
+   
+   .checkbox-grid {
+       grid-template-columns: 1fr;
+   }
 }
 
 @media (max-width: 768px) {
-    .header-content {
-        flex-direction: column;
-        align-items: stretch;
-        gap: 1.5rem;
-    }
-    
-    .header-main {
-        flex-direction: column;
-        gap: 1.5rem;
-    }
-    
-    .header-stats {
-        justify-content: center;
-        flex-wrap: wrap;
-    }
-    
-    .tab-list {
-        flex-direction: column;
-    }
-    
-    .field-row {
-        grid-template-columns: 1fr;
-        gap: 1rem;
-    }
-    
-    .color-fields {
-        grid-template-columns: 1fr;
-    }
-    
-    .checkbox-grid {
-        grid-template-columns: 1fr;
-    }
-    
-    .form-actions {
-        flex-direction: column-reverse;
-        gap: 1rem;
-    }
-    
-    .actions-left,
-    .actions-right {
-        width: 100%;
-        justify-content: center;
-    }
-    
-    .actions-right .btn-primary,
-    .actions-right .btn-secondary {
-        flex: 1;
-    }
-    
-    .share-option {
-        flex-direction: column;
-        text-align: center;
-    }
-    
-    .url-input-group {
-        flex-direction: column;
-    }
-    
-    .modal-large {
-        width: 95vw;
-        height: 95vh;
-    }
-    
-    .modal-header {
-        padding: 1rem;
-        flex-direction: column;
-        gap: 1rem;
-    }
-    
-    .modal-actions {
-        width: 100%;
-        justify-content: center;
-    }
+   .section-header {
+       margin-bottom: 1.5rem;
+       padding-bottom: 1rem;
+   }
+   
+   .page-title {
+       font-size: 1.5rem;
+   }
+   
+   .title-icon {
+       width: 1.5rem;
+       height: 1.5rem;
+   }
+   
+   .header-actions {
+       flex-direction: column;
+       width: 100%;
+   }
+   
+   .header-actions .btn-secondary {
+       width: 100%;
+       justify-content: center;
+   }
+   
+   .tab-content {
+       padding: 1.5rem;
+   }
+   
+   .settings-group {
+       padding: 1rem;
+   }
+   
+   .form-actions {
+       flex-direction: column-reverse;
+       gap: 1rem;
+   }
+   
+   .actions-left,
+   .actions-right {
+       width: 100%;
+       justify-content: center;
+   }
+   
+   .actions-right .btn-primary,
+   .actions-right .btn-secondary {
+       flex: 1;
+   }
+   
+   .share-option {
+       flex-direction: column;
+       text-align: center;
+   }
+   
+   .url-input-group {
+       flex-direction: column;
+   }
+   
+   .modal-large {
+       width: 95vw;
+       height: 95vh;
+   }
+   
+   .modal-header {
+       padding: 1rem;
+       flex-direction: column;
+       gap: 1rem;
+   }
+   
+   .modal-actions {
+       width: 100%;
+       justify-content: center;
+   }
 }
 
+@media (max-width: 480px) {
+   .setup-alert {
+       flex-direction: column;
+       text-align: center;
+   }
+   
+   .requirements-list {
+       gap: 0.5rem;
+   }
+   
+   .requirement-item {
+       flex-direction: column;
+       text-align: center;
+       gap: 0.5rem;
+   }
+   
+   .stat-card {
+       flex-direction: column;
+       text-align: center;
+       padding: 0.75rem;
+       min-width: 5rem;
+   }
+   
+   .tab-content {
+       padding: 1rem;
+   }
+   
+   .group-header {
+       margin-bottom: 1rem;
+       padding-bottom: 0.75rem;
+   }
+   
+   .form-actions {
+       padding: 1rem;
+   }
+}
+
+/* Animation */
 @keyframes fadeIn {
-    from {
-        opacity: 0;
-        transform: translateY(10px);
-    }
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
+   from {
+       opacity: 0;
+       transform: translateY(10px);
+   }
+   to {
+       opacity: 1;
+       transform: translateY(0);
+   }
+}
+
+/* High Contrast Mode */
+@media (prefers-contrast: high) {
+   .stat-card,
+   .setup-alert,
+   .settings-group,
+   .share-option {
+       border-width: 2px;
+   }
+}
+
+/* Reduced Motion */
+@media (prefers-reduced-motion: reduce) {
+   *, *::before, *::after {
+       animation-duration: 0.01ms !important;
+       animation-iteration-count: 1 !important;
+       transition-duration: 0.01ms !important;
+   }
 }
 </style>
 
+<style>
+/* Enhanced notification styles */
+.mobooking-notification {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    padding: 1rem 1.5rem;
+    border-radius: 8px;
+    color: white;
+    font-weight: 500;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+    z-index: 10000;
+    opacity: 0;
+    transform: translateX(100%);
+    transition: all 0.3s ease;
+    max-width: 400px;
+    min-width: 250px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+}
+
+.mobooking-notification.show {
+    opacity: 1;
+    transform: translateX(0);
+}
+
+.mobooking-notification.success {
+    background: linear-gradient(135deg, #10b981, #059669);
+}
+
+.mobooking-notification.error {
+    background: linear-gradient(135deg, #ef4444, #dc2626);
+}
+
+.mobooking-notification.info {
+    background: linear-gradient(135deg, #3b82f6, #2563eb);
+}
+
+.notification-close {
+    background: rgba(255, 255, 255, 0.2);
+    border: none;
+    color: white;
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+    line-height: 1;
+    flex-shrink: 0;
+}
+
+.notification-close:hover {
+    background: rgba(255, 255, 255, 0.3);
+}
+</style>
 <script>
 jQuery(document).ready(function($) {
-    // Enhanced Booking Form Manager - REMOVED SAVE DRAFT FUNCTIONALITY
+    // Enhanced Booking Form Manager with Fixed Save Settings
     const BookingFormManager = {
         // Tab switching
         initTabs: function() {
@@ -1648,29 +1697,39 @@ jQuery(document).ready(function($) {
             });
         },
         
-        // FIXED: Form saving WITHOUT draft functionality
+        // FIXED: Form saving with proper event handling
         initFormSaving: function() {
             console.log('Initializing form saving...');
             
-            // Handle form submission properly
+            // CRITICAL FIX: Handle form submission properly
             $('#booking-form-settings').on('submit', function(e) {
                 console.log('Form submit event triggered');
-                e.preventDefault();
-                e.stopPropagation();
+                e.preventDefault(); // Prevent default form submission
+                e.stopPropagation(); // Stop event bubbling
                 
-                // Call save settings
-                BookingFormManager.saveSettings();
+                // Call save settings with publish flag
+                BookingFormManager.saveSettings(false);
                 return false;
             });
             
-            // Save Settings button click handler
+            // FIXED: Save Settings button click handler
             $('#save-settings-btn').on('click', function(e) {
                 console.log('Save Settings button clicked');
                 e.preventDefault();
                 e.stopPropagation();
                 
-                // Trigger form submission
+                // Trigger form submission (which will call saveSettings)
                 $('#booking-form-settings').trigger('submit');
+                return false;
+            });
+            
+            // Save Draft button
+            $('#save-draft-btn').on('click', function(e) {
+                console.log('Save Draft button clicked');
+                e.preventDefault();
+                e.stopPropagation();
+                
+                BookingFormManager.saveSettings(true);
                 return false;
             });
         },
@@ -1684,15 +1743,20 @@ jQuery(document).ready(function($) {
             });
         },
         
-        // ENHANCED: Save settings - REMOVED DRAFT FUNCTIONALITY
-        saveSettings: function() {
+        // ENHANCED: Save settings with better error handling and debugging
+        saveSettings: function(isDraft = false) {
             console.log('=== SAVE SETTINGS CALLED ===');
+            console.log('isDraft:', isDraft);
             
             const $form = $('#booking-form-settings');
             const $saveBtn = $('#save-settings-btn');
+            const $draftBtn = $('#save-draft-btn');
+            
+            // Determine which button triggered the save
+            const $currentBtn = isDraft ? $draftBtn : $saveBtn;
             
             console.log('Form element:', $form.length ? 'Found' : 'NOT FOUND');
-            console.log('Button element:', $saveBtn.length ? 'Found' : 'NOT FOUND');
+            console.log('Button element:', $currentBtn.length ? 'Found' : 'NOT FOUND');
             
             if ($form.length === 0) {
                 console.error('Form not found!');
@@ -1702,6 +1766,12 @@ jQuery(document).ready(function($) {
             
             // Create FormData object
             const formData = new FormData($form[0]);
+            
+            // Add draft flag if needed
+            if (isDraft) {
+                formData.append('is_draft', '1');
+                console.log('Added is_draft flag');
+            }
             
             // CRITICAL: Add the action
             formData.append('action', 'mobooking_save_booking_form_settings');
@@ -1713,20 +1783,23 @@ jQuery(document).ready(function($) {
                 console.log(pair[0] + ':', pair[1]);
             }
             
-            // Show loading state
-            $saveBtn.addClass('loading').prop('disabled', true);
-            $('.btn-text', $saveBtn).hide();
-            $('.btn-loading', $saveBtn).show();
+            // Show loading state on the correct button
+            $currentBtn.addClass('loading').prop('disabled', true);
+            $('.btn-text', $currentBtn).hide();
+            $('.btn-loading', $currentBtn).show();
+            
+            // Disable other buttons during save
+            $('#save-settings-btn, #save-draft-btn').prop('disabled', true);
             
             console.log('Starting AJAX request...');
             
             $.ajax({
-                url: mobookingDashboard.ajaxUrl,
+                url: mobookingDashboard.ajaxUrl, // Use localized ajax URL
                 type: 'POST',
                 data: formData,
                 processData: false,
                 contentType: false,
-                timeout: 30000,
+                timeout: 30000, // 30 second timeout
                 beforeSend: function(xhr) {
                     console.log('AJAX request starting...');
                 },
@@ -1737,7 +1810,7 @@ jQuery(document).ready(function($) {
                     if (response && response.success) {
                         const message = response.data && response.data.message ? 
                             response.data.message : 
-                            'Settings saved successfully!';
+                            (isDraft ? 'Settings saved as draft!' : 'Settings saved successfully!');
                             
                         BookingFormManager.showNotification(message, 'success');
                         
@@ -1749,8 +1822,8 @@ jQuery(document).ready(function($) {
                             console.log('Updated URLs');
                         }
                         
-                        // Update the status indicator
-                        if (response.data && response.data.booking_url) {
+                        // If this was a publish action, update the status indicator
+                        if (!isDraft && response.data && response.data.booking_url) {
                             $('.stat-icon.status').removeClass('inactive').addClass('success');
                             $('.stat-label:contains("Draft")').text('Published');
                         }
@@ -1773,6 +1846,7 @@ jQuery(document).ready(function($) {
                     
                     let errorMessage = 'An error occurred while saving settings.';
                     
+                    // Try to extract more specific error information
                     if (jqXHR.status === 0) {
                         errorMessage = 'Network error. Please check your internet connection.';
                     } else if (jqXHR.status === 403) {
@@ -1785,6 +1859,7 @@ jQuery(document).ready(function($) {
                         errorMessage = 'Request timed out. Please try again.';
                     }
                     
+                    // Try to parse JSON error response
                     if (jqXHR.responseText) {
                         try {
                             const errorResponse = JSON.parse(jqXHR.responseText);
@@ -1792,6 +1867,7 @@ jQuery(document).ready(function($) {
                                 errorMessage = errorResponse.data;
                             }
                         } catch (e) {
+                            // If it's a PHP error, extract the error message
                             if (jqXHR.responseText.includes('Fatal error') || jqXHR.responseText.includes('Parse error')) {
                                 errorMessage = 'PHP Error occurred. Please check server logs.';
                             }
@@ -1803,10 +1879,13 @@ jQuery(document).ready(function($) {
                 complete: function() {
                     console.log('AJAX request completed');
                     
-                    // Restore button state
-                    $saveBtn.removeClass('loading').prop('disabled', false);
-                    $('.btn-text', $saveBtn).show();
-                    $('.btn-loading', $saveBtn).hide();
+                    // Restore button states
+                    $currentBtn.removeClass('loading').prop('disabled', false);
+                    $('.btn-text', $currentBtn).show();
+                    $('.btn-loading', $currentBtn).hide();
+                    
+                    // Re-enable all buttons
+                    $('#save-settings-btn, #save-draft-btn').prop('disabled', false);
                 }
             });
         },
@@ -1837,7 +1916,7 @@ jQuery(document).ready(function($) {
             });
         },
         
-        // Show notification
+        // ENHANCED: Show notification with better styling and behavior
         showNotification: function(message, type = 'info') {
             console.log('Showing notification:', message, type);
             
@@ -1845,8 +1924,13 @@ jQuery(document).ready(function($) {
             $('.mobooking-notification').remove();
             
             const notification = $(`
-                <div class="mobooking-notification ${type}">
-                    <span>${message}</span>
+                <div class="mobooking-notification notification ${type}">
+                    <div class="notification-content">
+                        <div class="notification-icon">
+                            ${type === 'success' ? '✓' : type === 'error' ? '✗' : 'ℹ'}
+                        </div>
+                        <div class="notification-message">${message}</div>
+                    </div>
                     <button class="notification-close" aria-label="Close">&times;</button>
                 </div>
             `).appendTo('body');
@@ -1865,6 +1949,21 @@ jQuery(document).ready(function($) {
                 clearTimeout(autoHideTimer);
                 notification.removeClass('show');
                 setTimeout(() => notification.remove(), 300);
+            });
+        },
+        
+        // Auto-save functionality
+        initAutoSave: function() {
+            let autoSaveTimeout;
+            
+            $('input, textarea, select', '#booking-form-settings').on('change input', function() {
+                clearTimeout(autoSaveTimeout);
+                
+                // Only auto-save after 10 seconds of inactivity
+                autoSaveTimeout = setTimeout(() => {
+                    console.log('Auto-saving as draft...');
+                    BookingFormManager.saveSettings(true);
+                }, 10000);
             });
         },
         
@@ -1894,6 +1993,7 @@ jQuery(document).ready(function($) {
             this.initPreview();
             this.initFormSaving(); // This is the critical one for Save Settings
             this.initResetSettings();
+            this.initAutoSave();
             
             console.log('BookingFormManager initialization complete');
         }
@@ -1905,13 +2005,14 @@ jQuery(document).ready(function($) {
     // Make it globally available for debugging
     window.BookingFormManager = BookingFormManager;
     
+    // Additional debugging
     console.log('jQuery ready function completed');
     console.log('mobookingDashboard object:', window.mobookingDashboard);
 });
 </script>
 
 <?php
-// ENHANCED AJAX handler for saving booking form settings - MAPPED ALL FIELDS CORRECTLY
+// Add AJAX handler for saving booking form settings
 add_action('wp_ajax_mobooking_save_booking_form_settings', function() {
     try {
         // Debug incoming data
@@ -1934,56 +2035,30 @@ add_action('wp_ajax_mobooking_save_booking_form_settings', function() {
         }
         
         $user_id = get_current_user_id();
+        $is_draft = isset($_POST['is_draft']) && $_POST['is_draft'] === '1';
         
-        // FIXED: Map ALL form fields correctly to database columns
+        // Prepare settings data
         $settings_data = array(
-            // Basic Information
             'form_title' => sanitize_text_field($_POST['form_title'] ?? ''),
             'form_description' => sanitize_textarea_field($_POST['form_description'] ?? ''),
-            'is_active' => isset($_POST['is_active']) ? absint($_POST['is_active']) : 0,
-            
-            // Form Features
+            'is_active' => !$is_draft && isset($_POST['is_active']) ? absint($_POST['is_active']) : 0,
             'show_form_header' => isset($_POST['show_form_header']) ? 1 : 0,
             'show_service_descriptions' => isset($_POST['show_service_descriptions']) ? 1 : 0,
             'show_price_breakdown' => isset($_POST['show_price_breakdown']) ? 1 : 0,
             'enable_zip_validation' => isset($_POST['enable_zip_validation']) ? 1 : 0,
-            
-            // Design & Branding
             'primary_color' => sanitize_hex_color($_POST['primary_color'] ?? '#3b82f6'),
-            'secondary_color' => sanitize_hex_color($_POST['secondary_color'] ?? '#1e40af'),
+            'secondary_color' => sanitize_hex_color($_POST['secondary_color'] ?? '#64748b'),
             'logo_url' => esc_url_raw($_POST['logo_url'] ?? ''),
-            
-            // Layout & Style
             'form_layout' => sanitize_text_field($_POST['form_layout'] ?? 'modern'),
             'form_width' => sanitize_text_field($_POST['form_width'] ?? 'standard'),
-            
-            // SEO Optimization
             'seo_title' => sanitize_text_field($_POST['seo_title'] ?? ''),
             'seo_description' => sanitize_textarea_field($_POST['seo_description'] ?? ''),
-            
-            // Custom Code
             'analytics_code' => wp_kses_post($_POST['analytics_code'] ?? ''),
             'custom_css' => wp_strip_all_tags($_POST['custom_css'] ?? ''),
-            
-            // Form Footer
             'custom_footer_text' => sanitize_textarea_field($_POST['custom_footer_text'] ?? ''),
             'contact_info' => sanitize_textarea_field($_POST['contact_info'] ?? ''),
-            'social_links' => sanitize_textarea_field($_POST['social_links'] ?? ''),
-            
-            // Additional database columns that may exist
-            'background_color' => sanitize_hex_color($_POST['background_color'] ?? '#ffffff'),
-            'text_color' => sanitize_hex_color($_POST['text_color'] ?? '#1f2937'),
-            'language' => sanitize_text_field($_POST['language'] ?? 'en'),
-            'show_form_footer' => isset($_POST['show_form_footer']) ? 1 : 0,
-            'custom_js' => wp_strip_all_tags($_POST['custom_js'] ?? ''),
-            'step_indicator_style' => sanitize_text_field($_POST['step_indicator_style'] ?? 'progress'),
-            'button_style' => sanitize_text_field($_POST['button_style'] ?? 'rounded'),
-            'enable_testimonials' => isset($_POST['enable_testimonials']) ? 1 : 0,
-            'testimonials_data' => wp_kses_post($_POST['testimonials_data'] ?? '')
+            'social_links' => sanitize_textarea_field($_POST['social_links'] ?? '')
         );
-        
-        // Debug settings data being saved
-        error_log('MoBooking - Settings data to save: ' . print_r($settings_data, true));
         
         // Save settings using BookingForm Manager
         $booking_form_manager = new \MoBooking\BookingForm\Manager();
@@ -1991,7 +2066,9 @@ add_action('wp_ajax_mobooking_save_booking_form_settings', function() {
         
         if ($result) {
             $response_data = array(
-                'message' => __('Settings saved successfully!', 'mobooking'),
+                'message' => $is_draft ? 
+                    __('Settings saved as draft.', 'mobooking') : 
+                    __('Settings saved successfully!', 'mobooking'),
                 'booking_url' => $booking_form_manager->get_booking_form_url($user_id),
                 'embed_url' => $booking_form_manager->get_embed_url($user_id)
             );
@@ -2002,7 +2079,6 @@ add_action('wp_ajax_mobooking_save_booking_form_settings', function() {
         }
         
     } catch (Exception $e) {
-        error_log('MoBooking - Exception in save booking form settings: ' . $e->getMessage());
         wp_send_json_error(__('An error occurred while saving settings.', 'mobooking'));
     }
 });
@@ -2016,4 +2092,26 @@ add_action('wp_ajax_mobooking_reset_booking_form_settings', function() {
         }
         
         // Check permissions
-        if (!current_user_can('mobooking_business_owner') && !
+        if (!current_user_can('mobooking_business_owner') && !current_user_can('administrator')) {
+            wp_send_json_error(__('You do not have permission to do this.', 'mobooking'));
+        }
+        
+        $user_id = get_current_user_id();
+        
+        // Reset settings using BookingForm Manager
+        $booking_form_manager = new \MoBooking\BookingForm\Manager();
+        $result = $booking_form_manager->reset_settings($user_id);
+        
+        if ($result) {
+            wp_send_json_success(array(
+                'message' => __('Settings reset to defaults successfully.', 'mobooking')
+            ));
+        } else {
+            wp_send_json_error(__('Failed to reset settings.', 'mobooking'));
+        }
+        
+    } catch (Exception $e) {
+        wp_send_json_error(__('An error occurred while resetting settings.', 'mobooking'));
+    }
+});
+?>
