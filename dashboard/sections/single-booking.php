@@ -32,7 +32,7 @@ if (!$booking) {
 
 // Get services data
 $services_manager = new \MoBooking\Services\ServicesManager();
-$services_data     = json_decode($booking->services, true);
+$services_data     = $booking->services;
 $services_list     = array();
 
 if (is_array($services_data)) {
@@ -45,7 +45,7 @@ if (is_array($services_data)) {
 }
 
 // Parse service options
-$service_options_data = json_decode($booking->service_options, true);
+$service_options_data = $booking->service_options;
 
 // Date calculations
 $service_date = new DateTime($booking->service_date);
