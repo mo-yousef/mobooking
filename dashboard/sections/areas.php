@@ -576,7 +576,6 @@ $supported_countries = array(
 .btn-primary:hover:not(:disabled) { background: #2563eb; }
 .btn-secondary { background: var(--gray-100); color: var(--gray-700); }
 .btn-secondary:hover:not(:disabled) { background: var(--gray-200); }
-.btn-danger { background: var(--danger); color: white; }
 .btn-danger:hover:not(:disabled) { background: #dc2626; }
 .btn-sm { padding: 0.5rem 1rem; font-size: 0.875rem; }
 .btn-large { padding: 1rem 2rem; font-size: 1.125rem; }

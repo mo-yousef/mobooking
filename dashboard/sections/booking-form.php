@@ -1684,132 +1684,133 @@ jQuery(document).ready(function($) {
             });
         },
         
-        // ENHANCED: Save settings - REMOVED DRAFT FUNCTIONALITY
-        saveSettings: function() {
-            console.log('=== SAVE SETTINGS CALLED ===');
+// FIXED: Save settings - Handle unchecked checkboxes properly
+saveSettings: function() {
+    console.log('=== SAVE SETTINGS CALLED ===');
+    
+    const $form = $('#booking-form-settings');
+    const $saveBtn = $('#save-settings-btn');
+    
+    console.log('Form element:', $form.length ? 'Found' : 'NOT FOUND');
+    console.log('Button element:', $saveBtn.length ? 'Found' : 'NOT FOUND');
+    
+    if ($form.length === 0) {
+        console.error('Form not found!');
+        BookingFormManager.showNotification('Form not found!', 'error');
+        return;
+    }
+    
+    // Create FormData object
+    const formData = new FormData($form[0]);
+    
+    // CRITICAL FIX: Explicitly handle checkbox values
+    // Get all checkboxes in the form
+    const checkboxes = $form.find('input[type="checkbox"]');
+    
+    checkboxes.each(function() {
+        const $checkbox = $(this);
+        const name = $checkbox.attr('name');
+        
+        if (name) {
+            // Remove any existing entries for this checkbox
+            formData.delete(name);
             
-            const $form = $('#booking-form-settings');
-            const $saveBtn = $('#save-settings-btn');
+            // Add the correct value (1 if checked, 0 if not)
+            const value = $checkbox.is(':checked') ? '1' : '0';
+            formData.append(name, value);
             
-            console.log('Form element:', $form.length ? 'Found' : 'NOT FOUND');
-            console.log('Button element:', $saveBtn.length ? 'Found' : 'NOT FOUND');
-            
-            if ($form.length === 0) {
-                console.error('Form not found!');
-                BookingFormManager.showNotification('Form not found!', 'error');
-                return;
-            }
-            
-            // Create FormData object
-            const formData = new FormData($form[0]);
-            
-            // CRITICAL: Add the action
-            formData.append('action', 'mobooking_save_booking_form_settings');
-            console.log('Added action: mobooking_save_booking_form_settings');
-            
-            // Debug: Log all form data
-            console.log('=== FORM DATA BEING SENT ===');
-            for (let pair of formData.entries()) {
-                console.log(pair[0] + ':', pair[1]);
-            }
-            
-            // Show loading state
-            $saveBtn.addClass('loading').prop('disabled', true);
-            $('.btn-text', $saveBtn).hide();
-            $('.btn-loading', $saveBtn).show();
-            
-            console.log('Starting AJAX request...');
-            
-            $.ajax({
-                url: mobookingDashboard.ajaxUrl,
-                type: 'POST',
-                data: formData,
-                processData: false,
-                contentType: false,
-                timeout: 30000,
-                beforeSend: function(xhr) {
-                    console.log('AJAX request starting...');
-                },
-                success: function(response) {
-                    console.log('=== AJAX SUCCESS ===');
-                    console.log('Response:', response);
-                    
-                    if (response && response.success) {
-                        const message = response.data && response.data.message ? 
-                            response.data.message : 
-                            'Settings saved successfully!';
-                            
-                        BookingFormManager.showNotification(message, 'success');
-                        
-                        // Update URLs if they changed
-                        if (response.data && response.data.booking_url) {
-                            $('.url-display').val(response.data.booking_url);
-                            $('.copy-url-btn, #copy-link-btn').data('url', response.data.booking_url);
-                            $('#form-preview-iframe').attr('src', response.data.booking_url);
-                            console.log('Updated URLs');
-                        }
-                        
-                        // Update the status indicator
-                        if (response.data && response.data.booking_url) {
-                            $('.stat-icon.status').removeClass('inactive').addClass('success');
-                            $('.stat-label:contains("Draft")').text('Published');
-                        }
-                        
-                    } else {
-                        console.error('AJAX Success but response.success is false:', response);
-                        const errorMessage = response && response.data ? 
-                            response.data : 
-                            'Failed to save settings. Please try again.';
-                        BookingFormManager.showNotification(errorMessage, 'error');
-                    }
-                },
-                error: function(jqXHR, textStatus, errorThrown) {
-                    console.error('=== AJAX ERROR ===');
-                    console.error('Status:', jqXHR.status);
-                    console.error('Status Text:', jqXHR.statusText);
-                    console.error('Response Text:', jqXHR.responseText);
-                    console.error('Text Status:', textStatus);
-                    console.error('Error Thrown:', errorThrown);
-                    
-                    let errorMessage = 'An error occurred while saving settings.';
-                    
-                    if (jqXHR.status === 0) {
-                        errorMessage = 'Network error. Please check your internet connection.';
-                    } else if (jqXHR.status === 403) {
-                        errorMessage = 'Permission denied. Please refresh the page and try again.';
-                    } else if (jqXHR.status === 404) {
-                        errorMessage = 'AJAX endpoint not found. Please contact support.';
-                    } else if (jqXHR.status === 500) {
-                        errorMessage = 'Server error. Please check the error logs.';
-                    } else if (textStatus === 'timeout') {
-                        errorMessage = 'Request timed out. Please try again.';
-                    }
-                    
-                    if (jqXHR.responseText) {
-                        try {
-                            const errorResponse = JSON.parse(jqXHR.responseText);
-                            if (errorResponse.data) {
-                                errorMessage = errorResponse.data;
-                            }
-                        } catch (e) {
-                            if (jqXHR.responseText.includes('Fatal error') || jqXHR.responseText.includes('Parse error')) {
-                                errorMessage = 'PHP Error occurred. Please check server logs.';
-                            }
-                        }
-                    }
-                    
-                    BookingFormManager.showNotification(errorMessage, 'error');
-                },
-                complete: function() {
-                    console.log('AJAX request completed');
-                    
-                    // Restore button state
-                    $saveBtn.removeClass('loading').prop('disabled', false);
-                    $('.btn-text', $saveBtn).show();
-                    $('.btn-loading', $saveBtn).hide();
-                }
-            });
+            console.log(`Checkbox ${name}: ${value} (checked: ${$checkbox.is(':checked')})`);
+        }
+    });
+    
+    // CRITICAL: Add the action
+    formData.append('action', 'mobooking_save_booking_form_settings');
+    console.log('Added action: mobooking_save_booking_form_settings');
+    
+    // Debug: Log all form data
+    console.log('=== FORM DATA BEING SENT ===');
+    for (let pair of formData.entries()) {
+        console.log(pair[0] + ':', pair[1]);
+    }
+    
+    // Show loading state
+    $saveBtn.addClass('loading').prop('disabled', true);
+    $('.btn-text', $saveBtn).hide();
+    $('.btn-loading', $saveBtn).show();
+    
+    console.log('Starting AJAX request...');
+    
+    $.ajax({
+        url: mobookingDashboard.ajaxUrl,
+        type: 'POST',
+        data: formData,
+        processData: false,
+        contentType: false,
+        timeout: 30000,
+        beforeSend: function(xhr) {
+            console.log('AJAX request starting...');
         },
+        success: function(response) {
+            console.log('=== AJAX SUCCESS ===');
+            console.log('Response:', response);
+            
+            if (response && response.success) {
+                const message = response.data && response.data.message ? 
+                    response.data.message : 
+                    'Settings saved successfully!';
+                
+                BookingFormManager.showNotification(message, 'success');
+                
+                // Update URLs if provided
+                if (response.data) {
+                    if (response.data.booking_url) {
+                        $('#booking-url').val(response.data.booking_url);
+                    }
+                    if (response.data.embed_url) {
+                        $('#embed-url').val(response.data.embed_url);
+                    }
+                }
+                
+                console.log('Settings saved successfully');
+            } else {
+                const errorMessage = response && response.data && response.data.message ? 
+                    response.data.message : 
+                    'Failed to save settings';
+                
+                console.error('Save failed:', errorMessage);
+                BookingFormManager.showNotification(errorMessage, 'error');
+            }
+        },
+        error: function(xhr, status, error) {
+            console.error('=== AJAX ERROR ===');
+            console.error('Status:', status);
+            console.error('Error:', error);
+            console.error('Response:', xhr.responseText);
+            
+            let errorMessage = 'Failed to save settings. ';
+            
+            if (status === 'timeout') {
+                errorMessage += 'Request timed out.';
+            } else if (xhr.status === 403) {
+                errorMessage += 'Permission denied.';
+            } else if (xhr.status === 500) {
+                errorMessage += 'Server error.';
+            } else {
+                errorMessage += 'Please try again.';
+            }
+            
+            BookingFormManager.showNotification(errorMessage, 'error');
+        },
+        complete: function() {
+            // Always reset button state
+            $saveBtn.removeClass('loading').prop('disabled', false);
+            $('.btn-text', $saveBtn).show();
+            $('.btn-loading', $saveBtn).hide();
+            
+            console.log('AJAX request completed');
+        }
+    });
+},
         
         // Reset settings
         resetSettings: function() {
@@ -1911,101 +1912,7 @@ jQuery(document).ready(function($) {
 </script>
 
 <?php
-// ENHANCED AJAX handler for saving booking form settings - MAPPED ALL FIELDS CORRECTLY
-add_action('wp_ajax_mobooking_save_booking_form_settings', function() {
-    try {
-        // Debug incoming data
-        error_log('MoBooking - Received POST data: ' . print_r($_POST, true));
-        
-        // Check nonce
-        if (!isset($_POST['nonce'])) {
-            error_log('MoBooking - Nonce not set in POST data');
-            wp_send_json_error(__('Security nonce is missing.', 'mobooking'));
-        }
-        
-        if (!wp_verify_nonce($_POST['nonce'], 'mobooking-booking-form-nonce')) {
-            error_log('MoBooking - Nonce verification failed. Received nonce: ' . $_POST['nonce']);
-            wp_send_json_error(__('Security verification failed.', 'mobooking'));
-        }
-        
-        // Check permissions
-        if (!current_user_can('mobooking_business_owner') && !current_user_can('administrator')) {
-            wp_send_json_error(__('You do not have permission to do this.', 'mobooking'));
-        }
-        
-        $user_id = get_current_user_id();
-        
-        // FIXED: Map ALL form fields correctly to database columns
-        $settings_data = array(
-            // Basic Information
-            'form_title' => sanitize_text_field($_POST['form_title'] ?? ''),
-            'form_description' => sanitize_textarea_field($_POST['form_description'] ?? ''),
-            'is_active' => isset($_POST['is_active']) ? absint($_POST['is_active']) : 0,
-            
-            // Form Features
-            'show_form_header' => isset($_POST['show_form_header']) ? 1 : 0,
-            'show_service_descriptions' => isset($_POST['show_service_descriptions']) ? 1 : 0,
-            'show_price_breakdown' => isset($_POST['show_price_breakdown']) ? 1 : 0,
-            'enable_zip_validation' => isset($_POST['enable_zip_validation']) ? 1 : 0,
-            
-            // Design & Branding
-            'primary_color' => sanitize_hex_color($_POST['primary_color'] ?? '#3b82f6'),
-            'secondary_color' => sanitize_hex_color($_POST['secondary_color'] ?? '#1e40af'),
-            'logo_url' => esc_url_raw($_POST['logo_url'] ?? ''),
-            
-            // Layout & Style
-            'form_layout' => sanitize_text_field($_POST['form_layout'] ?? 'modern'),
-            'form_width' => sanitize_text_field($_POST['form_width'] ?? 'standard'),
-            
-            // SEO Optimization
-            'seo_title' => sanitize_text_field($_POST['seo_title'] ?? ''),
-            'seo_description' => sanitize_textarea_field($_POST['seo_description'] ?? ''),
-            
-            // Custom Code
-            'analytics_code' => wp_kses_post($_POST['analytics_code'] ?? ''),
-            'custom_css' => wp_strip_all_tags($_POST['custom_css'] ?? ''),
-            
-            // Form Footer
-            'custom_footer_text' => sanitize_textarea_field($_POST['custom_footer_text'] ?? ''),
-            'contact_info' => sanitize_textarea_field($_POST['contact_info'] ?? ''),
-            'social_links' => sanitize_textarea_field($_POST['social_links'] ?? ''),
-            
-            // Additional database columns that may exist
-            'background_color' => sanitize_hex_color($_POST['background_color'] ?? '#ffffff'),
-            'text_color' => sanitize_hex_color($_POST['text_color'] ?? '#1f2937'),
-            'language' => sanitize_text_field($_POST['language'] ?? 'en'),
-            'show_form_footer' => isset($_POST['show_form_footer']) ? 1 : 0,
-            'custom_js' => wp_strip_all_tags($_POST['custom_js'] ?? ''),
-            'step_indicator_style' => sanitize_text_field($_POST['step_indicator_style'] ?? 'progress'),
-            'button_style' => sanitize_text_field($_POST['button_style'] ?? 'rounded'),
-            'enable_testimonials' => isset($_POST['enable_testimonials']) ? 1 : 0,
-            'testimonials_data' => wp_kses_post($_POST['testimonials_data'] ?? '')
-        );
-        
-        // Debug settings data being saved
-        error_log('MoBooking - Settings data to save: ' . print_r($settings_data, true));
-        
-        // Save settings using BookingForm Manager
-        $booking_form_manager = new \MoBooking\BookingForm\Manager();
-        $result = $booking_form_manager->save_settings($user_id, $settings_data);
-        
-        if ($result) {
-            $response_data = array(
-                'message' => __('Settings saved successfully!', 'mobooking'),
-                'booking_url' => $booking_form_manager->get_booking_form_url($user_id),
-                'embed_url' => $booking_form_manager->get_embed_url($user_id)
-            );
-            
-            wp_send_json_success($response_data);
-        } else {
-            wp_send_json_error(__('Failed to save settings.', 'mobooking'));
-        }
-        
-    } catch (Exception $e) {
-        error_log('MoBooking - Exception in save booking form settings: ' . $e->getMessage());
-        wp_send_json_error(__('An error occurred while saving settings.', 'mobooking'));
-    }
-});
+
 
 // Add AJAX handler for resetting booking form settings
 add_action('wp_ajax_mobooking_reset_booking_form_settings', function() {
