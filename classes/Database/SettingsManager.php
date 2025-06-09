@@ -64,7 +64,7 @@ class SettingsManager {
         $company_name = get_user_meta($user_id, 'mobooking_company_name', true);
         
         if (!$company_name && $user) {
-            $company_name = $user->display_name . '\'s Cleaning Service';
+            $company_name = $user->display_name . 's Cleaning Service';
         }
         
         return (object) array(

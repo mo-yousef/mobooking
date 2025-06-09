@@ -57,10 +57,10 @@ $areas = $geography_manager->get_user_areas($mobooking_form_user->ID);
 if (empty($services) || empty($areas)) {
     get_header();
     ?>
-    <div class="mobooking-setup-container" style="padding: 2rem; text-align: center;">
+    <div class="mobooking-setup-container" style="padding: 2rem;text-align: center;display: flex;flex-direction: column;align-items: center;gap: 0.5rem;background: #eeeeee66;border: 1px dashed #ccc;max-width: 500px;margin: 2rem auto;border-radius: 10px;">
         <h2><?php _e('Booking Setup In Progress', 'mobooking'); ?></h2>
         <p><?php _e('This booking form is being configured. Please check back soon.', 'mobooking'); ?></p>
-        <a href="<?php echo home_url(); ?>" class="btn-primary"><?php _e('Go Home', 'mobooking'); ?></a>
+        <a href="<?php echo home_url(); ?>" class="btn-psrimary"><?php _e('Go Home', 'mobooking'); ?></a>
     </div>
     <?php
     get_footer();

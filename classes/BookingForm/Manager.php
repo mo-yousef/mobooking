@@ -111,45 +111,45 @@ class Manager {
     /**
      * Get default settings
      */
-    private function get_default_settings($user_id) {
-        $user = get_userdata($user_id);
-        
-        return (object) array(
-            'user_id' => $user_id,
-            'form_title' => $user ? $user->display_name . "'s Booking" : __('Book a Service', 'mobooking'),
-            'form_description' => __('Book our professional services quickly and easily.', 'mobooking'),
-            'logo_url' => '',
-            'primary_color' => '#3b82f6',
-            'secondary_color' => '#1e40af',
-            'background_color' => '#ffffff',
-            'text_color' => '#1f2937',
-            'language' => 'en',
-            'show_service_descriptions' => 1,
-            'show_price_breakdown' => 1,
-            'show_form_header' => 1,
-            'show_form_footer' => 1,
-            'enable_zip_validation' => 1,
-            'custom_css' => '',
-            'custom_js' => '',
-            'form_layout' => 'modern',
-            'step_indicator_style' => 'progress',
-            'button_style' => 'rounded',
-            'form_width' => 'standard',
-            'enable_testimonials' => 0,
-            'testimonials_data' => '',
-            'contact_info' => '',
-            'social_links' => '',
-            'custom_footer_text' => '',
-            'seo_title' => '',
-            'seo_description' => '',
-            'analytics_code' => '',
-            'is_active' => 1
-        );
-    }
+private function get_default_settings($user_id) {
+    $user = get_userdata($user_id);
+    
+    return (object) array(
+        'user_id' => $user_id,
+        'form_title' => $user ? $user->display_name . "'s Booking" : __('Book a Service', 'mobooking'),
+        'form_description' => __('Book our professional services quickly and easily.', 'mobooking'),
+        'logo_url' => '',
+        'primary_color' => '#3b82f6',
+        'secondary_color' => '#1e40af',
+        'background_color' => '#ffffff',
+        'text_color' => '#1f2937',
+        'language' => 'en',
+        'show_service_descriptions' => 1,
+        'show_price_breakdown' => 1,
+        'show_form_header' => 1,
+        'show_form_footer' => 1,
+        'enable_zip_validation' => 1,
+        'custom_css' => '',
+        'custom_js' => '',  // NEW FIELD
+        'form_layout' => 'modern',
+        'step_indicator_style' => 'progress', // NEW FIELD
+        'button_style' => 'rounded', // NEW FIELD
+        'form_width' => 'standard',
+        'contact_info' => '',
+        'social_links' => '',
+        'custom_footer_text' => '',
+        'seo_title' => '',
+        'seo_description' => '',
+        'analytics_code' => '',
+        'is_active' => 1
+        // REMOVED: 'enable_testimonials' and 'testimonials_data'
+    );
+}
     
 /**
  * Save booking form settings - FIXED checkbox handling
  */
+// Update the save_settings method to remove testimonials and add new fields
 public function save_settings($user_id, $data) {
     global $wpdb;
     $table_name = $wpdb->prefix . 'mobooking_booking_form_settings';
@@ -157,7 +157,7 @@ public function save_settings($user_id, $data) {
     // Create table if it doesn't exist
     $this->maybe_create_settings_table();
     
-    // FIXED: Proper checkbox value handling - check actual values, not just isset()
+    // FIXED: Proper sanitization with NEW FIELDS and REMOVED testimonials
     $sanitized_data = array(
         'form_title' => sanitize_text_field($data['form_title'] ?? ''),
         'form_description' => sanitize_textarea_field($data['form_description'] ?? ''),
@@ -168,37 +168,41 @@ public function save_settings($user_id, $data) {
         'text_color' => sanitize_hex_color($data['text_color'] ?? '#1f2937'),
         'language' => sanitize_text_field($data['language'] ?? 'en'),
         
-        // CRITICAL FIX: Check actual values instead of isset()
+        // Checkbox fields - proper handling
         'show_service_descriptions' => (!empty($data['show_service_descriptions']) && $data['show_service_descriptions'] == '1') ? 1 : 0,
         'show_price_breakdown' => (!empty($data['show_price_breakdown']) && $data['show_price_breakdown'] == '1') ? 1 : 0,
         'show_form_header' => (!empty($data['show_form_header']) && $data['show_form_header'] == '1') ? 1 : 0,
         'show_form_footer' => (!empty($data['show_form_footer']) && $data['show_form_footer'] == '1') ? 1 : 0,
         'enable_zip_validation' => (!empty($data['enable_zip_validation']) && $data['enable_zip_validation'] == '1') ? 1 : 0,
-        'enable_testimonials' => (!empty($data['enable_testimonials']) && $data['enable_testimonials'] == '1') ? 1 : 0,
         
+        // Custom code and layout
         'custom_css' => wp_strip_all_tags($data['custom_css'] ?? ''),
-        'custom_js' => wp_strip_all_tags($data['custom_js'] ?? ''),
+        'custom_js' => wp_strip_all_tags($data['custom_js'] ?? ''),  // NEW FIELD
         'form_layout' => sanitize_text_field($data['form_layout'] ?? 'modern'),
-        'step_indicator_style' => sanitize_text_field($data['step_indicator_style'] ?? 'progress'),
-        'button_style' => sanitize_text_field($data['button_style'] ?? 'rounded'),
+        'step_indicator_style' => sanitize_text_field($data['step_indicator_style'] ?? 'progress'), // NEW FIELD
+        'button_style' => sanitize_text_field($data['button_style'] ?? 'rounded'), // NEW FIELD
         'form_width' => sanitize_text_field($data['form_width'] ?? 'standard'),
-        'testimonials_data' => wp_kses_post($data['testimonials_data'] ?? ''),
+        
+        // Footer and contact info
         'contact_info' => sanitize_textarea_field($data['contact_info'] ?? ''),
         'social_links' => sanitize_textarea_field($data['social_links'] ?? ''),
         'custom_footer_text' => wp_kses_post($data['custom_footer_text'] ?? ''),
+        
+        // SEO and analytics
         'seo_title' => sanitize_text_field($data['seo_title'] ?? ''),
         'seo_description' => sanitize_textarea_field($data['seo_description'] ?? ''),
         'analytics_code' => wp_strip_all_tags($data['analytics_code'] ?? ''),
         'is_active' => (!empty($data['is_active']) && $data['is_active'] == '1') ? 1 : 0
+        
+        // REMOVED: 'enable_testimonials' and 'testimonials_data'
     );
     
     // Debug: Log what we're actually saving
     if (defined('WP_DEBUG') && WP_DEBUG) {
-        error_log('MoBooking - Checkbox values being saved:');
-        error_log('show_form_header: ' . $sanitized_data['show_form_header'] . ' (from: ' . ($data['show_form_header'] ?? 'not set') . ')');
-        error_log('show_service_descriptions: ' . $sanitized_data['show_service_descriptions'] . ' (from: ' . ($data['show_service_descriptions'] ?? 'not set') . ')');
-        error_log('show_price_breakdown: ' . $sanitized_data['show_price_breakdown'] . ' (from: ' . ($data['show_price_breakdown'] ?? 'not set') . ')');
-        error_log('enable_zip_validation: ' . $sanitized_data['enable_zip_validation'] . ' (from: ' . ($data['enable_zip_validation'] ?? 'not set') . ')');
+        error_log('MoBooking - Saving settings without testimonials:');
+        error_log('step_indicator_style: ' . $sanitized_data['step_indicator_style']);
+        error_log('button_style: ' . $sanitized_data['button_style']);
+        error_log('custom_js: ' . (strlen($sanitized_data['custom_js']) > 0 ? 'Present' : 'Empty'));
     }
     
     // Check if settings exist
@@ -215,8 +219,8 @@ public function save_settings($user_id, $data) {
             array('user_id' => $user_id),
             array(
                 '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', 
-                '%d', '%d', '%d', '%d', '%d', '%d', '%s', '%s', 
-                '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', 
+                '%d', '%d', '%d', '%d', '%d', '%s', '%s', 
+                '%s', '%s', '%s', '%s', '%s', '%s', '%s', 
                 '%s', '%s', '%s', '%d'
             ),
             array('%d')
@@ -228,25 +232,15 @@ public function save_settings($user_id, $data) {
             array_merge($sanitized_data, array('user_id' => $user_id)),
             array(
                 '%d', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s',
-                '%d', '%d', '%d', '%d', '%d', '%d', '%s', '%s', 
-                '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', 
+                '%d', '%d', '%d', '%d', '%d', '%s', '%s', 
+                '%s', '%s', '%s', '%s', '%s', '%s', '%s', 
                 '%s', '%s', '%s', '%d'
             )
         );
     }
     
-    // Debug the database operation result
-    if (defined('WP_DEBUG') && WP_DEBUG) {
-        if ($result === false) {
-            error_log('MoBooking - Database operation failed. Last error: ' . $wpdb->last_error);
-        } else {
-            error_log('MoBooking - Database operation successful. Rows affected: ' . $result);
-        }
-    }
-    
     return $result !== false;
 }
-    
 
 // Add reset settings method
 public function reset_settings($user_id) {
@@ -335,8 +329,6 @@ public function reset_settings($user_id) {
                 step_indicator_style varchar(50) DEFAULT 'progress',
                 button_style varchar(50) DEFAULT 'rounded',
                 form_width varchar(50) DEFAULT 'standard',
-                enable_testimonials tinyint(1) DEFAULT 0,
-                testimonials_data longtext DEFAULT '',
                 contact_info text DEFAULT '',
                 social_links text DEFAULT '',
                 custom_footer_text text DEFAULT '',

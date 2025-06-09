@@ -25,406 +25,520 @@ $areas_count = count($areas);
 $can_publish = ($services_count > 0 && $areas_count > 0);
 ?>
 
-<div class="booking-form-section">
-    <!-- Page Header -->
-    <div class="section-header">
-        <div class="header-content">
-            <div class="header-main">
-                <div class="title-group">
-                    <h1 class="page-title">
-                        <svg class="title-icon" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <rect width="14" height="14" x="8" y="8" rx="2" ry="2"></rect>
-                            <path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"></path>
-                        </svg>
-                        <?php _e('Booking Form', 'mobooking'); ?>
-                    </h1>
-                    <p class="page-subtitle"><?php _e('Create and customize your public booking form for customers', 'mobooking'); ?></p>
-                </div>
-                
-                <div class="header-stats">
-                    <div class="stat-card">
-                        <div class="stat-icon services <?php echo $services_count > 0 ? 'success' : 'warning'; ?>">
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <rect width="7" height="7" x="3" y="3" rx="1"/>
-                                <rect width="7" height="7" x="14" y="3" rx="1"/>
-                                <rect width="7" height="7" x="14" y="14" rx="1"/>
-                                <rect width="7" height="7" x="3" y="14" rx="1"/>
-                            </svg>
-                        </div>
-                        <div class="stat-content">
-                            <div class="stat-number"><?php echo $services_count; ?></div>
-                            <div class="stat-label"><?php _e('Services', 'mobooking'); ?></div>
-                        </div>
-                    </div>
-                    
-                    <div class="stat-card">
-                        <div class="stat-icon areas <?php echo $areas_count > 0 ? 'success' : 'warning'; ?>">
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/>
-                                <circle cx="12" cy="10" r="3"/>
-                            </svg>
-                        </div>
-                        <div class="stat-content">
-                            <div class="stat-number"><?php echo $areas_count; ?></div>
-                            <div class="stat-label"><?php _e('Service Areas', 'mobooking'); ?></div>
-                        </div>
-                    </div>
-                    
-                    <div class="stat-card">
-                        <div class="stat-icon status <?php echo $settings->is_active ? 'success' : 'inactive'; ?>">
-                            <?php if ($settings->is_active): ?>
-                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                    <path d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2ZM8 12l2 2 4-4"/>
-                                </svg>
-                            <?php else: ?>
-                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                    <circle cx="12" cy="12" r="10"/>
-                                    <path d="M15 9l-6 6M9 9l6 6"/>
-                                </svg>
-                            <?php endif; ?>
-                        </div>
-                        <div class="stat-content">
-                            <div class="stat-label"><?php echo $settings->is_active ? __('Published', 'mobooking') : __('Draft', 'mobooking'); ?></div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            
-            <div class="header-actions">
-                <button type="button" class="btn-secondary" id="preview-form-btn">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
-                        <circle cx="12" cy="12" r="3"/>
-                    </svg>
-                    <?php _e('Preview', 'mobooking'); ?>
-                </button>
-                
-                <button type="button" class="btn-secondary" id="copy-link-btn" data-url="<?php echo esc_attr($booking_url); ?>">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>
-                        <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
-                    </svg>
-                    <?php _e('Copy Link', 'mobooking'); ?>
-                </button>
-            </div>
+<?php
+/**
+ * Updated dashboard/sections/booking-form.php
+ * Key changes:
+ * 1. Remove testimonials fields
+ * 2. Add new fields: step_indicator_style, language, custom_js, button_style
+ * 3. Replace logo media uploader with generic file upload
+ * 4. Improve social links handling with structured repeatable fields
+ */
+
+// Get current user and settings
+$current_user = wp_get_current_user();
+$booking_form_manager = new \MoBooking\BookingForm\Manager();
+$settings = $booking_form_manager->get_settings($current_user->ID);
+?>
+
+<div class="dashboard-content">
+    <div class="content-header">
+        <div class="header-left">
+            <h1><?php _e('Booking Form Settings', 'mobooking'); ?></h1>
+            <p><?php _e('Customize your booking form appearance and functionality', 'mobooking'); ?></p>
+        </div>
+        <div class="header-actions">
+            <button type="button" id="reset-settings-btn" class="btn-secondary">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/>
+                    <path d="M3 3v5h5"/>
+                </svg>
+                <?php _e('Reset to Defaults', 'mobooking'); ?>
+            </button>
+            <button type="submit" form="booking-form-settings" id="save-settings-btn" class="btn-primary">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
+                    <polyline points="17,21 17,13 7,13 7,21"/>
+                    <polyline points="7,3 7,8 15,8"/>
+                </svg>
+                <?php _e('Save Settings', 'mobooking'); ?>
+            </button>
         </div>
     </div>
-    
-    <?php if (!$can_publish): ?>
-        <!-- Setup Requirements Alert -->
-        <div class="setup-alert">
-            <div class="alert-icon">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/>
-                    <path d="M12 9v4"/>
-                    <path d="M12 17h.01"/>
-                </svg>
-            </div>
-            <div class="alert-content">
-                <h3><?php _e('Setup Required', 'mobooking'); ?></h3>
-                <p><?php _e('Complete these steps before publishing your booking form:', 'mobooking'); ?></p>
-                <div class="requirements-list">
-                    <div class="requirement-item <?php echo $services_count > 0 ? 'completed' : 'pending'; ?>">
-                        <?php if ($services_count > 0): ?>
-                            <svg class="check-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <path d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2ZM8 12l2 2 4-4"/>
-                            </svg>
-                            <span><?php printf(_n('%d service configured', '%d services configured', $services_count, 'mobooking'), $services_count); ?></span>
-                        <?php else: ?>
-                            <svg class="cross-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <circle cx="12" cy="12" r="10"/>
-                                <path d="M15 9l-6 6M9 9l6 6"/>
-                            </svg>
-                            <span><?php _e('Add at least one service', 'mobooking'); ?></span>
-                            <a href="<?php echo esc_url(home_url('/dashboard/services/')); ?>" class="setup-link">
-                                <?php _e('Add Services', 'mobooking'); ?>
-                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                    <path d="M5 12h14M12 5l7 7-7 7"/>
-                                </svg>
-                            </a>
-                        <?php endif; ?>
-                    </div>
-                    
-                    <div class="requirement-item <?php echo $areas_count > 0 ? 'completed' : 'pending'; ?>">
-                        <?php if ($areas_count > 0): ?>
-                            <svg class="check-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <path d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2ZM8 12l2 2 4-4"/>
-                            </svg>
-                            <span><?php printf(_n('%d service area configured', '%d service areas configured', $areas_count, 'mobooking'), $areas_count); ?></span>
-                        <?php else: ?>
-                            <svg class="cross-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <circle cx="12" cy="12" r="10"/>
-                                <path d="M15 9l-6 6M9 9l6 6"/>
-                            </svg>
-                            <span><?php _e('Define service areas (ZIP codes)', 'mobooking'); ?></span>
-                            <a href="<?php echo esc_url(home_url('/dashboard/areas/')); ?>" class="setup-link">
-                                <?php _e('Add Areas', 'mobooking'); ?>
-                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                    <path d="M5 12h14M12 5l7 7-7 7"/>
-                                </svg>
-                            </a>
-                        <?php endif; ?>
-                    </div>
+
+    <div class="settings-container">
+        <div class="settings-tabs">
+            <button type="button" class="tab-button active" data-tab="general">
+                <div class="tab-icon">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="12" cy="12" r="3"/>
+                        <path d="M12 1v6m0 6v6m11-7h-6m-6 0H1"/>
+                    </svg>
                 </div>
-            </div>
+                <span><?php _e('General', 'mobooking'); ?></span>
+            </button>
+            <button type="button" class="tab-button" data-tab="design">
+                <div class="tab-icon">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/>
+                        <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/>
+                    </svg>
+                </div>
+                <span><?php _e('Design', 'mobooking'); ?></span>
+            </button>
+            <button type="button" class="tab-button" data-tab="advanced">
+                <div class="tab-icon">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/>
+                        <circle cx="12" cy="12" r="3"/>
+                    </svg>
+                </div>
+                <span><?php _e('Advanced', 'mobooking'); ?></span>
+            </button>
+            <button type="button" class="tab-button" data-tab="share">
+                <div class="tab-icon">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/>
+                        <polyline points="16,6 12,2 8,6"/>
+                        <line x1="12" y1="2" x2="12" y2="15"/>
+                    </svg>
+                </div>
+                <span><?php _e('Share & Embed', 'mobooking'); ?></span>
+            </button>
         </div>
-    <?php endif; ?>
-    
-    <!-- Main Form Container -->
-    <div class="form-container">
-        <!-- Tab Navigation -->
-        <div class="form-tabs">
-            <div class="tab-list">
-                <button type="button" class="tab-button active" data-tab="general">
-                    <div class="tab-icon">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <circle cx="12" cy="12" r="3"/>
-                            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1 1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>
-                        </svg>
-                    </div>
-                    <span><?php _e('General Settings', 'mobooking'); ?></span>
-                </button>
-                
-                <button type="button" class="tab-button" data-tab="design">
-                    <div class="tab-icon">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <circle cx="18" cy="5" r="3"/>
-                            <circle cx="6" cy="12" r="3"/>
-                            <circle cx="18" cy="19" r="3"/>
-                            <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/>
-                            <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>
-                        </svg>
-                    </div>
-                    <span><?php _e('Design & Layout', 'mobooking'); ?></span>
-                </button>
-                
-                <button type="button" class="tab-button" data-tab="sharing">
-                    <div class="tab-icon">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/>
-                            <polyline points="16,6 12,2 8,6"/>
-                            <line x1="12" y1="2" x2="12" y2="15"/>
-                        </svg>
-                    </div>
-                    <span><?php _e('Share & Embed', 'mobooking'); ?></span>
-                </button>
-                
-                <button type="button" class="tab-button" data-tab="advanced">
-                    <div class="tab-icon">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <polyline points="16 18 22 12 16 6"/>
-                            <polyline points="8 6 2 12 8 18"/>
-                        </svg>
-                    </div>
-                    <span><?php _e('Advanced', 'mobooking'); ?></span>
-                </button>
-            </div>
-        </div>
-        
-        <!-- Form Content -->
-        <form id="booking-form-settings" class="form-content">
+
+        <form id="booking-form-settings" method="post">
             <?php wp_nonce_field('mobooking-booking-form-nonce', 'nonce'); ?>
             
-            <!-- General Settings Tab -->
-            <div id="general" class="tab-content active">
-                <div class="content-grid">
-                    <!-- Basic Information -->
-                    <div class="settings-group">
-                        <div class="group-header">
-                            <h3><?php _e('Basic Information', 'mobooking'); ?></h3>
-                            <p><?php _e('Configure the essential details for your booking form', 'mobooking'); ?></p>
-                        </div>
-                        
-                        <div class="form-fields">
-                            <div class="field-row">
+            <div class="form-content">
+                <!-- General Tab -->
+                <div class="tab-content active" data-tab="general">
+                    <div class="content-grid">
+                        <!-- Basic Information -->
+                        <div class="settings-group">
+                            <div class="group-header">
+                                <h3><?php _e('Basic Information', 'mobooking'); ?></h3>
+                                <p><?php _e('Configure the basic details of your booking form', 'mobooking'); ?></p>
+                            </div>
+                            
+                            <div class="form-fields">
                                 <div class="form-group">
                                     <label for="form-title" class="field-label required"><?php _e('Form Title', 'mobooking'); ?></label>
                                     <input type="text" id="form-title" name="form_title" class="form-control" 
-                                           value="<?php echo esc_attr($settings->form_title); ?>" 
-                                           placeholder="<?php _e('Book Our Services', 'mobooking'); ?>" required>
+                                           value="<?php echo esc_attr($settings->form_title); ?>" required>
+                                    <small class="field-note"><?php _e('This appears as the main heading on your booking form', 'mobooking'); ?></small>
                                 </div>
                                 
                                 <div class="form-group">
-                                    <label for="form-active" class="field-label"><?php _e('Publication Status', 'mobooking'); ?></label>
-                                    <select id="form-active" name="is_active" class="form-control" <?php echo !$can_publish ? 'disabled' : ''; ?>>
-                                        <option value="1" <?php selected($settings->is_active, 1); ?>><?php _e('Published (Live)', 'mobooking'); ?></option>
-                                        <option value="0" <?php selected($settings->is_active, 0); ?>><?php _e('Draft (Hidden)', 'mobooking'); ?></option>
-                                    </select>
-                                    <?php if (!$can_publish): ?>
-                                        <small class="field-note warning"><?php _e('Complete setup requirements above to publish', 'mobooking'); ?></small>
-                                    <?php endif; ?>
+                                    <label for="form-description" class="field-label"><?php _e('Form Description', 'mobooking'); ?></label>
+                                    <textarea id="form-description" name="form_description" class="form-control" rows="3"
+                                              placeholder="<?php _e('Book our professional services quickly and easily...', 'mobooking'); ?>"><?php echo esc_textarea($settings->form_description); ?></textarea>
+                                    <small class="field-note"><?php _e('Brief description shown below the title', 'mobooking'); ?></small>
                                 </div>
+
+                                <div class="field-row">
+                                    <div class="form-group">
+                                        <label for="language" class="field-label"><?php _e('Language', 'mobooking'); ?></label>
+                                        <select id="language" name="language" class="form-control">
+                                            <option value="en" <?php selected($settings->language, 'en'); ?>><?php _e('English', 'mobooking'); ?></option>
+                                            <option value="es" <?php selected($settings->language, 'es'); ?>><?php _e('Spanish', 'mobooking'); ?></option>
+                                            <option value="fr" <?php selected($settings->language, 'fr'); ?>><?php _e('French', 'mobooking'); ?></option>
+                                            <option value="de" <?php selected($settings->language, 'de'); ?>><?php _e('German', 'mobooking'); ?></option>
+                                            <option value="it" <?php selected($settings->language, 'it'); ?>><?php _e('Italian', 'mobooking'); ?></option>
+                                        </select>
+                                    </div>
+
+                                    <div class="form-group">
+                                        <label for="is-active" class="field-label"><?php _e('Form Status', 'mobooking'); ?></label>
+                                        <select id="is-active" name="is_active" class="form-control">
+                                            <option value="1" <?php selected($settings->is_active, 1); ?>><?php _e('Active', 'mobooking'); ?></option>
+                                            <option value="0" <?php selected($settings->is_active, 0); ?>><?php _e('Inactive', 'mobooking'); ?></option>
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Form Features -->
+                        <div class="settings-group">
+                            <div class="group-header">
+                                <h3><?php _e('Form Features', 'mobooking'); ?></h3>
+                                <p><?php _e('Enable or disable specific features in your booking form', 'mobooking'); ?></p>
                             </div>
                             
-                            <div class="form-group">
-                                <label for="form-description" class="field-label"><?php _e('Description', 'mobooking'); ?></label>
-                                <textarea id="form-description" name="form_description" class="form-control" rows="3" 
-                                          placeholder="<?php _e('Book our professional services quickly and easily. Get instant quotes and schedule your appointment online.', 'mobooking'); ?>"><?php echo esc_textarea($settings->form_description); ?></textarea>
-                                <small class="field-note"><?php _e('This description appears below your form title', 'mobooking'); ?></small>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <!-- Form Options -->
-                    <div class="settings-group">
-                        <div class="group-header">
-                            <h3><?php _e('Form Features', 'mobooking'); ?></h3>
-                            <p><?php _e('Control what elements are displayed on your booking form', 'mobooking'); ?></p>
-                        </div>
-                        
-                        <div class="form-fields">
-                            <div class="checkbox-grid">
-                                <label class="checkbox-option">
-                                    <input type="checkbox" name="show_form_header" value="1" <?php checked($settings->show_form_header, 1); ?>>
-                                    <div class="checkbox-content">
-                                        <div class="checkbox-title"><?php _e('Show Form Header', 'mobooking'); ?></div>
-                                        <div class="checkbox-desc"><?php _e('Display title, logo and description at the top', 'mobooking'); ?></div>
+                            <div class="form-fields">
+                                <div class="checkbox-grid">
+                                    <div class="checkbox-option">
+                                        <input type="checkbox" id="show-form-header" name="show_form_header" value="1" 
+                                               <?php checked($settings->show_form_header, 1); ?>>
+                                        <div class="checkbox-content">
+                                            <div class="checkbox-title"><?php _e('Show Form Header', 'mobooking'); ?></div>
+                                            <div class="checkbox-desc"><?php _e('Display title, description, and logo at the top', 'mobooking'); ?></div>
+                                        </div>
                                     </div>
-                                </label>
-                                
-                                <label class="checkbox-option">
-                                    <input type="checkbox" name="show_service_descriptions" value="1" <?php checked($settings->show_service_descriptions, 1); ?>>
-                                    <div class="checkbox-content">
-                                        <div class="checkbox-title"><?php _e('Service Descriptions', 'mobooking'); ?></div>
-                                        <div class="checkbox-desc"><?php _e('Show detailed descriptions for each service', 'mobooking'); ?></div>
+                                    
+                                    <div class="checkbox-option">
+                                        <input type="checkbox" id="show-service-descriptions" name="show_service_descriptions" value="1" 
+                                               <?php checked($settings->show_service_descriptions, 1); ?>>
+                                        <div class="checkbox-content">
+                                            <div class="checkbox-title"><?php _e('Show Service Descriptions', 'mobooking'); ?></div>
+                                            <div class="checkbox-desc"><?php _e('Display detailed descriptions for each service', 'mobooking'); ?></div>
+                                        </div>
                                     </div>
-                                </label>
-                                
-                                <label class="checkbox-option">
-                                    <input type="checkbox" name="show_price_breakdown" value="1" <?php checked($settings->show_price_breakdown, 1); ?>>
-                                    <div class="checkbox-content">
-                                        <div class="checkbox-title"><?php _e('Price Breakdown', 'mobooking'); ?></div>
-                                        <div class="checkbox-desc"><?php _e('Display detailed pricing information', 'mobooking'); ?></div>
+                                    
+                                    <div class="checkbox-option">
+                                        <input type="checkbox" id="show-price-breakdown" name="show_price_breakdown" value="1" 
+                                               <?php checked($settings->show_price_breakdown, 1); ?>>
+                                        <div class="checkbox-content">
+                                            <div class="checkbox-title"><?php _e('Show Price Breakdown', 'mobooking'); ?></div>
+                                            <div class="checkbox-desc"><?php _e('Display detailed pricing information', 'mobooking'); ?></div>
+                                        </div>
                                     </div>
-                                </label>
-                                
-                                <label class="checkbox-option">
-                                    <input type="checkbox" name="enable_zip_validation" value="1" <?php checked($settings->enable_zip_validation, 1); ?>>
-                                    <div class="checkbox-content">
-                                        <div class="checkbox-title"><?php _e('ZIP Code Validation', 'mobooking'); ?></div>
-                                        <div class="checkbox-desc"><?php _e('Validate service area coverage', 'mobooking'); ?></div>
+                                    
+                                    <div class="checkbox-option">
+                                        <input type="checkbox" id="enable-zip-validation" name="enable_zip_validation" value="1" 
+                                               <?php checked($settings->enable_zip_validation, 1); ?>>
+                                        <div class="checkbox-content">
+                                            <div class="checkbox-title"><?php _e('ZIP Code Validation', 'mobooking'); ?></div>
+                                            <div class="checkbox-desc"><?php _e('Validate ZIP codes for service area coverage', 'mobooking'); ?></div>
+                                        </div>
                                     </div>
-                                </label>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            
-            <!-- Design Tab -->
-            <div id="design" class="tab-content">
-                <div class="content-grid">
-                    <!-- Colors & Branding -->
-                    <div class="settings-group">
-                        <div class="group-header">
-                            <h3><?php _e('Colors & Branding', 'mobooking'); ?></h3>
-                            <p><?php _e('Customize the visual appearance of your booking form', 'mobooking'); ?></p>
-                        </div>
-                        
-                        <div class="form-fields">
-                            <div class="color-fields">
-                                <div class="form-group">
-                                    <label for="primary-color" class="field-label"><?php _e('Primary Color', 'mobooking'); ?></label>
-                                    <div class="color-input-group">
-                                        <input type="color" id="primary-color" name="primary_color" 
-                                               value="<?php echo esc_attr($settings->primary_color); ?>" class="color-picker">
-                                        <input type="text" class="color-text" value="<?php echo esc_attr($settings->primary_color); ?>" readonly>
+
+                                    <div class="checkbox-option">
+                                        <input type="checkbox" id="show-form-footer" name="show_form_footer" value="1" 
+                                               <?php checked($settings->show_form_footer, 1); ?>>
+                                        <div class="checkbox-content">
+                                            <div class="checkbox-title"><?php _e('Show Form Footer', 'mobooking'); ?></div>
+                                            <div class="checkbox-desc"><?php _e('Display footer content and social links', 'mobooking'); ?></div>
+                                        </div>
                                     </div>
-                                    <small class="field-note"><?php _e('Main accent color for buttons and highlights', 'mobooking'); ?></small>
-                                </div>
-                                
-                                <div class="form-group">
-                                    <label for="secondary-color" class="field-label"><?php _e('Secondary Color', 'mobooking'); ?></label>
-                                    <div class="color-input-group">
-                                        <input type="color" id="secondary-color" name="secondary_color" 
-                                               value="<?php echo esc_attr($settings->secondary_color); ?>" class="color-picker">
-                                        <input type="text" class="color-text" value="<?php echo esc_attr($settings->secondary_color); ?>" readonly>
-                                    </div>
-                                </div>
-                            </div>
-                            
-                            <div class="form-group">
-                                <label for="logo-url" class="field-label"><?php _e('Logo URL', 'mobooking'); ?></label>
-                                <div class="input-with-action">
-                                    <input type="url" id="logo-url" name="logo_url" class="form-control" 
-                                           value="<?php echo esc_attr($settings->logo_url); ?>" 
-                                           placeholder="<?php _e('https://example.com/logo.png', 'mobooking'); ?>">
-                                    <button type="button" class="btn-secondary select-logo-btn">
-                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                            <rect width="18" height="18" x="3" y="3" rx="2" ry="2"/>
-                                            <circle cx="9" cy="9" r="2"/>
-                                            <path d="M21 15l-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/>
-                                        </svg>
-                                        <?php _e('Choose', 'mobooking'); ?>
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <!-- Layout Options -->
-                    <div class="settings-group">
-                        <div class="group-header">
-                            <h3><?php _e('Layout & Style', 'mobooking'); ?></h3>
-                            <p><?php _e('Adjust the layout and presentation of your form', 'mobooking'); ?></p>
-                        </div>
-                        
-                        <div class="form-fields">
-                            <div class="field-row">
-                                <div class="form-group">
-                                    <label for="form-layout" class="field-label"><?php _e('Layout Style', 'mobooking'); ?></label>
-                                    <select id="form-layout" name="form_layout" class="form-control">
-                                        <option value="modern" <?php selected($settings->form_layout, 'modern'); ?>><?php _e('Modern (Recommended)', 'mobooking'); ?></option>
-                                        <option value="classic" <?php selected($settings->form_layout, 'classic'); ?>><?php _e('Classic', 'mobooking'); ?></option>
-                                        <option value="minimal" <?php selected($settings->form_layout, 'minimal'); ?>><?php _e('Minimal', 'mobooking'); ?></option>
-                                    </select>
-                                </div>
-                                
-                                <div class="form-group">
-                                    <label for="form-width" class="field-label"><?php _e('Form Width', 'mobooking'); ?></label>
-                                    <select id="form-width" name="form_width" class="form-control">
-                                        <option value="narrow" <?php selected($settings->form_width, 'narrow'); ?>><?php _e('Narrow (600px)', 'mobooking'); ?></option>
-                                        <option value="standard" <?php selected($settings->form_width, 'standard'); ?>><?php _e('Standard (800px)', 'mobooking'); ?></option>
-                                        <option value="wide" <?php selected($settings->form_width, 'wide'); ?>><?php _e('Wide (1000px)', 'mobooking'); ?></option>
-                                    </select>
                                 </div>
                             </div>
                         </div>
                     </div>
                 </div>
-            </div>
-            
-            <!-- Sharing Tab -->
-            <div id="sharing" class="tab-content">
-                <div class="content-grid">
-                    <!-- Public URL -->
-                    <div class="settings-group">
-                        <div class="group-header">
-                            <h3><?php _e('Share Your Form', 'mobooking'); ?></h3>
-                            <p><?php _e('Use these options to share your booking form with customers', 'mobooking'); ?></p>
+                
+                <!-- Design Tab -->
+                <div class="tab-content" data-tab="design">
+                    <div class="content-grid">
+                        <!-- Branding & Colors -->
+                        <div class="settings-group">
+                            <div class="group-header">
+                                <h3><?php _e('Branding & Colors', 'mobooking'); ?></h3>
+                                <p><?php _e('Customize the visual appearance of your booking form', 'mobooking'); ?></p>
+                            </div>
+                            
+                            <div class="form-fields">
+                                <!-- UPDATED: Generic File Upload for Logo -->
+                                <div class="form-group">
+                                    <label for="logo-upload" class="field-label"><?php _e('Logo', 'mobooking'); ?></label>
+                                    <div class="logo-upload-container">
+                                        <!-- Display current logo if exists -->
+                                        <?php if (!empty($settings->logo_url)): ?>
+                                            <div id="current-logo-display" class="current-logo">
+                                                <img src="<?php echo esc_url($settings->logo_url); ?>" alt="Current Logo" style="max-height: 80px; max-width: 200px;">
+                                                <div class="logo-actions">
+                                                    <button type="button" id="remove-logo-btn" class="btn-secondary">
+                                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                                            <polyline points="3,6 5,6 21,6"/>
+                                                            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+                                                        </svg>
+                                                        <?php _e('Remove', 'mobooking'); ?>
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        <?php endif; ?>
+                                        
+                                        <!-- File upload field -->
+                                        <div class="file-upload-section">
+                                            <input type="file" id="logo-upload" name="logo_file" accept="image/*" class="file-input">
+                                            <label for="logo-upload" class="file-upload-label">
+                                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                                    <rect width="18" height="18" x="3" y="3" rx="2" ry="2"/>
+                                                    <circle cx="9" cy="9" r="2"/>
+                                                    <path d="M21 15l-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/>
+                                                </svg>
+                                                <span><?php _e('Choose Logo Image', 'mobooking'); ?></span>
+                                            </label>
+                                            <!-- Hidden URL field for storing the uploaded logo URL -->
+                                            <input type="hidden" id="logo-url" name="logo_url" value="<?php echo esc_attr($settings->logo_url); ?>">
+                                        </div>
+                                        <small class="field-note"><?php _e('Upload PNG, JPG, or SVG. Recommended size: 200x80px', 'mobooking'); ?></small>
+                                    </div>
+                                </div>
+                                
+                                <div class="color-fields">
+                                    <div class="form-group">
+                                        <label for="primary-color" class="field-label"><?php _e('Primary Color', 'mobooking'); ?></label>
+                                        <div class="color-input-group">
+                                            <input type="color" id="primary-color" name="primary_color" 
+                                                   value="<?php echo esc_attr($settings->primary_color); ?>" class="color-picker">
+                                            <input type="text" class="color-text" value="<?php echo esc_attr($settings->primary_color); ?>" readonly>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="form-group">
+                                        <label for="secondary-color" class="field-label"><?php _e('Secondary Color', 'mobooking'); ?></label>
+                                        <div class="color-input-group">
+                                            <input type="color" id="secondary-color" name="secondary_color" 
+                                                   value="<?php echo esc_attr($settings->secondary_color); ?>" class="color-picker">
+                                            <input type="text" class="color-text" value="<?php echo esc_attr($settings->secondary_color); ?>" readonly>
+                                        </div>
+                                    </div>
+
+                                    <div class="form-group">
+                                        <label for="background-color" class="field-label"><?php _e('Background Color', 'mobooking'); ?></label>
+                                        <div class="color-input-group">
+                                            <input type="color" id="background-color" name="background_color" 
+                                                   value="<?php echo esc_attr($settings->background_color); ?>" class="color-picker">
+                                            <input type="text" class="color-text" value="<?php echo esc_attr($settings->background_color); ?>" readonly>
+                                        </div>
+                                    </div>
+
+                                    <div class="form-group">
+                                        <label for="text-color" class="field-label"><?php _e('Text Color', 'mobooking'); ?></label>
+                                        <div class="color-input-group">
+                                            <input type="color" id="text-color" name="text_color" 
+                                                   value="<?php echo esc_attr($settings->text_color); ?>" class="color-picker">
+                                            <input type="text" class="color-text" value="<?php echo esc_attr($settings->text_color); ?>" readonly>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                         
+                        <!-- Layout & Style -->
+                        <div class="settings-group">
+                            <div class="group-header">
+                                <h3><?php _e('Layout & Style', 'mobooking'); ?></h3>
+                                <p><?php _e('Adjust the layout and presentation of your form', 'mobooking'); ?></p>
+                            </div>
+                            
+                            <div class="form-fields">
+                                <div class="field-row">
+                                    <div class="form-group">
+                                        <label for="form-layout" class="field-label"><?php _e('Form Layout', 'mobooking'); ?></label>
+                                        <select id="form-layout" name="form_layout" class="form-control">
+                                            <option value="modern" <?php selected($settings->form_layout, 'modern'); ?>><?php _e('Modern', 'mobooking'); ?></option>
+                                            <option value="classic" <?php selected($settings->form_layout, 'classic'); ?>><?php _e('Classic', 'mobooking'); ?></option>
+                                            <option value="minimal" <?php selected($settings->form_layout, 'minimal'); ?>><?php _e('Minimal', 'mobooking'); ?></option>
+                                        </select>
+                                    </div>
+                                    
+                                    <div class="form-group">
+                                        <label for="form-width" class="field-label"><?php _e('Form Width', 'mobooking'); ?></label>
+                                        <select id="form-width" name="form_width" class="form-control">
+                                            <option value="narrow" <?php selected($settings->form_width, 'narrow'); ?>><?php _e('Narrow (600px)', 'mobooking'); ?></option>
+                                            <option value="standard" <?php selected($settings->form_width, 'standard'); ?>><?php _e('Standard (800px)', 'mobooking'); ?></option>
+                                            <option value="wide" <?php selected($settings->form_width, 'wide'); ?>><?php _e('Wide (1000px)', 'mobooking'); ?></option>
+                                            <option value="full" <?php selected($settings->form_width, 'full'); ?>><?php _e('Full Width', 'mobooking'); ?></option>
+                                        </select>
+                                    </div>
+                                </div>
+
+                                <div class="field-row">
+                                    <div class="form-group">
+                                        <label for="step-indicator-style" class="field-label"><?php _e('Step Indicator Style', 'mobooking'); ?></label>
+                                        <select id="step-indicator-style" name="step_indicator_style" class="form-control">
+                                            <option value="progress" <?php selected($settings->step_indicator_style, 'progress'); ?>><?php _e('Progress Bar', 'mobooking'); ?></option>
+                                            <option value="dots" <?php selected($settings->step_indicator_style, 'dots'); ?>><?php _e('Dots', 'mobooking'); ?></option>
+                                            <option value="numbers" <?php selected($settings->step_indicator_style, 'numbers'); ?>><?php _e('Numbers', 'mobooking'); ?></option>
+                                            <option value="arrows" <?php selected($settings->step_indicator_style, 'arrows'); ?>><?php _e('Arrows', 'mobooking'); ?></option>
+                                            <option value="none" <?php selected($settings->step_indicator_style, 'none'); ?>><?php _e('None', 'mobooking'); ?></option>
+                                        </select>
+                                    </div>
+
+                                    <div class="form-group">
+                                        <label for="button-style" class="field-label"><?php _e('Button Style', 'mobooking'); ?></label>
+                                        <select id="button-style" name="button_style" class="form-control">
+                                            <option value="rounded" <?php selected($settings->button_style, 'rounded'); ?>><?php _e('Rounded', 'mobooking'); ?></option>
+                                            <option value="square" <?php selected($settings->button_style, 'square'); ?>><?php _e('Square', 'mobooking'); ?></option>
+                                            <option value="pill" <?php selected($settings->button_style, 'pill'); ?>><?php _e('Pill', 'mobooking'); ?></option>
+                                            <option value="outline" <?php selected($settings->button_style, 'outline'); ?>><?php _e('Outline', 'mobooking'); ?></option>
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- IMPROVED: Social Links Section -->
+                        <div class="settings-group">
+                            <div class="group-header">
+                                <h3><?php _e('Social Media Links', 'mobooking'); ?></h3>
+                                <p><?php _e('Add your social media profiles to appear in the form footer', 'mobooking'); ?></p>
+                            </div>
+                            
+                            <div class="form-fields">
+                                <div id="social-links-container" class="social-links-container">
+                                    <?php
+                                    // Parse existing social links
+                                    $social_links = [];
+                                    if (!empty($settings->social_links)) {
+                                        $lines = explode("\n", $settings->social_links);
+                                        foreach ($lines as $line) {
+                                            $line = trim($line);
+                                            if (strpos($line, ':') !== false) {
+                                                list($platform, $url) = explode(':', $line, 2);
+                                                $social_links[trim($platform)] = trim($url);
+                                            }
+                                        }
+                                    }
+                                    
+                                    // Predefined social platforms
+                                    $platforms = [
+                                        'Facebook' => 'https://facebook.com/',
+                                        'Instagram' => 'https://instagram.com/',
+                                        'Twitter' => 'https://twitter.com/',
+                                        'LinkedIn' => 'https://linkedin.com/company/',
+                                        'YouTube' => 'https://youtube.com/@',
+                                        'TikTok' => 'https://tiktok.com/@'
+                                    ];
+                                    
+                                    foreach ($platforms as $platform => $placeholder): ?>
+                                        <div class="social-link-field">
+                                            <label class="field-label"><?php echo esc_html($platform); ?></label>
+                                            <div class="input-with-icon">
+                                                <svg width="16" height="16" class="social-icon">
+                                                    <use href="#icon-<?php echo strtolower($platform); ?>"></use>
+                                                </svg>
+                                                <input type="url" 
+                                                       name="social_<?php echo strtolower($platform); ?>" 
+                                                       class="form-control social-url-input" 
+                                                       placeholder="<?php echo esc_attr($placeholder . 'yourprofile'); ?>"
+                                                       value="<?php echo esc_attr($social_links[$platform] ?? ''); ?>">
+                                            </div>
+                                        </div>
+                                    <?php endforeach; ?>
+                                </div>
+                                
+                                <!-- Hidden field to store the combined social links in the original format -->
+                                <input type="hidden" id="social-links-combined" name="social_links" value="<?php echo esc_attr($settings->social_links); ?>">
+                                
+                                <small class="field-note"><?php _e('Enter your social media profile URLs. Leave blank for platforms you don\'t use.', 'mobooking'); ?></small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Advanced Tab -->
+                <div class="tab-content" data-tab="advanced">
+                    <div class="content-grid">
+                        <!-- Custom Code -->
+                        <div class="settings-group">
+                            <div class="group-header">
+                                <h3><?php _e('Custom Code', 'mobooking'); ?></h3>
+                                <p><?php _e('Add custom CSS and JavaScript to enhance your form', 'mobooking'); ?></p>
+                            </div>
+                            
+                            <div class="form-fields">
+                                <div class="form-group">
+                                    <label for="custom-css" class="field-label"><?php _e('Custom CSS', 'mobooking'); ?></label>
+                                    <textarea id="custom-css" name="custom_css" class="form-control code-textarea" rows="8" 
+                                              placeholder="<?php _e('/* Custom CSS styles */\n.booking-form {\n    /* Your styles here */\n}', 'mobooking'); ?>"><?php echo esc_textarea($settings->custom_css); ?></textarea>
+                                    <small class="field-note"><?php _e('Custom CSS will override default styles.', 'mobooking'); ?></small>
+                                </div>
+
+                                <div class="form-group">
+                                    <label for="custom-js" class="field-label"><?php _e('Custom JavaScript', 'mobooking'); ?></label>
+                                    <textarea id="custom-js" name="custom_js" class="form-control code-textarea" rows="8" 
+                                              placeholder="<?php _e('// Custom JavaScript code\n// Will be executed when the form loads\nconsole.log(\'Booking form loaded\');', 'mobooking'); ?>"><?php echo esc_textarea($settings->custom_js); ?></textarea>
+                                    <small class="field-note warning"><?php _e('Use with caution. Invalid JavaScript can break your form functionality.', 'mobooking'); ?></small>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- SEO Settings -->
+                        <div class="settings-group">
+                            <div class="group-header">
+                                <h3><?php _e('SEO Optimization', 'mobooking'); ?></h3>
+                                <p><?php _e('Optimize your booking form for search engines', 'mobooking'); ?></p>
+                            </div>
+                            
+                            <div class="form-fields">
+                                <div class="form-group">
+                                    <label for="seo-title" class="field-label"><?php _e('Page Title', 'mobooking'); ?></label>
+                                    <input type="text" id="seo-title" name="seo_title" class="form-control" 
+                                           value="<?php echo esc_attr($settings->seo_title); ?>" 
+                                           placeholder="<?php _e('Book Our Services - Company Name', 'mobooking'); ?>">
+                                    <small class="field-note"><?php _e('Appears in browser title bar and search results', 'mobooking'); ?></small>
+                                </div>
+                                
+                                <div class="form-group">
+                                    <label for="seo-description" class="field-label"><?php _e('Meta Description', 'mobooking'); ?></label>
+                                    <textarea id="seo-description" name="seo_description" class="form-control" rows="3" 
+                                              placeholder="<?php _e('Book our professional services easily online. Fast, reliable, and convenient scheduling...', 'mobooking'); ?>"><?php echo esc_textarea($settings->seo_description); ?></textarea>
+                                    <small class="field-note"><?php _e('Brief description for search engines (150-160 characters recommended)', 'mobooking'); ?></small>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Analytics -->
+                        <div class="settings-group">
+                            <div class="group-header">
+                                <h3><?php _e('Analytics & Tracking', 'mobooking'); ?></h3>
+                                <p><?php _e('Add tracking codes to monitor form performance', 'mobooking'); ?></p>
+                            </div>
+                            
+                            <div class="form-fields">
+                                <div class="form-group">
+                                    <label for="analytics-code" class="field-label"><?php _e('Analytics Code', 'mobooking'); ?></label>
+                                    <textarea id="analytics-code" name="analytics_code" class="form-control code-textarea" rows="6" 
+                                              placeholder="<?php _e('<!-- Google Analytics, Facebook Pixel, or other tracking codes -->', 'mobooking'); ?>"><?php echo esc_textarea($settings->analytics_code); ?></textarea>
+                                    <small class="field-note"><?php _e('Add Google Analytics, Facebook Pixel, or other tracking codes', 'mobooking'); ?></small>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Footer Content -->
+                        <div class="settings-group">
+                            <div class="group-header">
+                                <h3><?php _e('Form Footer', 'mobooking'); ?></h3>
+                                <p><?php _e('Add additional information to the bottom of your form', 'mobooking'); ?></p>
+                            </div>
+                            
+                            <div class="form-fields">
+                                <div class="form-group">
+                                    <label for="custom-footer-text" class="field-label"><?php _e('Footer Text', 'mobooking'); ?></label>
+                                    <textarea id="custom-footer-text" name="custom_footer_text" class="form-control" rows="4" 
+                                              placeholder="<?php _e('Contact us at info@yourcompany.com or call (555) 123-4567', 'mobooking'); ?>"><?php echo esc_textarea($settings->custom_footer_text); ?></textarea>
+                                </div>
+                                
+                                <div class="form-group">
+                                    <label for="contact-info" class="field-label"><?php _e('Contact Information', 'mobooking'); ?></label>
+                                    <textarea id="contact-info" name="contact_info" class="form-control" rows="3" 
+                                              placeholder="<?php _e('Phone: (555) 123-4567\nEmail: info@company.com\nAddress: 123 Main St', 'mobooking'); ?>"><?php echo esc_textarea($settings->contact_info); ?></textarea>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Share & Embed Tab -->
+                <div class="tab-content" data-tab="share">
+                    <div class="content-grid">
                         <div class="share-options">
+                            <!-- Direct Link -->
                             <div class="share-option">
                                 <div class="share-icon">
-                                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                         <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>
                                         <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
                                     </svg>
                                 </div>
                                 <div class="share-content">
                                     <h4><?php _e('Direct Link', 'mobooking'); ?></h4>
-                                    <p><?php _e('Share this URL directly with customers', 'mobooking'); ?></p>
+                                    <p><?php _e('Share this URL to let customers access your booking form directly', 'mobooking'); ?></p>
                                     <div class="url-input-group">
-                                        <input type="text" class="form-control url-display" value="<?php echo esc_attr($booking_url); ?>" readonly>
-                                        <button type="button" class="btn-secondary copy-url-btn" data-url="<?php echo esc_attr($booking_url); ?>">
+                                        <input type="text" id="booking-url" class="form-control url-display" readonly 
+                                               value="<?php echo esc_url($booking_form_manager->get_booking_form_url($current_user->ID)); ?>">
+                                        <button type="button" class="btn-secondary copy-btn" data-target="#booking-url">
                                             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                                 <rect width="14" height="14" x="8" y="8" rx="2" ry="2"/>
                                                 <path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/>
                                             </svg>
                                             <?php _e('Copy', 'mobooking'); ?>
                                         </button>
-                                        <button type="button" class="btn-secondary open-url-btn" data-url="<?php echo esc_attr($booking_url); ?>">
+                                        <button type="button" class="btn-primary open-btn" data-url-target="#booking-url">
                                             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                                 <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>
                                                 <polyline points="15,3 21,3 21,9"/>
@@ -436,36 +550,42 @@ $can_publish = ($services_count > 0 && $areas_count > 0);
                                 </div>
                             </div>
                             
+                            <!-- Embed Code -->
                             <div class="share-option">
                                 <div class="share-icon">
-                                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                        <polyline points="16 18 22 12 16 6"/>
-                                        <polyline points="8 6 2 12 8 18"/>
+                                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <polyline points="16,18 22,12 16,6"/>
+                                        <polyline points="8,6 2,12 8,18"/>
                                     </svg>
                                 </div>
                                 <div class="share-content">
                                     <h4><?php _e('Embed Code', 'mobooking'); ?></h4>
-                                    <p><?php _e('Add this form to your website', 'mobooking'); ?></p>
+                                    <p><?php _e('Embed the booking form directly into your website', 'mobooking'); ?></p>
                                     <div class="embed-controls">
                                         <div class="embed-settings">
                                             <div class="field-row">
                                                 <div class="form-group">
-                                                    <label for="embed-width"><?php _e('Width', 'mobooking'); ?></label>
-                                                    <input type="text" id="embed-width" class="form-control" value="100%" placeholder="100%">
+                                                    <label for="embed-width" class="field-label"><?php _e('Width', 'mobooking'); ?></label>
+                                                    <input type="text" id="embed-width" class="form-control" value="100%" placeholder="800px or 100%">
                                                 </div>
                                                 <div class="form-group">
-                                                    <label for="embed-height"><?php _e('Height', 'mobooking'); ?></label>
-                                                    <input type="text" id="embed-height" class="form-control" value="800" placeholder="800">
+                                                    <label for="embed-height" class="field-label"><?php _e('Height', 'mobooking'); ?></label>
+                                                    <input type="text" id="embed-height" class="form-control" value="800" placeholder="600">
                                                 </div>
                                             </div>
-                                            <button type="button" id="generate-embed-btn" class="btn-secondary btn-small">
-                                                <?php _e('Generate Code', 'mobooking'); ?>
+                                            <button type="button" id="generate-embed-btn" class="btn-secondary">
+                                                <?php _e('Generate Embed Code', 'mobooking'); ?>
                                             </button>
                                         </div>
                                         <div class="embed-code-section">
-                                            <textarea id="embed-code-display" class="form-control code-textarea" rows="4" readonly 
-                                                      placeholder="<?php _e('Click "Generate Code" to create your embed code', 'mobooking'); ?>"></textarea>
-                                            <button type="button" id="copy-embed-btn" class="btn-secondary btn-small" style="display: none;">
+                                            <label for="embed-code" class="field-label"><?php _e('Embed Code', 'mobooking'); ?></label>
+                                            <textarea id="embed-code" class="form-control code-textarea" rows="4" readonly 
+                                                      placeholder="<?php _e('Click \'Generate Embed Code\' to create the iframe code', 'mobooking'); ?>"></textarea>
+                                            <button type="button" class="btn-secondary copy-btn" data-target="#embed-code">
+                                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                                    <rect width="14" height="14" x="8" y="8" rx="2" ry="2"/>
+                                                    <path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/>
+                                                </svg>
                                                 <?php _e('Copy Code', 'mobooking'); ?>
                                             </button>
                                         </div>
@@ -473,41 +593,33 @@ $can_publish = ($services_count > 0 && $areas_count > 0);
                                 </div>
                             </div>
                             
+                            <!-- QR Code -->
                             <div class="share-option">
                                 <div class="share-icon">
-                                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                        <rect width="3" height="3" x="7" y="3"/>
-                                        <rect width="3" height="3" x="14" y="3"/>
-                                        <rect width="3" height="3" x="7" y="10"/>
-                                        <rect width="3" height="3" x="14" y="10"/>
-                                        <rect width="3" height="3" x="7" y="17"/>
-                                        <rect width="3" height="3" x="14" y="17"/>
+                                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <rect width="5" height="5" x="3" y="3" rx="1"/>
+                                        <rect width="5" height="5" x="16" y="3" rx="1"/>
+                                        <rect width="5" height="5" x="3" y="16" rx="1"/>
+                                        <path d="M21 16h-3a2 2 0 0 0-2 2v3"/>
+                                        <path d="M21 21v.01"/>
+                                        <path d="M12 7v3a2 2 0 0 1-2 2H7"/>
+                                        <path d="M3 12h.01"/>
+                                        <path d="M12 3h.01"/>
+                                        <path d="M12 16v.01"/>
+                                        <path d="M16 12h1"/>
+                                        <path d="M21 12v.01"/>
+                                        <path d="M12 21v-1"/>
                                     </svg>
                                 </div>
                                 <div class="share-content">
                                     <h4><?php _e('QR Code', 'mobooking'); ?></h4>
-                                    <p><?php _e('Generate a QR code for easy mobile access', 'mobooking'); ?></p>
-                                    <div class="qr-section">
-                                        <div class="qr-display" id="qr-code-container">
-                                            <div class="qr-placeholder">
-                                                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1">
-                                                    <rect width="3" height="3" x="7" y="3"/>
-                                                    <rect width="3" height="3" x="14" y="3"/>
-                                                    <rect width="3" height="3" x="7" y="10"/>
-                                                    <rect width="3" height="3" x="14" y="10"/>
-                                                    <rect width="3" height="3" x="7" y="17"/>
-                                                    <rect width="3" height="3" x="14" y="17"/>
-                                                </svg>
-                                                <span><?php _e('QR Code will appear here', 'mobooking'); ?></span>
-                                            </div>
-                                        </div>
-                                        <div class="qr-actions">
-                                            <button type="button" id="generate-qr-btn" class="btn-secondary btn-small">
-                                                <?php _e('Generate QR', 'mobooking'); ?>
-                                            </button>
-                                            <button type="button" id="download-qr-btn" class="btn-secondary btn-small" style="display: none;">
-                                                <?php _e('Download', 'mobooking'); ?>
-                                            </button>
+                                    <p><?php _e('Generate a QR code that customers can scan to access your booking form', 'mobooking'); ?></p>
+                                    <div class="qr-controls">
+                                        <button type="button" id="generate-qr-btn" class="btn-secondary">
+                                            <?php _e('Generate QR Code', 'mobooking'); ?>
+                                        </button>
+                                        <div id="qr-display" class="qr-display" style="display: none;">
+                                            <!-- QR code will be inserted here -->
                                         </div>
                                     </div>
                                 </div>
@@ -516,1024 +628,314 @@ $can_publish = ($services_count > 0 && $areas_count > 0);
                     </div>
                 </div>
             </div>
-            
-            <!-- Advanced Tab -->
-            <div id="advanced" class="tab-content">
-                <div class="content-grid">
-                    <!-- SEO Settings -->
-                    <div class="settings-group">
-                        <div class="group-header">
-                            <h3><?php _e('SEO Optimization', 'mobooking'); ?></h3>
-                            <p><?php _e('Improve your form\'s search engine visibility', 'mobooking'); ?></p>
-                        </div>
-                        
-                        <div class="form-fields">
-                            <div class="form-group">
-                                <label for="seo-title" class="field-label"><?php _e('Page Title', 'mobooking'); ?></label>
-                                <input type="text" id="seo-title" name="seo_title" class="form-control" 
-                                       value="<?php echo esc_attr($settings->seo_title); ?>" 
-                                       placeholder="<?php _e('Book Our Professional Services - Your Company Name', 'mobooking'); ?>">
-                                <small class="field-note"><?php _e('Recommended: 50-60 characters', 'mobooking'); ?></small>
-                            </div>
-                            
-                            <div class="form-group">
-                                <label for="seo-description" class="field-label"><?php _e('Meta Description', 'mobooking'); ?></label>
-                                <textarea id="seo-description" name="seo_description" class="form-control" rows="3" 
-                                          placeholder="<?php _e('Book our professional services online. Quick, easy, and secure booking process...', 'mobooking'); ?>"><?php echo esc_textarea($settings->seo_description); ?></textarea>
-                                <small class="field-note"><?php _e('Recommended: 150-160 characters', 'mobooking'); ?></small>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <!-- Custom Code -->
-                    <div class="settings-group">
-                        <div class="group-header">
-                            <h3><?php _e('Custom Code', 'mobooking'); ?></h3>
-                            <p><?php _e('Add custom styling and tracking codes', 'mobooking'); ?></p>
-                        </div>
-                        
-                        <div class="form-fields">
-                            <div class="form-group">
-                                <label for="analytics-code" class="field-label"><?php _e('Analytics & Tracking', 'mobooking'); ?></label>
-                                <textarea id="analytics-code" name="analytics_code" class="form-control code-textarea" rows="6" 
-                                          placeholder="<!-- Google Analytics, Facebook Pixel, or other tracking codes -->"><?php echo esc_textarea($settings->analytics_code); ?></textarea>
-                                <small class="field-note"><?php _e('Add Google Analytics, Facebook Pixel, or other tracking codes', 'mobooking'); ?></small>
-                            </div>
-                            
-                            <div class="form-group">
-                                <label for="custom-css" class="field-label"><?php _e('Custom CSS', 'mobooking'); ?></label>
-                                <textarea id="custom-css" name="custom_css" class="form-control code-textarea" rows="8" 
-                                          placeholder="/* Add your custom CSS here */
-.mobooking-booking-form-container {
-   /* Your custom styles */
-}"><?php echo esc_textarea($settings->custom_css); ?></textarea>
-                                <small class="field-note"><?php _e('Advanced users only. Custom CSS will override default styles.', 'mobooking'); ?></small>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <!-- Footer Content -->
-                    <div class="settings-group">
-                        <div class="group-header">
-                            <h3><?php _e('Form Footer', 'mobooking'); ?></h3>
-                            <p><?php _e('Add additional information to the bottom of your form', 'mobooking'); ?></p>
-                        </div>
-                        
-                        <div class="form-fields">
-                            <div class="form-group">
-                                <label for="custom-footer-text" class="field-label"><?php _e('Footer Text', 'mobooking'); ?></label>
-                                <textarea id="custom-footer-text" name="custom_footer_text" class="form-control" rows="4" 
-                                          placeholder="<?php _e('Contact us at info@yourcompany.com or call (555) 123-4567', 'mobooking'); ?>"><?php echo esc_textarea($settings->custom_footer_text); ?></textarea>
-                            </div>
-                            
-                            <div class="field-row">
-                                <div class="form-group">
-                                    <label for="contact-info" class="field-label"><?php _e('Contact Information', 'mobooking'); ?></label>
-                                    <textarea id="contact-info" name="contact_info" class="form-control" rows="3" 
-                                              placeholder="<?php _e('Phone: (555) 123-4567\nEmail: info@company.com\nAddress: 123 Main St', 'mobooking'); ?>"><?php echo esc_textarea($settings->contact_info); ?></textarea>
-                                </div>
-                                
-                                <div class="form-group">
-                                    <label for="social-links" class="field-label"><?php _e('Social Media', 'mobooking'); ?></label>
-                                    <textarea id="social-links" name="social_links" class="form-control" rows="3" 
-                                              placeholder="<?php _e('Facebook: https://facebook.com/yourpage\nInstagram: https://instagram.com/yourprofile', 'mobooking'); ?>"><?php echo esc_textarea($settings->social_links); ?></textarea>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
         </form>
-        
-        <!-- Form Actions -->
-        <div class="form-actions">
-            <div class="actions-left">
-                <button type="button" id="reset-settings-btn" class="btn-secondary">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <polyline points="1 4 1 10 7 10"/>
-                        <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/>
-                    </svg>
-                    <?php _e('Reset to Defaults', 'mobooking'); ?>
-                </button>
-            </div>
-            
-            <div class="actions-right">
-                <button type="submit" id="save-settings-btn" class="btn-primary">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
-                        <polyline points="17,21 17,13 7,13 7,21"/>
-                        <polyline points="7,3 7,8 15,8"/>
-                    </svg>
-                    <span class="btn-text"><?php _e('Save Settings', 'mobooking'); ?></span>
-                    <span class="btn-loading" style="display: none;">
-                        <div class="spinner-modern"></div>
-                        <?php _e('Saving...', 'mobooking'); ?>
-                    </span>
-                </button>
-            </div>
-        </div>
     </div>
 </div>
 
-<!-- Preview Modal -->
-<div id="form-preview-modal" class="mobooking-modal" style="display:none;">
-    <div class="modal-content modal-large">
-        <div class="modal-header">
-            <h3><?php _e('Form Preview', 'mobooking'); ?></h3>
-            <div class="modal-actions">
-                <button type="button" id="refresh-preview-btn" class="btn-secondary btn-small">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <polyline points="1 4 1 10 7 10"/>
-                        <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/>
-                    </svg>
-                    <?php _e('Refresh', 'mobooking'); ?>
-                </button>
-                <button type="button" id="open-in-new-tab-btn" class="btn-secondary btn-small" data-url="<?php echo esc_attr($booking_url); ?>">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>
-                        <polyline points="15,3 21,3 21,9"/>
-                        <line x1="10" y1="14" x2="21" y2="3"/>
-                    </svg>
-                    <?php _e('Open in New Tab', 'mobooking'); ?>
-                </button>
-            </div>
-            <button class="modal-close" aria-label="<?php _e('Close', 'mobooking'); ?>">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M18 6 6 18M6 6l12 12"/>
-                </svg>
-            </button>
-        </div>
-        
-        <div class="modal-body">
-            <div class="preview-container">
-                <iframe id="form-preview-iframe" src="<?php echo esc_url($booking_url); ?>" 
-                        style="width: 100%; height: 600px; border: none; border-radius: 8px;"></iframe>
-            </div>
-        </div>
-    </div>
-</div>
-
+<!-- Enhanced CSS for new features -->
 <style>
-/* Existing styles remain the same - just keeping the essential CSS */
-.booking-form-section {
-    animation: fadeIn 0.4s ease-out;
-}
-
-.section-header {
-    margin-bottom: 2rem;
-    padding-bottom: 1.5rem;
-    border-bottom: 1px solid hsl(var(--border));
-}
-
-.header-content {
-    display: flex;
-    align-items: flex-start;
-    justify-content: space-between;
-    gap: 2rem;
-}
-
-.header-main {
-    flex: 1;
-    display: flex;
-    align-items: flex-start;
-    gap: 3rem;
-}
-
-.title-group {
-    flex: 1;
-}
-
-.page-title {
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-    margin: 0 0 0.5rem 0;
-    font-size: 1.875rem;
-    font-weight: 700;
-    color: hsl(var(--foreground));
-    line-height: 1.2;
-}
-
-.title-icon {
-    width: 2rem;
-    height: 2rem;
-    color: hsl(var(--primary));
-    flex-shrink: 0;
-}
-
-.page-subtitle {
-    margin: 0;
-    font-size: 1rem;
-    color: hsl(var(--muted-foreground));
-    line-height: 1.5;
-}
-
-.header-stats {
-    display: flex;
-    gap: 1rem;
-    flex-shrink: 0;
-}
-
-.stat-card {
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-    padding: 1rem 1.25rem;
-    background: hsl(var(--card));
-    border: 1px solid hsl(var(--border));
-    border-radius: var(--radius);
-    min-width: 7rem;
-}
-
-.stat-icon {
-    width: 2rem;
-    height: 2rem;
-    border-radius: calc(var(--radius) - 2px);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex-shrink: 0;
-}
-
-.stat-icon.success {
-    background: hsl(var(--success) / 0.1);
-    color: hsl(var(--success));
-}
-
-.stat-icon.warning {
-    background: hsl(var(--warning) / 0.1);
-    color: hsl(var(--warning));
-}
-
-.stat-icon.inactive {
-    background: hsl(var(--muted) / 0.1);
-    color: hsl(var(--muted-foreground));
-}
-
-.stat-number {
-    font-size: 1.25rem;
-    font-weight: 700;
-    color: hsl(var(--foreground));
-    line-height: 1;
-}
-
-.stat-label {
-    font-size: 0.75rem;
-    color: hsl(var(--muted-foreground));
-    margin-top: 0.125rem;
-}
-
-.header-actions {
-    display: flex;
-    gap: 0.75rem;
-    flex-shrink: 0;
-}
-
-.setup-alert {
-    display: flex;
-    gap: 1rem;
-    padding: 1.5rem;
-    background: hsl(var(--warning) / 0.1);
-    border: 1px solid hsl(var(--warning) / 0.3);
-    border-radius: var(--radius);
-    margin-bottom: 2rem;
-}
-
-.alert-icon {
-    width: 2.5rem;
-    height: 2.5rem;
-    border-radius: 50%;
-    background: hsl(var(--warning) / 0.2);
-    color: hsl(var(--warning));
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex-shrink: 0;
-}
-
-.alert-content {
-    flex: 1;
-}
-
-.alert-content h3 {
-    margin: 0 0 0.5rem 0;
-    font-size: 1.125rem;
-    font-weight: 600;
-    color: hsl(var(--warning));
-}
-
-.alert-content p {
-    margin: 0 0 1rem 0;
-    color: hsl(var(--foreground));
-}
-
-.requirements-list {
+/* Logo upload styles */
+.logo-upload-container {
     display: flex;
     flex-direction: column;
-    gap: 0.75rem;
-}
-
-.requirement-item {
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-    padding: 0.75rem;
-    background: hsl(var(--background));
-    border-radius: calc(var(--radius) - 2px);
-}
-
-.requirement-item.completed {
-    background: hsl(var(--success) / 0.1);
-}
-
-.check-icon {
-    color: hsl(var(--success));
-}
-
-.cross-icon {
-    color: hsl(var(--destructive));
-}
-
-.setup-link {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.25rem;
-    margin-left: auto;
-    font-size: 0.875rem;
-    font-weight: 500;
-    color: hsl(var(--primary));
-    text-decoration: none;
-    transition: all 0.2s ease;
-}
-
-.setup-link:hover {
-    color: hsl(var(--primary) / 0.8);
-    gap: 0.5rem;
-}
-
-.form-container {
-    background: hsl(var(--card));
-    border: 1px solid hsl(var(--border));
-    border-radius: calc(var(--radius) + 4px);
-    overflow: hidden;
-}
-
-.form-tabs {
-    border-bottom: 1px solid hsl(var(--border));
-}
-
-.tab-list {
-    display: flex;
-}
-
-.tab-button {
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-    padding: 1rem 1.25rem;
-    border: none;
-    background: none;
-    border-radius: var(--radius);
-    cursor: pointer;
-    transition: all 0.2s ease;
-    flex: 1;
-    min-width: 0;
-    font-size: 0.875rem;
-    font-weight: 500;
-    color: hsl(var(--muted-foreground));
-}
-
-.tab-button:hover {
-    background: hsl(var(--accent) / 0.5);
-    color: hsl(var(--foreground));
-}
-
-.tab-button.active {
-    background: hsl(var(--background));
-    color: hsl(var(--foreground));
-    box-shadow: var(--shadow-sm);
-    border: 1px solid hsl(var(--border));
-}
-
-.tab-icon {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 1.5rem;
-    height: 1.5rem;
-    border-radius: calc(var(--radius) - 2px);
-    background: hsl(var(--muted) / 0.5);
-    transition: all 0.2s ease;
-    flex-shrink: 0;
-}
-
-.tab-button.active .tab-icon {
-    background: hsl(var(--primary));
-    color: white;
-}
-
-.form-content {
-    position: relative;
-}
-
-.tab-content {
-    display: none;
-    padding: 2rem;
-}
-
-.tab-content.active {
-    display: block;
-}
-
-.content-grid {
-    display: flex;
-    flex-direction: column;
-    gap: 2rem;
-}
-/* 
-.settings-group {
-    padding: 1.5rem;
-    border: 1px solid hsl(var(--border));
-    border-radius: var(--radius);
-    background: hsl(var(--card));
-} */
-
-.group-header {
-    margin-bottom: 1.5rem;
-    padding-bottom: 1rem;
-    border-bottom: 1px solid hsl(var(--border));
-}
-
-.group-header h3 {
-    margin: 0 0 0.5rem 0;
-    font-size: 1.125rem;
-    font-weight: 600;
-    color: hsl(var(--foreground));
-}
-
-.group-header p {
-    margin: 0;
-    font-size: 0.875rem;
-    color: hsl(var(--muted-foreground));
-    line-height: 1.5;
-}
-
-.form-fields {
-    display: flex;
-    flex-direction: column;
-    gap: 1.5rem;
-}
-
-.field-row {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 1.5rem;
-}
-
-.form-group {
-    display: flex;
-    flex-direction: column;
-    gap: 0.5rem;
-}
-
-.field-label {
-    font-size: 0.875rem;
-    font-weight: 600;
-    color: hsl(var(--foreground));
-}
-
-.field-label.required::after {
-    content: " *";
-    color: hsl(var(--destructive));
-}
-
-.form-control {
-    width: 100%;
-    padding: 0.75rem 1rem;
-    border: 1px solid hsl(var(--border));
-    border-radius: var(--radius);
-    background: hsl(var(--background));
-    font-size: 0.875rem;
-    color: hsl(var(--foreground));
-    transition: all 0.2s ease;
-}
-
-.form-control:focus {
-    outline: none;
-    border-color: hsl(var(--ring));
-    box-shadow: 0 0 0 2px hsl(var(--ring) / 0.2);
-}
-
-.field-note {
-    font-size: 0.75rem;
-    color: hsl(var(--muted-foreground));
-    line-height: 1.4;
-}
-
-.field-note.warning {
-    color: hsl(var(--warning));
-}
-
-.color-fields {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-    gap: 1.5rem;
-}
-
-.color-input-group {
-    display: flex;
-    gap: 0.5rem;
-    align-items: center;
-}
-
-.color-picker {
-    width: 3rem;
-    height: 2.5rem;
-    padding: 0;
-    border: 1px solid hsl(var(--border));
-    border-radius: var(--radius);
-    cursor: pointer;
-}
-
-.color-text {
-    flex: 1;
-    font-family: ui-monospace, 'SF Mono', 'Monaco', 'Cascadia Code', monospace;
-    font-size: 0.8125rem;
-}
-
-.input-with-action {
-    display: flex;
-    gap: 0.75rem;
-    align-items: stretch;
-}
-
-.input-with-action .form-control {
-    flex: 1;
-}
-
-.checkbox-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
     gap: 1rem;
 }
 
-.checkbox-option {
+.current-logo {
     display: flex;
-    align-items: flex-start;
-    gap: 0.75rem;
+    align-items: center;
+    gap: 1rem;
     padding: 1rem;
     border: 1px solid hsl(var(--border));
     border-radius: var(--radius);
+    background: hsl(var(--muted) / 0.1);
+}
+
+.logo-actions {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.file-upload-section {
+    position: relative;
+}
+
+.file-input {
+    position: absolute;
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+
+.file-upload-label {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.75rem 1rem;
+    border: 2px dashed hsl(var(--border));
+    border-radius: var(--radius);
+    background: hsl(var(--background));
     cursor: pointer;
     transition: all 0.2s ease;
 }
 
-.checkbox-option:hover {
-    background: hsl(var(--accent) / 0.5);
-    border-color: hsl(var(--primary) / 0.3);
+.file-upload-label:hover {
+    border-color: hsl(var(--primary));
+    background: hsl(var(--primary) / 0.05);
 }
 
-.checkbox-option input[type="checkbox"] {
-    width: 1.25rem;
-    height: 1.25rem;
-    margin: 0;
-    flex-shrink: 0;
+/* Social links styles */
+.social-links-container {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 1rem;
 }
 
-.checkbox-content {
-    flex: 1;
-}
-
-.checkbox-title {
-    font-weight: 500;
-    color: hsl(var(--foreground));
-    margin-bottom: 0.125rem;
-}
-
-.checkbox-desc {
-    font-size: 0.75rem;
-    color: hsl(var(--muted-foreground));
-    line-height: 1.4;
-}
-
-.share-options {
+.social-link-field {
     display: flex;
     flex-direction: column;
-    gap: 2rem;
+    gap: 0.5rem;
 }
 
-.share-option {
-    display: flex;
-    gap: 1rem;
-    padding: 1.5rem;
-    border: 1px solid hsl(var(--border));
-    border-radius: var(--radius);
-    background: hsl(var(--card));
-}
-
-.share-icon {
-    width: 3rem;
-    height: 3rem;
-    border-radius: var(--radius);
-    background: hsl(var(--primary) / 0.1);
-    color: hsl(var(--primary));
+.input-with-icon {
+    position: relative;
     display: flex;
     align-items: center;
-    justify-content: center;
-    flex-shrink: 0;
 }
 
-.share-content {
-    flex: 1;
-}
-
-.share-content h4 {
-    margin: 0 0 0.5rem 0;
-    font-size: 1rem;
-    font-weight: 600;
-    color: hsl(var(--foreground));
-}
-
-.share-content p {
-    margin: 0 0 1rem 0;
-    font-size: 0.875rem;
+.social-icon {
+    position: absolute;
+    left: 0.75rem;
+    z-index: 1;
     color: hsl(var(--muted-foreground));
 }
 
-.url-input-group {
-    display: flex;
-    gap: 0.5rem;
-    align-items: stretch;
+.input-with-icon input {
+    padding-left: 2.5rem;
 }
 
-.url-display {
-    flex: 1;
-    font-family: ui-monospace, 'SF Mono', 'Monaco', 'Cascadia Code', monospace;
-    font-size: 0.8125rem;
-    background: hsl(var(--muted) / 0.5);
-}
-
-.embed-controls {
-    display: flex;
-    flex-direction: column;
-    gap: 1rem;
-}
-
-.embed-settings {
-    display: flex;
-    flex-direction: column;
-    gap: 1rem;
-}
-
-.embed-code-section {
-    display: flex;
-    flex-direction: column;
-    gap: 0.75rem;
-}
-
+/* Code textarea styles */
 .code-textarea {
-    font-family: ui-monospace, 'SF Mono', 'Monaco', 'Cascadia Code', monospace;
+    font-family: 'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono', Consolas, 'Courier New', monospace;
+    line-height: 1.4;
     font-size: 0.8125rem;
-    background: hsl(var(--muted) / 0.5);
-    resize: vertical;
+    background: hsl(var(--muted) / 0.1);
 }
 
-.qr-section {
+/* QR code styles */
+.qr-controls {
     display: flex;
     flex-direction: column;
     gap: 1rem;
 }
 
 .qr-display {
-    width: 8rem;
-    height: 8rem;
+    text-align: center;
+    padding: 1rem;
     border: 1px solid hsl(var(--border));
     border-radius: var(--radius);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background: hsl(var(--muted) / 0.3);
-    margin-bottom: 1rem;
+    background: hsl(var(--background));
 }
 
-.qr-placeholder {
-    display: flex;
-    flex-direction: column;
+/* Enhanced button styles */
+.btn-primary, .btn-secondary {
+    display: inline-flex;
     align-items: center;
     gap: 0.5rem;
-    color: hsl(var(--muted-foreground));
-    text-align: center;
-}
-
-.qr-placeholder span {
-    font-size: 0.75rem;
-}
-
-.qr-actions {
-    display: flex;
-    gap: 0.5rem;
-}
-
-.btn-small {
-    padding: 0.5rem 0.875rem;
-    font-size: 0.8125rem;
-}
-
-.form-actions {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 1.5rem 2rem;
-    border-top: 1px solid hsl(var(--border));
-    background: linear-gradient(135deg, hsl(var(--muted) / 0.3), hsl(var(--muted) / 0.1));
-    gap: 1rem;
-}
-
-.actions-left,
-.actions-right {
-    display: flex;
-    align-items: center;
-    gap: 1rem;
+    padding: 0.75rem 1rem;
+    border-radius: var(--radius);
+    font-size: 0.875rem;
+    font-weight: 500;
+    transition: all 0.2s ease;
+    cursor: pointer;
+    border: 1px solid;
+    text-decoration: none;
 }
 
 .btn-primary {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    padding: 0.75rem 1.5rem;
-    background: linear-gradient(135deg, hsl(var(--primary)), hsl(var(--primary) / 0.9));
+    background: hsl(var(--primary));
     color: hsl(var(--primary-foreground));
-    border: none;
-    border-radius: 6px;
-    font-size: 0.875rem;
-    font-weight: 600;
-    cursor: pointer;
-    transition: all 0.2s ease;
-    box-shadow: 0 2px 4px hsl(var(--primary) / 0.2);
+    border-color: hsl(var(--primary));
 }
 
 .btn-primary:hover {
-    background: linear-gradient(135deg, hsl(var(--primary) / 0.9), hsl(var(--primary) / 0.8));
+    background: hsl(var(--primary) / 0.9);
     transform: translateY(-1px);
     box-shadow: 0 4px 12px hsl(var(--primary) / 0.3);
 }
 
 .btn-secondary {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    padding: 0.5rem 1rem;
     background: hsl(var(--secondary));
     color: hsl(var(--secondary-foreground));
-    border: 1px solid hsl(var(--border));
-    border-radius: 6px;
-    text-decoration: none;
-    font-size: 0.875rem;
-    cursor: pointer;
-    transition: all 0.2s ease;
+    border-color: hsl(var(--border));
 }
 
 .btn-secondary:hover {
-    background: hsl(var(--accent));
+    background: hsl(var(--secondary) / 0.8);
+    border-color: hsl(var(--primary) / 0.3);
 }
 
-.btn-secondary svg {
-    width: 1rem;
-    height: 1rem;
-}
-
-.btn-loading {
-    display: none;
-}
-
-.loading .btn-text {
-    display: none;
-}
-
-.loading .btn-loading {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-}
-
-.spinner-modern {
-    width: 1rem;
-    height: 1rem;
-    border: 2px solid transparent;
-    border-top: 2px solid currentColor;
-    border-radius: 50%;
-    animation: spin 1s linear infinite;
-}
-
-@keyframes spin {
-    to { transform: rotate(360deg); }
-}
-
-.mobooking-modal {
-    position: fixed;
-    inset: 0;
-    z-index: 100;
-    background: rgba(0, 0, 0, 0.6);
-    backdrop-filter: blur(4px);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    opacity: 0;
-    visibility: hidden;
-    transition: all 0.3s ease;
-}
-
-.mobooking-modal:not([style*="display: none"]) {
-    opacity: 1;
-    visibility: visible;
-}
-
-.modal-content {
-    background: hsl(var(--card));
-    border: 1px solid hsl(var(--border));
-    border-radius: 12px;
-    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.2);
-    width: 90vw;
-    max-width: 600px;
-    max-height: 90vh;
-    overflow: hidden;
-    animation: modalSlideUp 0.3s ease;
-}
-
-.modal-large {
-    max-width: 90vw;
-    width: 90vw;
-    height: 90vh;
-    max-height: 90vh;
-}
-
-@keyframes modalSlideUp {
-    from {
-        opacity: 0;
-        transform: translateY(2rem) scale(0.95);
-    }
-    to {
-        opacity: 1;
-        transform: translateY(0) scale(1);
-    }
-}
-
-.modal-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 1.5rem 2rem;
-    border-bottom: 1px solid hsl(var(--border));
-    background: linear-gradient(135deg, hsl(var(--muted) / 0.3), hsl(var(--muted) / 0.1));
-}
-
-.modal-header h3 {
-    margin: 0;
-    font-size: 1.125rem;
-    font-weight: 600;
-    color: hsl(var(--foreground));
-}
-
-.modal-actions {
-    display: flex;
-    gap: 0.75rem;
-}
-
-.modal-close {
-    width: 2rem;
-    height: 2rem;
-    border: 1px solid hsl(var(--border));
-    background: hsl(var(--background));
-    border-radius: 6px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-    transition: all 0.2s ease;
-}
-
-.modal-close:hover {
-    background: hsl(var(--destructive));
-    border-color: hsl(var(--destructive));
-    color: white;
-}
-
-.modal-close svg {
-    width: 1rem;
-    height: 1rem;
-}
-
-.modal-body {
-    padding: 1.5rem 2rem;
-    flex: 1;
-    overflow-y: auto;
-}
-
-.preview-container {
-    width: 100%;
-    height: 100%;
-    border-radius: var(--radius);
-    overflow: hidden;
-    border: 1px solid hsl(var(--border));
-}
-
+/* Responsive design */
 @media (max-width: 768px) {
-    .header-content {
-        flex-direction: column;
-        align-items: stretch;
-        gap: 1.5rem;
-    }
-    
-    .header-main {
-        flex-direction: column;
-        gap: 1.5rem;
-    }
-    
-    .header-stats {
-        justify-content: center;
-        flex-wrap: wrap;
-    }
-    
-    .tab-list {
-        flex-direction: column;
-    }
-    
     .field-row {
         grid-template-columns: 1fr;
-        gap: 1rem;
     }
     
     .color-fields {
+        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    }
+    
+    .social-links-container {
         grid-template-columns: 1fr;
-    }
-    
-    .checkbox-grid {
-        grid-template-columns: 1fr;
-    }
-    
-    .form-actions {
-        flex-direction: column-reverse;
-        gap: 1rem;
-    }
-    
-    .actions-left,
-    .actions-right {
-        width: 100%;
-        justify-content: center;
-    }
-    
-    .actions-right .btn-primary,
-    .actions-right .btn-secondary {
-        flex: 1;
-    }
-    
-    .share-option {
-        flex-direction: column;
-        text-align: center;
-    }
-    
-    .url-input-group {
-        flex-direction: column;
-    }
-    
-    .modal-large {
-        width: 95vw;
-        height: 95vh;
-    }
-    
-    .modal-header {
-        padding: 1rem;
-        flex-direction: column;
-        gap: 1rem;
-    }
-    
-    .modal-actions {
-        width: 100%;
-        justify-content: center;
-    }
-}
-
-@keyframes fadeIn {
-    from {
-        opacity: 0;
-        transform: translateY(10px);
-    }
-    to {
-        opacity: 1;
-        transform: translateY(0);
     }
 }
 </style>
 
+<!-- Enhanced JavaScript for new functionality -->
 <script>
 jQuery(document).ready(function($) {
-    // Enhanced Booking Form Manager - REMOVED SAVE DRAFT FUNCTIONALITY
-    const BookingFormManager = {
-        // Tab switching
+    
+    // Initialize the enhanced booking form manager
+    const EnhancedBookingFormManager = {
+        
+        init: function() {
+            this.initFileUpload();
+            this.initSocialLinksHandler();
+            this.initColorPickers();
+            this.initTabs();
+            this.initCopyButtons();
+            this.initEmbedGeneration();
+            this.initQRGeneration();
+            this.initFormSaving();
+            this.initResetSettings();
+        },
+        
+        // Handle logo file upload
+        initFileUpload: function() {
+            $('#logo-upload').on('change', function(e) {
+                const file = e.target.files[0];
+                if (file) {
+                    // Validate file type
+                    const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/svg+xml'];
+                    if (!allowedTypes.includes(file.type)) {
+                        alert('Please select a valid image file (JPG, PNG, or SVG).');
+                        return;
+                    }
+                    
+                    // Validate file size (5MB limit)
+                    if (file.size > 5 * 1024 * 1024) {
+                        alert('File size must be less than 5MB.');
+                        return;
+                    }
+                    
+                    // Create FormData and upload
+                    const formData = new FormData();
+                    formData.append('logo_file', file);
+                    formData.append('action', 'mobooking_upload_logo');
+                    formData.append('nonce', $('#nonce').val());
+                    
+                    // Show loading state
+                    $('.file-upload-label span').text('Uploading...');
+                    
+                    $.ajax({
+                        url: mobookingDashboard.ajaxUrl,
+                        type: 'POST',
+                        data: formData,
+                        processData: false,
+                        contentType: false,
+                        success: function(response) {
+                            if (response.success) {
+                                // Update the hidden URL field
+                                $('#logo-url').val(response.data.url);
+                                
+                                // Show the uploaded logo
+                                const logoHtml = `
+                                    <div id="current-logo-display" class="current-logo">
+                                        <img src="${response.data.url}" alt="Current Logo" style="max-height: 80px; max-width: 200px;">
+                                        <div class="logo-actions">
+                                            <button type="button" id="remove-logo-btn" class="btn-secondary">
+                                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                                    <polyline points="3,6 5,6 21,6"/>
+                                                    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+                                                </svg>
+                                                Remove
+                                            </button>
+                                        </div>
+                                    </div>
+                                `;
+                                
+                                // Remove existing logo display and add new one
+                                $('#current-logo-display').remove();
+                                $('.logo-upload-container').prepend(logoHtml);
+                                
+                                // Re-bind remove button
+                                EnhancedBookingFormManager.bindRemoveLogoButton();
+                                
+                            } else {
+                                alert(response.data || 'Upload failed. Please try again.');
+                            }
+                        },
+                        error: function() {
+                            alert('Upload failed. Please try again.');
+                        },
+                        complete: function() {
+                            $('.file-upload-label span').text('Choose Logo Image');
+                            $('#logo-upload').val(''); // Reset file input
+                        }
+                    });
+                }
+            });
+            
+            // Bind remove logo button if it exists
+            this.bindRemoveLogoButton();
+        },
+        
+        bindRemoveLogoButton: function() {
+            $(document).off('click', '#remove-logo-btn').on('click', '#remove-logo-btn', function() {
+                if (confirm('Are you sure you want to remove the logo?')) {
+                    $('#logo-url').val('');
+                    $('#current-logo-display').remove();
+                }
+            });
+        },
+        
+        // Handle social links input combination
+        initSocialLinksHandler: function() {
+            $('.social-url-input').on('input', function() {
+                EnhancedBookingFormManager.updateCombinedSocialLinks();
+            });
+        },
+        
+        updateCombinedSocialLinks: function() {
+            const socialLinks = [];
+            $('.social-url-input').each(function() {
+                const $input = $(this);
+                const platform = $input.attr('name').replace('social_', '');
+                const url = $input.val().trim();
+                
+                if (url) {
+                    // Capitalize platform name
+                    const platformName = platform.charAt(0).toUpperCase() + platform.slice(1);
+                    socialLinks.push(platformName + ': ' + url);
+                }
+            });
+            
+            $('#social-links-combined').val(socialLinks.join('\n'));
+        },
+        
+        // Enhanced color picker functionality
+        initColorPickers: function() {
+            $('.color-picker').on('input change', function() {
+                const $colorPicker = $(this);
+                const $textInput = $colorPicker.siblings('.color-text');
+                $textInput.val($colorPicker.val());
+            });
+        },
+        
+        // Tab functionality
         initTabs: function() {
             $('.tab-button').on('click', function() {
-                const target = $(this).data('tab');
-                console.log('Tab clicked:', target);
+                const tabId = $(this).data('tab');
                 
                 // Update active tab button
                 $('.tab-button').removeClass('active');
@@ -1541,56 +943,40 @@ jQuery(document).ready(function($) {
                 
                 // Update active tab content
                 $('.tab-content').removeClass('active');
-                $('#' + target).addClass('active');
+                $(`.tab-content[data-tab="${tabId}"]`).addClass('active');
             });
         },
         
-        // Color picker updates
-        initColorPickers: function() {
-            $('.color-picker').on('change', function() {
-                const color = $(this).val();
-                $(this).siblings('.color-text').val(color);
-            });
-        },
-        
-        // Copy functionality
+        // Copy to clipboard functionality
         initCopyButtons: function() {
-            $('.copy-url-btn, #copy-link-btn').on('click', function() {
-                const url = $(this).data('url') || $(this).closest('.url-input-group').find('.url-display').val();
+            $('.copy-btn').on('click', function() {
+                const targetSelector = $(this).data('target');
+                const $target = $(targetSelector);
                 
-                if (navigator.clipboard) {
-                    navigator.clipboard.writeText(url).then(() => {
-                        BookingFormManager.showNotification('URL copied to clipboard!', 'success');
-                    });
-                } else {
-                    // Fallback for older browsers
-                    const textarea = $('<textarea>').val(url).appendTo('body').select();
+                if ($target.length) {
+                    $target.select();
                     document.execCommand('copy');
-                    textarea.remove();
-                    BookingFormManager.showNotification('URL copied to clipboard!', 'success');
+                    
+                    // Visual feedback
+                    const originalText = $(this).find('span').text() || $(this).text();
+                    const $button = $(this);
+                    
+                    $button.addClass('copied');
+                    if ($button.find('span').length) {
+                        $button.find('span').text('Copied!');
+                    } else {
+                        $button.text('Copied!');
+                    }
+                    
+                    setTimeout(() => {
+                        $button.removeClass('copied');
+                        if ($button.find('span').length) {
+                            $button.find('span').text(originalText);
+                        } else {
+                            $button.text(originalText);
+                        }
+                    }, 2000);
                 }
-            });
-            
-            $('#copy-embed-btn').on('click', function() {
-                const embedCode = $('#embed-code-display').val();
-                
-                if (navigator.clipboard) {
-                    navigator.clipboard.writeText(embedCode).then(() => {
-                        BookingFormManager.showNotification('Embed code copied to clipboard!', 'success');
-                    });
-                } else {
-                    $('#embed-code-display').select();
-                    document.execCommand('copy');
-                    BookingFormManager.showNotification('Embed code copied to clipboard!', 'success');
-                }
-            });
-        },
-        
-        // Open URL functionality
-        initOpenButtons: function() {
-            $('.open-url-btn, #open-in-new-tab-btn').on('click', function() {
-                const url = $(this).data('url');
-                window.open(url, '_blank');
             });
         },
         
@@ -1599,323 +985,281 @@ jQuery(document).ready(function($) {
             $('#generate-embed-btn').on('click', function() {
                 const width = $('#embed-width').val() || '100%';
                 const height = $('#embed-height').val() || '800';
-                const embedUrl = $('input[name="embed_url"]').val() || $('.url-display').val();
                 
-                const embedCode = `<iframe src="${embedUrl}" width="${width}" height="${height}" frameborder="0" style="border: none; border-radius: 8px;"></iframe>`;
-                
-                $('#embed-code-display').val(embedCode);
-                $('#copy-embed-btn').show();
+                $.post(mobookingDashboard.ajaxUrl, {
+                    action: 'mobooking_generate_embed_code',
+                    nonce: $('#nonce').val(),
+                    width: width,
+                    height: height
+                }, function(response) {
+                    if (response.success) {
+                        $('#embed-code').val(response.data.embed_code);
+                    } else {
+                        alert(response.data || 'Failed to generate embed code.');
+                    }
+                });
             });
         },
         
-        // QR Code generation
+        // QR code generation
         initQRGeneration: function() {
             $('#generate-qr-btn').on('click', function() {
-                const url = $('.url-display').val();
-                const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(url)}`;
+                const bookingUrl = $('#booking-url').val();
                 
-                $('#qr-code-container').html(`<img src="${qrCodeUrl}" alt="QR Code" style="width: 100%; height: 100%; object-fit: contain;">`);
-                $('#download-qr-btn').show().data('qr-url', qrCodeUrl);
-            });
-            
-            $('#download-qr-btn').on('click', function() {
-                const qrUrl = $(this).data('qr-url');
-                const link = $('<a>').attr({
-                    href: qrUrl,
-                    download: 'booking-form-qr-code.png'
-                }).appendTo('body');
-                link[0].click();
-                link.remove();
-            });
-        },
-        
-        // Form preview
-        initPreview: function() {
-            $('#preview-form-btn').on('click', function() {
-                $('#form-preview-modal').show();
-            });
-            
-            $('#refresh-preview-btn').on('click', function() {
-                const iframe = $('#form-preview-iframe')[0];
-                iframe.src = iframe.src;
-            });
-            
-            // Modal close functionality
-            $('.modal-close, .mobooking-modal').on('click', function(e) {
-                if (e.target === this) {
-                    $('.mobooking-modal').hide();
-                }
+                // Use a QR code service (you can replace with your preferred service)
+                const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(bookingUrl)}`;
+                
+                const qrHtml = `
+                    <img src="${qrCodeUrl}" alt="QR Code" style="max-width: 200px;">
+                    <p><small>Scan to open booking form</small></p>
+                    <a href="${qrCodeUrl}" download="booking-qr-code.png" class="btn-secondary">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                            <polyline points="7,10 12,15 17,10"/>
+                            <line x1="12" y1="15" x2="12" y2="3"/>
+                        </svg>
+                        Download QR Code
+                    </a>
+                `;
+                
+                $('#qr-display').html(qrHtml).show();
             });
         },
         
-        // FIXED: Form saving WITHOUT draft functionality
+        // Enhanced form saving with validation
         initFormSaving: function() {
-            console.log('Initializing form saving...');
-            
-            // Handle form submission properly
             $('#booking-form-settings').on('submit', function(e) {
-                console.log('Form submit event triggered');
                 e.preventDefault();
-                e.stopPropagation();
                 
-                // Call save settings
-                BookingFormManager.saveSettings();
-                return false;
-            });
-            
-            // Save Settings button click handler
-            $('#save-settings-btn').on('click', function(e) {
-                console.log('Save Settings button clicked');
-                e.preventDefault();
-                e.stopPropagation();
+                // Update combined social links before saving
+                EnhancedBookingFormManager.updateCombinedSocialLinks();
                 
-                // Trigger form submission
-                $('#booking-form-settings').trigger('submit');
-                return false;
+                // Validate required fields
+                const formTitle = $('#form-title').val().trim();
+                if (!formTitle) {
+                    alert('Form title is required.');
+                    $('#form-title').focus();
+                    return;
+                }
+                
+                // Show loading state
+                const $saveBtn = $('#save-settings-btn');
+                const originalText = $saveBtn.find('span').text() || $saveBtn.text();
+                $saveBtn.prop('disabled', true);
+                if ($saveBtn.find('span').length) {
+                    $saveBtn.find('span').text('Saving...');
+                } else {
+                    $saveBtn.text('Saving...');
+                }
+                
+                // Serialize form data
+                const formData = $(this).serialize();
+                
+                $.post(mobookingDashboard.ajaxUrl, formData + '&action=mobooking_save_booking_form_settings')
+                    .done(function(response) {
+                        if (response.success) {
+                            // Show success message
+                            EnhancedBookingFormManager.showNotification('Settings saved successfully!', 'success');
+                            
+                            // Update URLs if they changed
+                            if (response.data.booking_url) {
+                                $('#booking-url').val(response.data.booking_url);
+                            }
+                        } else {
+                            EnhancedBookingFormManager.showNotification(response.data || 'Failed to save settings.', 'error');
+                        }
+                    })
+                    .fail(function() {
+                        EnhancedBookingFormManager.showNotification('An error occurred while saving settings.', 'error');
+                    })
+                    .always(function() {
+                        // Restore button state
+                        $saveBtn.prop('disabled', false);
+                        if ($saveBtn.find('span').length) {
+                            $saveBtn.find('span').text(originalText);
+                        } else {
+                            $saveBtn.text(originalText);
+                        }
+                    });
             });
         },
         
-        // Reset settings
+        // Reset settings functionality
         initResetSettings: function() {
             $('#reset-settings-btn').on('click', function() {
                 if (confirm('Are you sure you want to reset all settings to defaults? This action cannot be undone.')) {
-                    BookingFormManager.resetSettings();
+                    $.post(mobookingDashboard.ajaxUrl, {
+                        action: 'mobooking_reset_booking_form_settings',
+                        nonce: $('#nonce').val()
+                    }, function(response) {
+                        if (response.success) {
+                            location.reload(); // Reload to show default values
+                        } else {
+                            alert(response.data || 'Failed to reset settings.');
+                        }
+                    });
                 }
             });
         },
         
-// FIXED: Save settings - Handle unchecked checkboxes properly
-saveSettings: function() {
-    console.log('=== SAVE SETTINGS CALLED ===');
-    
-    const $form = $('#booking-form-settings');
-    const $saveBtn = $('#save-settings-btn');
-    
-    console.log('Form element:', $form.length ? 'Found' : 'NOT FOUND');
-    console.log('Button element:', $saveBtn.length ? 'Found' : 'NOT FOUND');
-    
-    if ($form.length === 0) {
-        console.error('Form not found!');
-        BookingFormManager.showNotification('Form not found!', 'error');
-        return;
-    }
-    
-    // Create FormData object
-    const formData = new FormData($form[0]);
-    
-    // CRITICAL FIX: Explicitly handle checkbox values
-    // Get all checkboxes in the form
-    const checkboxes = $form.find('input[type="checkbox"]');
-    
-    checkboxes.each(function() {
-        const $checkbox = $(this);
-        const name = $checkbox.attr('name');
-        
-        if (name) {
-            // Remove any existing entries for this checkbox
-            formData.delete(name);
-            
-            // Add the correct value (1 if checked, 0 if not)
-            const value = $checkbox.is(':checked') ? '1' : '0';
-            formData.append(name, value);
-            
-            console.log(`Checkbox ${name}: ${value} (checked: ${$checkbox.is(':checked')})`);
-        }
-    });
-    
-    // CRITICAL: Add the action
-    formData.append('action', 'mobooking_save_booking_form_settings');
-    console.log('Added action: mobooking_save_booking_form_settings');
-    
-    // Debug: Log all form data
-    console.log('=== FORM DATA BEING SENT ===');
-    for (let pair of formData.entries()) {
-        console.log(pair[0] + ':', pair[1]);
-    }
-    
-    // Show loading state
-    $saveBtn.addClass('loading').prop('disabled', true);
-    $('.btn-text', $saveBtn).hide();
-    $('.btn-loading', $saveBtn).show();
-    
-    console.log('Starting AJAX request...');
-    
-    $.ajax({
-        url: mobookingDashboard.ajaxUrl,
-        type: 'POST',
-        data: formData,
-        processData: false,
-        contentType: false,
-        timeout: 30000,
-        beforeSend: function(xhr) {
-            console.log('AJAX request starting...');
-        },
-        success: function(response) {
-            console.log('=== AJAX SUCCESS ===');
-            console.log('Response:', response);
-            
-            if (response && response.success) {
-                const message = response.data && response.data.message ? 
-                    response.data.message : 
-                    'Settings saved successfully!';
-                
-                BookingFormManager.showNotification(message, 'success');
-                
-                // Update URLs if provided
-                if (response.data) {
-                    if (response.data.booking_url) {
-                        $('#booking-url').val(response.data.booking_url);
-                    }
-                    if (response.data.embed_url) {
-                        $('#embed-url').val(response.data.embed_url);
-                    }
-                }
-                
-                console.log('Settings saved successfully');
-            } else {
-                const errorMessage = response && response.data && response.data.message ? 
-                    response.data.message : 
-                    'Failed to save settings';
-                
-                console.error('Save failed:', errorMessage);
-                BookingFormManager.showNotification(errorMessage, 'error');
-            }
-        },
-        error: function(xhr, status, error) {
-            console.error('=== AJAX ERROR ===');
-            console.error('Status:', status);
-            console.error('Error:', error);
-            console.error('Response:', xhr.responseText);
-            
-            let errorMessage = 'Failed to save settings. ';
-            
-            if (status === 'timeout') {
-                errorMessage += 'Request timed out.';
-            } else if (xhr.status === 403) {
-                errorMessage += 'Permission denied.';
-            } else if (xhr.status === 500) {
-                errorMessage += 'Server error.';
-            } else {
-                errorMessage += 'Please try again.';
-            }
-            
-            BookingFormManager.showNotification(errorMessage, 'error');
-        },
-        complete: function() {
-            // Always reset button state
-            $saveBtn.removeClass('loading').prop('disabled', false);
-            $('.btn-text', $saveBtn).show();
-            $('.btn-loading', $saveBtn).hide();
-            
-            console.log('AJAX request completed');
-        }
-    });
-},
-        
-        // Reset settings
-        resetSettings: function() {
-            $.ajax({
-                url: mobookingDashboard.ajaxUrl,
-                type: 'POST',
-                data: {
-                    action: 'mobooking_reset_booking_form_settings',
-                    nonce: $('input[name="nonce"]').val()
-                },
-                success: function(response) {
-                    if (response.success) {
-                        BookingFormManager.showNotification('Settings reset successfully!', 'success');
-                        setTimeout(() => location.reload(), 1000);
-                    } else {
-                        BookingFormManager.showNotification(
-                            response.data || 'Failed to reset settings.',
-                            'error'
-                        );
-                    }
-                },
-                error: function() {
-                    BookingFormManager.showNotification('An error occurred while resetting settings.', 'error');
-                }
-            });
-        },
-        
-        // Show notification
+        // Notification system
         showNotification: function(message, type = 'info') {
-            console.log('Showing notification:', message, type);
+            const notificationHtml = `
+                <div class="notification notification-${type}">
+                    <span>${message}</span>
+                    <button type="button" class="notification-close">&times;</button>
+                </div>
+            `;
             
             // Remove existing notifications
-            $('.mobooking-notification').remove();
+            $('.notification').remove();
             
-            const notification = $(`
-                <div class="mobooking-notification ${type}">
-                    <span>${message}</span>
-                    <button class="notification-close" aria-label="Close">&times;</button>
-                </div>
-            `).appendTo('body');
+            // Add new notification
+            $('body').append(notificationHtml);
             
-            // Show notification with animation
-            setTimeout(() => notification.addClass('show'), 100);
-            
-            // Auto hide after 5 seconds
-            const autoHideTimer = setTimeout(() => {
-                notification.removeClass('show');
-                setTimeout(() => notification.remove(), 300);
+            // Auto-hide after 5 seconds
+            setTimeout(() => {
+                $('.notification').fadeOut();
             }, 5000);
             
-            // Manual close
-            notification.find('.notification-close').on('click', function() {
-                clearTimeout(autoHideTimer);
-                notification.removeClass('show');
-                setTimeout(() => notification.remove(), 300);
+            // Close button handler
+            $('.notification-close').on('click', function() {
+                $(this).parent().fadeOut();
             });
-        },
-        
-        // Initialize all functionality
-        init: function() {
-            console.log('=== INITIALIZING BOOKING FORM MANAGER ===');
-            
-            // Check if required elements exist
-            if ($('#booking-form-settings').length === 0) {
-                console.error('Booking form not found!');
-                return;
-            }
-            
-            if ($('#save-settings-btn').length === 0) {
-                console.error('Save settings button not found!');
-                return;
-            }
-            
-            console.log('Required elements found, proceeding with initialization...');
-            
-            this.initTabs();
-            this.initColorPickers();
-            this.initCopyButtons();
-            this.initOpenButtons();
-            this.initEmbedGeneration();
-            this.initQRGeneration();
-            this.initPreview();
-            this.initFormSaving(); // This is the critical one for Save Settings
-            this.initResetSettings();
-            
-            console.log('BookingFormManager initialization complete');
         }
     };
     
-    // Initialize the booking form manager
-    BookingFormManager.init();
+    // Initialize enhanced manager
+    EnhancedBookingFormManager.init();
     
-    // Make it globally available for debugging
-    window.BookingFormManager = BookingFormManager;
-    
-    console.log('jQuery ready function completed');
-    console.log('mobookingDashboard object:', window.mobookingDashboard);
+    // Make globally available
+    window.EnhancedBookingFormManager = EnhancedBookingFormManager;
 });
 </script>
 
+<!-- Additional CSS for notifications and enhanced styling -->
+<style>
+/* Notification styles */
+.notification {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    padding: 1rem 1.5rem;
+    border-radius: var(--radius);
+    box-shadow: 0 4px 12px hsl(var(--shadow) / 0.15);
+    z-index: 9999;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    font-weight: 500;
+    animation: slideIn 0.3s ease;
+}
+
+.notification-success {
+    background: hsl(var(--success));
+    color: hsl(var(--success-foreground));
+    border: 1px solid hsl(var(--success) / 0.2);
+}
+
+.notification-error {
+    background: hsl(var(--destructive));
+    color: hsl(var(--destructive-foreground));
+    border: 1px solid hsl(var(--destructive) / 0.2);
+}
+
+.notification-info {
+    background: hsl(var(--primary));
+    color: hsl(var(--primary-foreground));
+    border: 1px solid hsl(var(--primary) / 0.2);
+}
+
+.notification-close {
+    background: none;
+    border: none;
+    color: inherit;
+    font-size: 1.25rem;
+    cursor: pointer;
+    padding: 0;
+    line-height: 1;
+}
+
+@keyframes slideIn {
+    from {
+        transform: translateX(100%);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
+/* Button copied state */
+.btn-secondary.copied {
+    background: hsl(var(--success));
+    color: hsl(var(--success-foreground));
+    border-color: hsl(var(--success));
+}
+
+/* Enhanced form validation */
+.form-control.error {
+    border-color: hsl(var(--destructive));
+    box-shadow: 0 0 0 2px hsl(var(--destructive) / 0.2);
+}
+
+/* Loading states */
+.btn-primary:disabled,
+.btn-secondary:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    pointer-events: none;
+}
+
+/* Enhanced hover effects */
+.checkbox-option:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px hsl(var(--shadow) / 0.1);
+}
+
+.share-option:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 24px hsl(var(--shadow) / 0.15);
+}
+
+/* Focus improvements */
+.form-control:focus,
+.file-upload-label:focus-within {
+    outline: 2px solid hsl(var(--ring));
+    outline-offset: 2px;
+}
+
+/* Mobile responsiveness improvements */
+@media (max-width: 640px) {
+    .settings-tabs {
+        flex-direction: column;
+    }
+    
+    .tab-button {
+        justify-content: flex-start;
+        padding: 1rem;
+    }
+    
+    .header-actions {
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+    
+    .notification {
+        left: 10px;
+        right: 10px;
+        top: 10px;
+    }
+}
+</style>
+
 <?php
-
-
-// Add AJAX handler for resetting booking form settings
-add_action('wp_ajax_mobooking_reset_booking_form_settings', function() {
+// UPDATED AJAX handler for saving booking form settings - REMOVED TESTIMONIALS
+add_action('wp_ajax_mobooking_save_booking_form_settings', function() {
     try {
         // Check nonce
         if (!isset($_POST['nonce']) || !wp_verify_nonce($_POST['nonce'], 'mobooking-booking-form-nonce')) {
@@ -1929,433 +1273,367 @@ add_action('wp_ajax_mobooking_reset_booking_form_settings', function() {
         
         $user_id = get_current_user_id();
         
-        // Reset settings using BookingForm Manager
-        if (class_exists('\MoBooking\BookingForm\Manager')) {
-            $booking_form_manager = new \MoBooking\BookingForm\Manager();
-            $result = $booking_form_manager->reset_settings($user_id);
-        } else {
-            // Fallback: Direct database reset
-            global $wpdb;
-            $result = $wpdb->delete(
-                $wpdb->prefix . 'mobooking_booking_form_settings',
-                array('user_id' => $user_id),
-                array('%d')
-            );
-        }
+        // UPDATED: Map form fields correctly WITHOUT testimonials
+        $settings_data = array(
+            // Basic Information
+            'form_title' => sanitize_text_field($_POST['form_title'] ?? ''),
+            'form_description' => sanitize_textarea_field($_POST['form_description'] ?? ''),
+            'is_active' => isset($_POST['is_active']) ? absint($_POST['is_active']) : 0,
+            'language' => sanitize_text_field($_POST['language'] ?? 'en'), // NEW FIELD
+            
+            // Form Features
+            'show_form_header' => isset($_POST['show_form_header']) ? 1 : 0,
+            'show_service_descriptions' => isset($_POST['show_service_descriptions']) ? 1 : 0,
+            'show_price_breakdown' => isset($_POST['show_price_breakdown']) ? 1 : 0,
+            'enable_zip_validation' => isset($_POST['enable_zip_validation']) ? 1 : 0,
+            'show_form_footer' => isset($_POST['show_form_footer']) ? 1 : 0,
+            
+            // Design & Branding
+            'primary_color' => sanitize_hex_color($_POST['primary_color'] ?? '#3b82f6'),
+            'secondary_color' => sanitize_hex_color($_POST['secondary_color'] ?? '#1e40af'),
+            'background_color' => sanitize_hex_color($_POST['background_color'] ?? '#ffffff'),
+            'text_color' => sanitize_hex_color($_POST['text_color'] ?? '#1f2937'),
+            'logo_url' => esc_url_raw($_POST['logo_url'] ?? ''),
+            
+            // Layout & Style
+            'form_layout' => sanitize_text_field($_POST['form_layout'] ?? 'modern'),
+            'form_width' => sanitize_text_field($_POST['form_width'] ?? 'standard'),
+            'step_indicator_style' => sanitize_text_field($_POST['step_indicator_style'] ?? 'progress'), // NEW FIELD
+            'button_style' => sanitize_text_field($_POST['button_style'] ?? 'rounded'), // NEW FIELD
+            
+            // SEO Optimization
+            'seo_title' => sanitize_text_field($_POST['seo_title'] ?? ''),
+            'seo_description' => sanitize_textarea_field($_POST['seo_description'] ?? ''),
+            
+            // Custom Code
+            'analytics_code' => wp_kses_post($_POST['analytics_code'] ?? ''),
+            'custom_css' => wp_strip_all_tags($_POST['custom_css'] ?? ''),
+            'custom_js' => wp_strip_all_tags($_POST['custom_js'] ?? ''), // NEW FIELD
+            
+            // Form Footer
+            'custom_footer_text' => sanitize_textarea_field($_POST['custom_footer_text'] ?? ''),
+            'contact_info' => sanitize_textarea_field($_POST['contact_info'] ?? ''),
+            'social_links' => sanitize_textarea_field($_POST['social_links'] ?? '')
+            
+            // REMOVED: 'enable_testimonials' and 'testimonials_data'
+        );
         
-        if ($result !== false) {
-            wp_send_json_success(array(
-                'message' => __('Settings reset to defaults successfully.', 'mobooking')
-            ));
+        // Save settings using BookingForm Manager
+        $booking_form_manager = new \MoBooking\BookingForm\Manager();
+        $result = $booking_form_manager->save_settings($user_id, $settings_data);
+        
+        if ($result) {
+            $response_data = array(
+                'message' => __('Settings saved successfully!', 'mobooking'),
+                'booking_url' => $booking_form_manager->get_booking_form_url($user_id),
+                'embed_url' => $booking_form_manager->get_embed_url($user_id)
+            );
+            
+            wp_send_json_success($response_data);
         } else {
-            wp_send_json_error(__('Failed to reset settings.', 'mobooking'));
+            wp_send_json_error(__('Failed to save settings.', 'mobooking'));
         }
         
     } catch (Exception $e) {
-        error_log('MoBooking - Exception in reset booking form settings: ' . $e->getMessage());
-        wp_send_json_error(__('An error occurred while resetting settings.', 'mobooking'));
+        error_log('MoBooking - Exception in save booking form settings: ' . $e->getMessage());
+        wp_send_json_error(__('An error occurred while saving settings.', 'mobooking'));
     }
 });
 
-// Add notification styles
+// NEW: AJAX handler for logo upload
+add_action('wp_ajax_mobooking_upload_logo', function() {
+    try {
+        // Check nonce
+        if (!isset($_POST['nonce']) || !wp_verify_nonce($_POST['nonce'], 'mobooking-booking-form-nonce')) {
+            wp_send_json_error(__('Security verification failed.', 'mobooking'));
+        }
+        
+        // Check permissions
+        if (!current_user_can('mobooking_business_owner') && !current_user_can('administrator')) {
+            wp_send_json_error(__('You do not have permission to do this.', 'mobooking'));
+        }
+        
+        // Check if file was uploaded
+        if (!isset($_FILES['logo_file']) || $_FILES['logo_file']['error'] !== UPLOAD_ERR_OK) {
+            wp_send_json_error(__('No file uploaded or upload error occurred.', 'mobooking'));
+        }
+        
+        $file = $_FILES['logo_file'];
+        
+        // Validate file type
+        $allowed_types = ['image/jpeg', 'image/jpg', 'image/png', 'image/svg+xml'];
+        if (!in_array($file['type'], $allowed_types)) {
+            wp_send_json_error(__('Invalid file type. Please upload JPG, PNG, or SVG files only.', 'mobooking'));
+        }
+        
+        // Validate file size (5MB limit)
+        if ($file['size'] > 5 * 1024 * 1024) {
+            wp_send_json_error(__('File size too large. Maximum size is 5MB.', 'mobooking'));
+        }
+        
+        // Handle the upload using WordPress functions
+        if (!function_exists('wp_handle_upload')) {
+            require_once(ABSPATH . 'wp-admin/includes/file.php');
+        }
+        
+        $upload_overrides = array('test_form' => false);
+        $movefile = wp_handle_upload($file, $upload_overrides);
+        
+        if ($movefile && !isset($movefile['error'])) {
+            wp_send_json_success(array(
+                'url' => $movefile['url'],
+                'message' => __('Logo uploaded successfully!', 'mobooking')
+            ));
+        } else {
+            wp_send_json_error($movefile['error'] ?? __('Upload failed.', 'mobooking'));
+        }
+        
+    } catch (Exception $e) {
+        error_log('MoBooking - Exception in logo upload: ' . $e->getMessage());
+        wp_send_json_error(__('An error occurred during upload.', 'mobooking'));
+    }
+});
 ?>
+
+
+
+
+
 <style>
-/* Notification System */
-.mobooking-notification {
-    position: fixed;
-    top: 2rem;
-    right: 2rem;
-    z-index: 9999;
-    padding: 1rem 1.5rem;
-    border-radius: var(--radius);
-    background: hsl(var(--card));
-    border: 1px solid hsl(var(--border));
-    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15);
-    max-width: 24rem;
+/**
+ * Complete Enhanced CSS for MoBooking Form Settings
+ * Includes all styles for the updated form with new features
+ */
+
+/* ===== CSS VARIABLES & BASE STYLES ===== */
+:root {
+    /* Color System */
+    --primary: 220 88% 56%;
+    --primary-foreground: 0 0% 98%;
+    --secondary: 220 14% 96%;
+    --secondary-foreground: 220 9% 46%;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 98%;
+    --success: 142 71% 45%;
+    --success-foreground: 0 0% 98%;
+    --warning: 38 92% 50%;
+    --warning-foreground: 0 0% 98%;
+    --muted: 220 14% 96%;
+    --muted-foreground: 220 9% 46%;
+    --accent: 220 14% 96%;
+    --accent-foreground: 220 9% 39%;
+    --card: 0 0% 100%;
+    --card-foreground: 222 84% 5%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 222 84% 5%;
+    --border: 220 13% 91%;
+    --input: 220 13% 91%;
+    --background: 0 0% 100%;
+    --foreground: 222 84% 5%;
+    --ring: 220 88% 56%;
+    
+    /* Layout & Spacing */
+    --radius: 0.5rem;
+    --spacing-xs: 0.25rem;
+    --spacing-sm: 0.5rem;
+    --spacing-md: 1rem;
+    --spacing-lg: 1.5rem;
+    --spacing-xl: 2rem;
+    --spacing-2xl: 3rem;
+    
+    /* Typography */
+    --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    --font-mono: ui-monospace, SFMono-Regular, "SF Mono", Consolas, "Liberation Mono", Menlo, monospace;
+    
+    /* Shadows */
+    --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+    --shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
+    --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+    --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+    --shadow-xl: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
+    
+    /* Transitions */
+    --transition-fast: 150ms ease;
+    --transition-normal: 200ms ease;
+    --transition-slow: 300ms ease;
+}
+
+/* Dark mode support */
+@media (prefers-color-scheme: dark) {
+    :root {
+        --primary: 220 88% 56%;
+        --primary-foreground: 220 9% 89%;
+        --secondary: 220 3% 11%;
+        --secondary-foreground: 220 9% 60%;
+        --destructive: 0 63% 31%;
+        --destructive-foreground: 0 0% 98%;
+        --success: 142 71% 45%;
+        --success-foreground: 0 0% 98%;
+        --warning: 38 92% 50%;
+        --warning-foreground: 0 0% 98%;
+        --muted: 220 3% 11%;
+        --muted-foreground: 220 9% 60%;
+        --accent: 220 3% 11%;
+        --accent-foreground: 220 9% 60%;
+        --card: 220 3% 7%;
+        --card-foreground: 220 9% 89%;
+        --popover: 220 3% 7%;
+        --popover-foreground: 220 9% 89%;
+        --border: 220 3% 11%;
+        --input: 220 3% 11%;
+        --background: 220 3% 4%;
+        --foreground: 220 9% 89%;
+        --ring: 220 88% 56%;
+    }
+}
+
+/* ===== DASHBOARD LAYOUT ===== */
+.dashboard-content {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: var(--spacing-lg);
+    background: hsl(var(--background));
+    min-height: 100vh;
+    font-family: var(--font-sans);
+}
+
+.content-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: var(--spacing-xl);
+    padding-bottom: var(--spacing-lg);
+    border-bottom: 1px solid hsl(var(--border));
+}
+
+.header-left h1 {
+    font-size: 2rem;
+    font-weight: 600;
+    color: hsl(var(--foreground));
+    margin: 0 0 var(--spacing-sm) 0;
+    line-height: 1.2;
+}
+
+.header-left p {
+    font-size: 1rem;
+    color: hsl(var(--muted-foreground));
+    margin: 0;
+    line-height: 1.5;
+}
+
+.header-actions {
+    display: flex;
+    gap: var(--spacing-md);
+    align-items: center;
+}
+
+/* ===== SETTINGS CONTAINER ===== */
+.settings-container {
+    display: flex
+;
+    overflow: hidden;
+    flex-direction: column;
+    gap: 2rem;
+
+}
+
+/* ===== TABS NAVIGATION ===== */
+.settings-tabs {
+    display: flex
+;
+    flex-direction: row;
+    background: hsl(var(--muted) / 0.3);
+    border-right: 1px solid hsl(var(--border));
+    flex-shrink: 0;
+    justify-content: space-between;
+}
+
+.tab-button {
     display: flex;
     align-items: center;
-    justify-content: space-between;
-    gap: 1rem;
-    transform: translateX(calc(100% + 2rem));
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    opacity: 0;
-}
-
-.mobooking-notification.show {
-    transform: translateX(0);
-    opacity: 1;
-}
-
-.mobooking-notification.success {
-    background: hsl(var(--success) / 0.1);
-    border-color: hsl(var(--success) / 0.3);
-    color: hsl(var(--success));
-}
-
-.mobooking-notification.error {
-    background: hsl(var(--destructive) / 0.1);
-    border-color: hsl(var(--destructive) / 0.3);
-    color: hsl(var(--destructive));
-}
-
-.mobooking-notification.info {
-    background: hsl(var(--info) / 0.1);
-    border-color: hsl(var(--info) / 0.3);
-    color: hsl(var(--info));
-}
-
-.mobooking-notification.warning {
-    background: hsl(var(--warning) / 0.1);
-    border-color: hsl(var(--warning) / 0.3);
-    color: hsl(var(--warning));
-}
-
-.notification-close {
-    background: none;
+    gap: var(--spacing-md);
+    padding: var(--spacing-lg);
     border: none;
-    font-size: 1.25rem;
-    color: inherit;
+    background: transparent;
+    color: hsl(var(--muted-foreground));
+    font-size: 0.875rem;
+    font-weight: 500;
     cursor: pointer;
-    opacity: 0.6;
-    transition: opacity 0.2s ease;
-    padding: 0;
-    width: 1.5rem;
-    height: 1.5rem;
+    transition: all var(--transition-fast);
+    text-align: left;
+    border-bottom: 1px solid hsl(var(--border) / 0.5);
+}
+
+.tab-button:hover {
+    background: hsl(var(--accent) / 0.5);
+    color: hsl(var(--accent-foreground));
+}
+
+.tab-button.active {
+    background: hsl(var(--background));
+    color: hsl(var(--foreground));
+    box-shadow: var(--shadow-sm);
+    border-right: 2px solid hsl(var(--primary));
+}
+
+.tab-icon {
     display: flex;
     align-items: center;
     justify-content: center;
+    width: 1.5rem;
+    height: 1.5rem;
+    border-radius: calc(var(--radius) - 2px);
+    background: hsl(var(--muted) / 0.5);
+    transition: all var(--transition-fast);
+    flex-shrink: 0;
 }
 
-.notification-close:hover {
-    opacity: 1;
+.tab-button.active .tab-icon {
+    background: hsl(var(--primary));
+    color: white;
 }
 
-/* Dark mode adjustments */
-@media (prefers-color-scheme: dark) {
-    .mobooking-notification {
-        box-shadow: 0 10px 40px rgba(0, 0, 0, 0.4);
-    }
-}
-
-/* Loading animation improvements */
-@keyframes spin {
-    to { 
-        transform: rotate(360deg); 
-    }
-}
-
-.spinner-modern {
-    animation: spin 1s linear infinite;
-}
-
-/* Accessibility improvements */
-@media (prefers-reduced-motion: reduce) {
-    .mobooking-notification {
-        transition: none;
-    }
-    
-    .spinner-modern {
-        animation: none;
-    }
-    
-    .spinner-modern::before {
-        content: '⟳';
-        font-size: 1rem;
-    }
-}
-
-
-/* Error state styles */
-.form-control.error {
-    border-color: hsl(var(--destructive));
-    box-shadow: 0 0 0 2px hsl(var(--destructive) / 0.2);
-}
-
-.field-error {
-    font-size: 0.75rem;
-    color: hsl(var(--destructive));
-    margin-top: 0.25rem;
-}
-
-/* Success state styles */
-.form-control.success {
-    border-color: hsl(var(--success));
-    box-shadow: 0 0 0 2px hsl(var(--success) / 0.2);
-}
-
-/* Enhanced responsive design */
-@media (max-width: 480px) {
-    .mobooking-notification {
-        top: 1rem;
-        right: 1rem;
-        left: 1rem;
-        max-width: none;
-    }
-    
-    .page-title {
-        font-size: 1.5rem;
-    }
-    
-    .stat-card {
-        min-width: auto;
-        flex: 1;
-    }
-    
-    .setup-alert {
-        padding: 1rem;
-    }
-    
-    .share-option {
-        padding: 1rem;
-    }
-    
-    .modal-header {
-        padding: 0.75rem;
-        flex-direction: column;
-        gap: 0.75rem;
-    }
-    
-    .modal-body {
-        padding: 1rem;
-    }
-}
-
-/* Print styles for QR codes and embed codes */
-@media print {
-    .booking-form-section {
-        background: white;
-        color: black;
-    }
-    
-    .header-actions,
-    .form-actions,
-    .modal-close {
-        display: none;
-    }
-    
-    .share-option {
-        page-break-inside: avoid;
-    }
-}
-
-/* High contrast mode support */
-@media (prefers-contrast: high) {
-    .btn-primary,
-    .btn-secondary {
-        border-width: 2px;
-    }
-    
-    .form-control {
-        border-width: 2px;
-    }
-    
-    .mobooking-notification {
-        border-width: 2px;
-    }
-}
-
-/* Improved focus indicators for keyboard navigation */
-.tab-button:focus-visible {
-    outline: 2px solid hsl(var(--ring));
-    outline-offset: -2px;
-}
-
-.checkbox-option:focus-within {
-    box-shadow: 0 0 0 2px hsl(var(--ring) / 0.2);
-}
-
-/* Status indicators improvements */
-.stat-icon svg {
-    transition: all 0.2s ease;
-}
-
-.stat-card:hover .stat-icon svg {
-    transform: scale(1.1);
-}
-
-/* Enhanced button states */
-.btn-primary:disabled {
-    opacity: 0.6;
-    cursor: not-allowed;
-    transform: none !important;
-    box-shadow: none !important;
-}
-
-.btn-secondary:disabled {
-    opacity: 0.6;
-    cursor: not-allowed;
-}
-
-/* Form validation improvements */
-.form-group.required .field-label::after {
-    content: " *";
-    color: hsl(var(--destructive));
-    font-weight: bold;
-}
-
-.form-group.has-error .form-control {
-    border-color: hsl(var(--destructive));
-    box-shadow: 0 0 0 2px hsl(var(--destructive) / 0.2);
-}
-
-.form-group.has-error .field-label {
-    color: hsl(var(--destructive));
-}
-
-/* Enhanced color picker styles */
-.color-input-group {
-    border: 1px solid hsl(var(--border));
-    border-radius: var(--radius);
-    overflow: hidden;
+/* ===== FORM CONTENT ===== */
+.form-content {
+    flex: 1;
+    position: relative;
     background: hsl(var(--background));
 }
 
-.color-picker {
-    border: none;
-    border-right: 1px solid hsl(var(--border));
+.tab-content {
+    display: none;
 }
 
-.color-text {
-    border: none;
-    background: transparent;
+.tab-content.active {
+    display: block;
 }
 
-/* Embed code enhancements */
-.code-textarea {
-    font-family: 'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono', Consolas, 'Courier New', monospace;
-    line-height: 1.4;
-    white-space: pre;
-    word-wrap: break-word;
-}
-
-/* QR code enhancements */
-.qr-display img {
-    border-radius: calc(var(--radius) - 2px);
-}
-
-/* URL display enhancements */
-.url-display {
-    font-family: 'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono', Consolas, 'Courier New', monospace;
-    word-break: break-all;
-    user-select: all;
-}
-
-/* Modal enhancements */
-.modal-large .modal-body {
+.content-grid {
     display: flex;
     flex-direction: column;
-    min-height: 0;
+    gap: var(--spacing-xl);
 }
 
-.preview-container {
-    flex: 1;
-    min-height: 0;
-}
-
-#form-preview-iframe {
-    border-radius: var(--radius);
-    transition: opacity 0.3s ease;
-}
-
-/* Loading state for iframe */
-.preview-container.loading #form-preview-iframe {
-    opacity: 0.5;
-    pointer-events: none;
-}
-
-.preview-container.loading::after {
-    content: '';
-    position: absolute;
-    inset: 0;
-    background: hsl(var(--background) / 0.8);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 0.875rem;
-    color: hsl(var(--muted-foreground));
-    border-radius: var(--radius);
-}
-
-/* Smooth transitions for better UX */
-.tab-content {
-    animation: fadeInUp 0.3s ease-out;
-}
-
-@keyframes fadeInUp {
-    from {
-        opacity: 0;
-        transform: translateY(10px);
-    }
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
-}
-
-/* Settings group animations */
+/* ===== SETTINGS GROUPS ===== */
 .settings-group {
-    animation: slideInLeft 0.4s ease-out;
+    padding: var(--spacing-lg);
+    border: 1px solid hsl(var(--border));
+    border-radius: var(--radius);
+    background: hsl(var(--card));
+    box-shadow: var(--shadow-sm);
 }
 
-@keyframes slideInLeft {
-    from {
-        opacity: 0;
-        transform: translateX(-20px);
-    }
-    to {
-        opacity: 1;
-        transform: translateX(0);
-    }
+.group-header {
+    margin-bottom: var(--spacing-lg);
+    padding-bottom: var(--spacing-md);
+    border-bottom: 1px solid hsl(var(--border));
 }
 
-/* Enhanced form field animations */
-.form-control:focus {
-    transform: scale(1.01);
-}
-
-.form-control:invalid {
-    border-color: hsl(var(--destructive));
-    animation: shake 0.5s ease-in-out;
-}
-
-@keyframes shake {
-    0%, 100% { transform: translateX(0); }
-    10%, 30%, 50%, 70%, 90% { transform: translateX(-3px); }
-    20%, 40%, 60%, 80% { transform: translateX(3px); }
-}
-
-/* Enhanced button hover effects */
-.btn-primary:hover {
-    box-shadow: 0 6px 20px hsl(var(--primary) / 0.4);
-}
-
-.btn-secondary:hover {
-    transform: translateY(-1px);
-    box-shadow: 0 4px 12px hsl(var(--shadow) / 0.15);
-}
-
-/* Improved tooltip-like help text */
-.field-note {
-    position: relative;
-    transition: all 0.2s ease;
-}
-
-.field-note:hover {
-    color: hsl(var(--foreground));
-}
-
-/* Enhanced requirements list */
-.requirement-item {
-    transition: all 0.2s ease;
-}
-
-.requirement-item:hover {
-    background: hsl(var(--accent) / 0.3);
-    transform: translateX(4px);
-}
-
-/* Better visual hierarchy */
 .group-header h3 {
+    margin: 0 0 var(--spacing-sm) 0;
+    font-size: 1.125rem;
+    font-weight: 600;
+    color: hsl(var(--foreground));
     position: relative;
 }
 
@@ -2371,10 +1649,412 @@ add_action('wp_ajax_mobooking_reset_booking_form_settings', function() {
     transform: translateY(-50%);
 }
 
-/* Enhanced share options */
+.group-header p {
+    margin: 0;
+    font-size: 0.875rem;
+    color: hsl(var(--muted-foreground));
+    line-height: 1.5;
+}
+
+/* ===== FORM FIELDS ===== */
+.form-fields {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-lg);
+}
+
+.field-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--spacing-lg);
+}
+
+.form-group {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-sm);
+}
+
+.field-label {
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: hsl(var(--foreground));
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-xs);
+}
+
+.field-label.required::after {
+    content: " *";
+    color: hsl(var(--destructive));
+    font-weight: bold;
+}
+
+.form-control {
+    width: 100%;
+    padding: 0.75rem 1rem;
+    border: 1px solid hsl(var(--border));
+    border-radius: var(--radius);
+    background: hsl(var(--background));
+    font-size: 0.875rem;
+    color: hsl(var(--foreground));
+    transition: all var(--transition-fast);
+    font-family: var(--font-sans);
+}
+
+.form-control:focus {
+    outline: none;
+    border-color: hsl(var(--ring));
+    box-shadow: 0 0 0 2px hsl(var(--ring) / 0.2);
+}
+
+.form-control:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    background: hsl(var(--muted) / 0.5);
+}
+
+.form-control.error {
+    border-color: hsl(var(--destructive));
+    box-shadow: 0 0 0 2px hsl(var(--destructive) / 0.2);
+}
+
+.field-note {
+    font-size: 0.75rem;
+    color: hsl(var(--muted-foreground));
+    line-height: 1.4;
+    margin-top: var(--spacing-xs);
+}
+
+.field-note.warning {
+    color: hsl(var(--warning));
+    font-weight: 500;
+}
+
+/* ===== COLOR PICKER STYLES ===== */
+.color-fields {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: var(--spacing-lg);
+}
+
+.color-input-group {
+    display: flex;
+    gap: var(--spacing-sm);
+    align-items: center;
+    border: 1px solid hsl(var(--border));
+    border-radius: var(--radius);
+    overflow: hidden;
+    background: hsl(var(--background));
+    transition: all var(--transition-fast);
+}
+
+.color-input-group:focus-within {
+    border-color: hsl(var(--ring));
+    box-shadow: 0 0 0 2px hsl(var(--ring) / 0.2);
+}
+
+.color-picker {
+    width: 3rem;
+    height: 2.5rem;
+    padding: 0;
+    border: none;
+    border-right: 1px solid hsl(var(--border));
+    border-radius: 0;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+}
+
+.color-picker:hover {
+    transform: scale(1.05);
+}
+
+.color-text {
+    flex: 1;
+    border: none;
+    background: transparent;
+    font-family: var(--font-mono);
+    font-size: 0.8125rem;
+    color: hsl(var(--foreground));
+    padding: 0.5rem;
+}
+
+/* ===== LOGO UPLOAD STYLES ===== */
+.logo-upload-container {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-md);
+}
+
+.current-logo {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-md);
+    padding: var(--spacing-md);
+    border: 1px solid hsl(var(--border));
+    border-radius: var(--radius);
+    background: hsl(var(--muted) / 0.1);
+    transition: all var(--transition-fast);
+}
+
+.current-logo img {
+    border-radius: calc(var(--radius) - 2px);
+    box-shadow: var(--shadow-sm);
+}
+
+.logo-actions {
+    display: flex;
+    gap: var(--spacing-sm);
+    margin-left: auto;
+}
+
+.file-upload-section {
+    position: relative;
+}
+
+.file-input {
+    position: absolute;
+    opacity: 0;
+    width: 0;
+    height: 0;
+    overflow: hidden;
+}
+
+.file-upload-label {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--spacing-sm);
+    padding: var(--spacing-lg);
+    border: 2px dashed hsl(var(--border));
+    border-radius: var(--radius);
+    background: hsl(var(--background));
+    cursor: pointer;
+    transition: all var(--transition-fast);
+    min-height: 80px;
+    text-align: center;
+    color: hsl(var(--muted-foreground));
+}
+
+.file-upload-label:hover {
+    border-color: hsl(var(--primary));
+    background: hsl(var(--primary) / 0.05);
+    color: hsl(var(--primary));
+    transform: translateY(-1px);
+}
+
+.file-upload-label:focus-within {
+    outline: 2px solid hsl(var(--ring));
+    outline-offset: 2px;
+}
+
+/* ===== CHECKBOX STYLES ===== */
+.checkbox-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: var(--spacing-md);
+}
+
+.checkbox-option {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--spacing-md);
+    padding: var(--spacing-md);
+    border: 1px solid hsl(var(--border));
+    border-radius: var(--radius);
+    cursor: pointer;
+    transition: all var(--transition-fast);
+    background: hsl(var(--card));
+}
+
+.checkbox-option:hover {
+    background: hsl(var(--accent) / 0.5);
+    border-color: hsl(var(--primary) / 0.3);
+    transform: translateY(-1px);
+    box-shadow: var(--shadow-md);
+}
+
+.checkbox-option:focus-within {
+    box-shadow: 0 0 0 2px hsl(var(--ring) / 0.2);
+}
+
+.checkbox-option input[type="checkbox"] {
+    width: 1.25rem;
+    height: 1.25rem;
+    margin: 0;
+    flex-shrink: 0;
+    accent-color: hsl(var(--primary));
+    cursor: pointer;
+}
+
+.checkbox-content {
+    flex: 1;
+}
+
+.checkbox-title {
+    font-weight: 500;
+    color: hsl(var(--foreground));
+    margin-bottom: var(--spacing-xs);
+    font-size: 0.875rem;
+}
+
+.checkbox-desc {
+    font-size: 0.75rem;
+    color: hsl(var(--muted-foreground));
+    line-height: 1.4;
+}
+
+/* ===== SOCIAL LINKS STYLES ===== */
+.social-links-container {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: var(--spacing-md);
+}
+
+.social-link-field {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-sm);
+}
+
+.input-with-icon {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+.social-icon {
+    position: absolute;
+    left: 0.75rem;
+    z-index: 1;
+    color: hsl(var(--muted-foreground));
+    transition: all var(--transition-fast);
+}
+
+.input-with-icon input {
+    padding-left: 2.5rem;
+}
+
+.input-with-icon:focus-within .social-icon {
+    color: hsl(var(--primary));
+}
+
+/* ===== CODE TEXTAREA STYLES ===== */
+.code-textarea {
+    font-family: var(--font-mono);
+    line-height: 1.4;
+    font-size: 0.8125rem;
+    background: hsl(var(--muted) / 0.1);
+    border: 1px solid hsl(var(--border));
+    border-radius: var(--radius);
+    padding: var(--spacing-md);
+    color: hsl(var(--foreground));
+    white-space: pre;
+    word-wrap: break-word;
+    resize: vertical;
+    min-height: 120px;
+}
+
+.code-textarea:focus {
+    outline: none;
+    border-color: hsl(var(--ring));
+    box-shadow: 0 0 0 2px hsl(var(--ring) / 0.2);
+    background: hsl(var(--background));
+}
+
+/* ===== BUTTON STYLES ===== */
+.btn-primary,
+.btn-secondary {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--spacing-sm);
+    padding: 0.75rem 1rem;
+    border-radius: var(--radius);
+    font-size: 0.875rem;
+    font-weight: 500;
+    font-family: var(--font-sans);
+    text-decoration: none;
+    border: 1px solid;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+    white-space: nowrap;
+    user-select: none;
+}
+
+.btn-primary {
+    background: hsl(var(--primary));
+    color: hsl(var(--primary-foreground));
+    border-color: hsl(var(--primary));
+}
+
+.btn-primary:hover:not(:disabled) {
+    background: hsl(var(--primary) / 0.9);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px hsl(var(--primary) / 0.3);
+}
+
+.btn-secondary {
+    background: hsl(var(--secondary));
+    color: hsl(var(--secondary-foreground));
+    border-color: hsl(var(--border));
+}
+
+.btn-secondary:hover:not(:disabled) {
+    background: hsl(var(--secondary) / 0.8);
+    border-color: hsl(var(--primary) / 0.3);
+    color: hsl(var(--foreground));
+}
+
+.btn-primary:disabled,
+.btn-secondary:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    pointer-events: none;
+    transform: none !important;
+    box-shadow: none !important;
+}
+
+.btn-secondary.copied {
+    background: hsl(var(--success));
+    color: hsl(var(--success-foreground));
+    border-color: hsl(var(--success));
+}
+
+/* ===== SHARE OPTIONS STYLES ===== */
+.share-options {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-xl);
+}
+
+.share-option {
+    display: flex;
+    gap: var(--spacing-md);
+    padding: var(--spacing-lg);
+    border: 1px solid hsl(var(--border));
+    border-radius: var(--radius);
+    background: hsl(var(--card));
+    transition: all var(--transition-fast);
+}
+
 .share-option:hover {
     transform: translateY(-2px);
-    box-shadow: 0 8px 32px hsl(var(--shadow) / 0.2);
+    box-shadow: 0 8px 24px hsl(var(--shadow) / 0.15);
+    border-color: hsl(var(--primary) / 0.3);
+}
+
+.share-icon {
+    width: 3rem;
+    height: 3rem;
+    border-radius: var(--radius);
+    background: hsl(var(--primary) / 0.1);
+    color: hsl(var(--primary));
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    transition: all var(--transition-fast);
 }
 
 .share-option:hover .share-icon {
@@ -2383,7 +2063,146 @@ add_action('wp_ajax_mobooking_reset_booking_form_settings', function() {
     transform: scale(1.1);
 }
 
-/* Progress indicators for form saving */
+.share-content {
+    flex: 1;
+}
+
+.share-content h4 {
+    margin: 0 0 var(--spacing-sm) 0;
+    font-size: 1rem;
+    font-weight: 600;
+    color: hsl(var(--foreground));
+}
+
+.share-content p {
+    margin: 0 0 var(--spacing-md) 0;
+    font-size: 0.875rem;
+    color: hsl(var(--muted-foreground));
+    line-height: 1.5;
+}
+
+/* ===== URL AND EMBED STYLES ===== */
+.url-input-group {
+    display: flex;
+    gap: var(--spacing-sm);
+    align-items: stretch;
+}
+
+.url-display {
+    flex: 1;
+    font-family: var(--font-mono);
+    font-size: 0.8125rem;
+    background: hsl(var(--muted) / 0.5);
+    border: 1px solid hsl(var(--border));
+    border-radius: var(--radius);
+    padding: 0.75rem;
+    color: hsl(var(--foreground));
+    word-break: break-all;
+    user-select: all;
+}
+
+.embed-controls {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-md);
+}
+
+.embed-settings {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-md);
+}
+
+.embed-code-section {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-sm);
+}
+
+/* ===== QR CODE STYLES ===== */
+.qr-controls {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-md);
+}
+
+.qr-display {
+    text-align: center;
+    padding: var(--spacing-md);
+    border: 1px solid hsl(var(--border));
+    border-radius: var(--radius);
+    background: hsl(var(--background));
+    display: none;
+}
+
+.qr-display img {
+    border-radius: calc(var(--radius) - 2px);
+    box-shadow: var(--shadow-sm);
+}
+
+.qr-display.show {
+    display: block;
+    animation: fadeIn var(--transition-normal);
+}
+
+/* ===== NOTIFICATION SYSTEM ===== */
+.notification {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    padding: var(--spacing-md) var(--spacing-lg);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow-lg);
+    z-index: 9999;
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-md);
+    font-weight: 500;
+    max-width: 400px;
+    animation: slideIn var(--transition-slow);
+}
+
+.notification-success {
+    background: hsl(var(--success));
+    color: hsl(var(--success-foreground));
+    border: 1px solid hsl(var(--success) / 0.2);
+}
+
+.notification-error {
+    background: hsl(var(--destructive));
+    color: hsl(var(--destructive-foreground));
+    border: 1px solid hsl(var(--destructive) / 0.2);
+}
+
+.notification-info {
+    background: hsl(var(--primary));
+    color: hsl(var(--primary-foreground));
+    border: 1px solid hsl(var(--primary) / 0.2);
+}
+
+.notification-warning {
+    background: hsl(var(--warning));
+    color: hsl(var(--warning-foreground));
+    border: 1px solid hsl(var(--warning) / 0.2);
+}
+
+.notification-close {
+    background: none;
+    border: none;
+    color: inherit;
+    font-size: 1.25rem;
+    cursor: pointer;
+    padding: 0;
+    line-height: 1;
+    opacity: 0.7;
+    transition: opacity var(--transition-fast);
+}
+
+.notification-close:hover {
+    opacity: 1;
+}
+
+/* ===== LOADING STATES ===== */
 .form-saving::before {
     content: '';
     position: absolute;
@@ -2394,6 +2213,39 @@ add_action('wp_ajax_mobooking_reset_booking_form_settings', function() {
     background: linear-gradient(90deg, hsl(var(--primary)), hsl(var(--primary) / 0.3), hsl(var(--primary)));
     background-size: 200% 100%;
     animation: shimmer 2s infinite;
+    border-radius: var(--radius) var(--radius) 0 0;
+}
+
+.loading-spinner {
+    width: 1rem;
+    height: 1rem;
+    border: 2px solid transparent;
+    border-top: 2px solid currentColor;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+/* ===== ANIMATIONS ===== */
+@keyframes slideIn {
+    from {
+        transform: translateX(100%);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: scale(0.95);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1);
+    }
 }
 
 @keyframes shimmer {
@@ -2404,211 +2256,670 @@ add_action('wp_ajax_mobooking_reset_booking_form_settings', function() {
         background-position: 200% 0;
     }
 }
-</style>
 
-<script>
-// Additional JavaScript enhancements
-jQuery(document).ready(function($) {
-    // Enhanced form validation
-    const FormValidator = {
-        validateField: function($field) {
-            const value = $field.val().trim();
-            const fieldType = $field.attr('type') || $field.prop('tagName').toLowerCase();
-            const isRequired = $field.prop('required');
-            
-            let isValid = true;
-            let errorMessage = '';
-            
-            // Required field validation
-            if (isRequired && !value) {
-                isValid = false;
-                errorMessage = 'This field is required.';
-            }
-            
-            // Email validation
-            if (fieldType === 'email' && value) {
-                const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-                if (!emailRegex.test(value)) {
-                    isValid = false;
-                    errorMessage = 'Please enter a valid email address.';
-                }
-            }
-            
-            // URL validation
-            if (fieldType === 'url' && value) {
-                try {
-                    new URL(value);
-                } catch {
-                    isValid = false;
-                    errorMessage = 'Please enter a valid URL.';
-                }
-            }
-            
-            // Color validation
-            if (fieldType === 'color' && value) {
-                const colorRegex = /^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/;
-                if (!colorRegex.test(value)) {
-                    isValid = false;
-                    errorMessage = 'Please enter a valid color code.';
-                }
-            }
-            
-            this.showFieldValidation($field, isValid, errorMessage);
-            return isValid;
-        },
-        
-        showFieldValidation: function($field, isValid, errorMessage) {
-            const $group = $field.closest('.form-group');
-            const $error = $group.find('.field-error');
-            
-            $group.removeClass('has-error has-success');
-            $field.removeClass('error success');
-            $error.remove();
-            
-            if (!isValid) {
-                $group.addClass('has-error');
-                $field.addClass('error');
-                $group.append(`<div class="field-error">${errorMessage}</div>`);
-            } else if ($field.val().trim()) {
-                $group.addClass('has-success');
-                $field.addClass('success');
-            }
-        },
-        
-        validateForm: function() {
-            let isValid = true;
-            $('#booking-form-settings .form-control[required]').each(function() {
-                if (!FormValidator.validateField($(this))) {
-                    isValid = false;
-                }
-            });
-            return isValid;
-        }
-    };
-    
-    // Real-time validation
-    $('#booking-form-settings .form-control').on('blur', function() {
-        FormValidator.validateField($(this));
-    });
-    
-    // Enhanced auto-save functionality (optional)
-    let autoSaveTimer;
-    const AUTO_SAVE_DELAY = 30000; // 30 seconds
-    
-    function scheduleAutoSave() {
-        clearTimeout(autoSaveTimer);
-        autoSaveTimer = setTimeout(() => {
-            if ($('#booking-form-settings').hasClass('form-changed')) {
-                console.log('Auto-saving form...');
-                BookingFormManager.saveSettings(true); // true for auto-save
-            }
-        }, AUTO_SAVE_DELAY);
+@keyframes spin {
+    0% {
+        transform: rotate(0deg);
+    }
+    100% {
+        transform: rotate(360deg);
+    }
+}
+
+/* ===== ACCESSIBILITY IMPROVEMENTS ===== */
+.tab-button:focus-visible {
+    outline: 2px solid hsl(var(--ring));
+    outline-offset: -2px;
+}
+
+.form-control:focus-visible {
+    outline: 2px solid hsl(var(--ring));
+    outline-offset: 2px;
+}
+
+.btn-primary:focus-visible,
+.btn-secondary:focus-visible {
+    outline: 2px solid hsl(var(--ring));
+    outline-offset: 2px;
+}
+
+/* ===== RESPONSIVE DESIGN ===== */
+@media (max-width: 1024px) {
+    .dashboard-content {
+        padding: var(--spacing-md);
     }
     
-    // Mark form as changed
-    $('#booking-form-settings').on('input change', '.form-control', function() {
-        $('#booking-form-settings').addClass('form-changed');
-        scheduleAutoSave();
-    });
-    
-    // Enhanced keyboard shortcuts
-    $(document).on('keydown', function(e) {
-        // Ctrl+S or Cmd+S to save
-        if ((e.ctrlKey || e.metaKey) && e.key === 's') {
-            e.preventDefault();
-            $('#save-settings-btn').click();
-        }
-        
-        // Escape key to close modals
-        if (e.key === 'Escape') {
-            $('.mobooking-modal:visible').hide();
-        }
-    });
-    
-    // Enhanced URL copying with different formats
-    $('.copy-url-btn').on('contextmenu', function(e) {
-        e.preventDefault();
-        const url = $(this).data('url');
-        const formats = {
-            'Plain URL': url,
-            'Markdown Link': `[Book Now](${url})`,
-            'HTML Link': `<a href="${url}">Book Now</a>`,
-            'QR Code URL': `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(url)}`
-        };
-        
-        // Show format selection menu (simplified)
-        const format = prompt('Choose format:\n1. Plain URL\n2. Markdown Link\n3. HTML Link\n4. QR Code URL\n\nEnter number (1-4):');
-        const formatKeys = Object.keys(formats);
-        const selectedFormat = formatKeys[parseInt(format) - 1];
-        
-        if (selectedFormat && formats[selectedFormat]) {
-            navigator.clipboard.writeText(formats[selectedFormat]);
-            BookingFormManager.showNotification(`${selectedFormat} copied to clipboard!`, 'success');
-        }
-    });
-    
-    // Enhanced iframe loading handling
-    $('#form-preview-iframe').on('load', function() {
-        $('.preview-container').removeClass('loading');
-    });
-    
-    $('#refresh-preview-btn').on('click', function() {
-        $('.preview-container').addClass('loading');
-    });
-    
-    // Advanced QR code options
-    $('#generate-qr-btn').on('contextmenu', function(e) {
-        e.preventDefault();
-        const url = $('.url-display').val();
-        const size = prompt('QR Code size (default 200x200):', '200x200');
-        const color = prompt('Foreground color (hex, default black):', '000000');
-        const bgcolor = prompt('Background color (hex, default white):', 'ffffff');
-        
-        if (size) {
-            const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=${size}&color=${color}&bgcolor=${bgcolor}&data=${encodeURIComponent(url)}`;
-            $('#qr-code-container').html(`<img src="${qrCodeUrl}" alt="QR Code" style="width: 100%; height: 100%; object-fit: contain;">`);
-            $('#download-qr-btn').show().data('qr-url', qrCodeUrl);
-        }
-    });
-    
-    // Form analytics tracking (if analytics is enabled)
-    if (typeof gtag !== 'undefined') {
-        $('#save-settings-btn').on('click', function() {
-            gtag('event', 'form_save', {
-                'event_category': 'booking_form',
-                'event_label': 'settings_save'
-            });
-        });
-        
-        $('.copy-url-btn').on('click', function() {
-            gtag('event', 'url_copy', {
-                'event_category': 'booking_form',
-                'event_label': 'url_share'
-            });
-        });
+    .settings-container {
+        flex-direction: column;
     }
     
-    // Accessibility improvements
-    $('.tab-button').on('keydown', function(e) {
-        if (e.key === 'Enter' || e.key === ' ') {
-            e.preventDefault();
-            $(this).click();
-        }
-    });
+    .settings-tabs {
+        width: 100%;
+        flex-direction: row;
+        overflow-x: auto;
+        border-right: none;
+        border-bottom: 1px solid hsl(var(--border));
+    }
     
-    // Enhanced error handling for network issues
-    $(document).ajaxError(function(event, jqXHR, ajaxSettings) {
-        if (ajaxSettings.url.includes('mobooking_save_booking_form_settings')) {
-            console.error('AJAX Error:', jqXHR);
-            
-            if (jqXHR.status === 0) {
-                BookingFormManager.showNotification('Network error. Please check your connection and try again.', 'error');
-            } else if (jqXHR.status >= 500) {
-                BookingFormManager.showNotification('Server error. Please try again or contact support.', 'error');
-            }
-        }
-    });
+    .tab-button {
+        flex-shrink: 0;
+        min-width: 120px;
+        justify-content: center;
+        border-bottom: none;
+        border-right: 1px solid hsl(var(--border) / 0.5);
+    }
     
-    console.log('Enhanced booking form functionality loaded');
-});
-</script>
+    .tab-button.active {
+        border-right: 1px solid hsl(var(--border) / 0.5);
+        border-bottom: 2px solid hsl(var(--primary));
+    }
+}
+
+@media (max-width: 768px) {
+    .content-header {
+        flex-direction: column;
+        gap: var(--spacing-md);
+        align-items: stretch;
+    }
+    
+    .header-actions {
+        flex-direction: column;
+        gap: var(--spacing-sm);
+    }
+    
+    .field-row {
+        grid-template-columns: 1fr;
+    }
+    
+    .color-fields {
+        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    }
+    
+    .social-links-container {
+        grid-template-columns: 1fr;
+    }
+    
+    .checkbox-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .url-input-group {
+        flex-direction: column;
+    }
+    
+    .share-option {
+        flex-direction: column;
+        text-align: center;
+    }
+    
+    .share-icon {
+        align-self: center;
+    }
+    
+    .tab-content {
+        padding: var(--spacing-md);
+    }
+    
+    .notification {
+        left: 10px;
+        right: 10px;
+        top: 10px;
+        max-width: none;
+    }
+}
+
+@media (max-width: 640px) {
+    .dashboard-content {
+        padding: var(--spacing-sm);
+    }
+    
+    .header-left h1 {
+        font-size: 1.5rem;
+    }
+    
+    .settings-tabs {
+        flex-direction: column;
+    }
+    
+    .tab-button {
+        justify-content: flex-start;
+        padding: var(--spacing-md);
+        min-width: auto;
+        border-right: none;
+        border-bottom: 1px solid hsl(var(--border) / 0.5);
+    }
+    
+    .tab-button.active {
+        border-right: 2px solid hsl(var(--primary));
+        border-bottom: 1px solid hsl(var(--border) / 0.5);
+    }
+    
+    .btn-primary,
+    .btn-secondary {
+        padding: 0.875rem 1rem;
+        font-size: 0.875rem;
+    }
+    
+    .form-control {
+        padding: 0.875rem 1rem;
+        font-size: 1rem; /* Prevent zoom on iOS */
+    }
+}
+
+/* ===== ENHANCED INTERACTION STATES ===== */
+.tab-button:active {
+    transform: scale(0.98);
+}
+
+.btn-primary:active,
+.btn-secondary:active {
+    transform: translateY(0) scale(0.98);
+}
+
+.checkbox-option:active {
+    transform: translateY(0) scale(0.98);
+}
+
+.file-upload-label:active {
+    transform: translateY(0) scale(0.98);
+}
+
+/* ===== ADVANCED FORM VALIDATION STYLES ===== */
+.form-group.has-error .form-control {
+    border-color: hsl(var(--destructive));
+    box-shadow: 0 0 0 2px hsl(var(--destructive) / 0.2);
+    animation: shake 0.3s ease-in-out;
+}
+
+.form-group.has-error .field-label {
+    color: hsl(var(--destructive));
+}
+
+.form-group.has-success .form-control {
+    border-color: hsl(var(--success));
+    box-shadow: 0 0 0 2px hsl(var(--success) / 0.2);
+}
+
+.form-group.has-warning .form-control {
+    border-color: hsl(var(--warning));
+    box-shadow: 0 0 0 2px hsl(var(--warning) / 0.2);
+}
+
+.error-message {
+    font-size: 0.75rem;
+    color: hsl(var(--destructive));
+    margin-top: var(--spacing-xs);
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-xs);
+}
+
+.success-message {
+    font-size: 0.75rem;
+    color: hsl(var(--success));
+    margin-top: var(--spacing-xs);
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-xs);
+}
+
+/* ===== PROGRESS INDICATORS ===== */
+.upload-progress {
+    width: 100%;
+    height: 4px;
+    background: hsl(var(--muted));
+    border-radius: 2px;
+    overflow: hidden;
+    margin-top: var(--spacing-sm);
+}
+
+.upload-progress-bar {
+    height: 100%;
+    background: hsl(var(--primary));
+    border-radius: 2px;
+    transition: width var(--transition-normal);
+    animation: pulse 1.5s ease-in-out infinite;
+}
+
+.step-progress {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+    margin-bottom: var(--spacing-md);
+}
+
+.step-indicator {
+    width: 2rem;
+    height: 2rem;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.75rem;
+    font-weight: 600;
+    border: 2px solid hsl(var(--border));
+    background: hsl(var(--background));
+    color: hsl(var(--muted-foreground));
+    transition: all var(--transition-fast);
+}
+
+.step-indicator.active {
+    border-color: hsl(var(--primary));
+    background: hsl(var(--primary));
+    color: hsl(var(--primary-foreground));
+}
+
+.step-indicator.completed {
+    border-color: hsl(var(--success));
+    background: hsl(var(--success));
+    color: hsl(var(--success-foreground));
+}
+
+.step-connector {
+    flex: 1;
+    height: 2px;
+    background: hsl(var(--border));
+    position: relative;
+}
+
+.step-connector.completed::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    height: 100%;
+    background: hsl(var(--success));
+    width: 100%;
+    animation: fillProgress var(--transition-slow) ease-out;
+}
+
+/* ===== ENHANCED TOOLTIPS ===== */
+.tooltip {
+    position: relative;
+    display: inline-block;
+}
+
+.tooltip::before {
+    content: attr(data-tooltip);
+    position: absolute;
+    bottom: 125%;
+    left: 50%;
+    transform: translateX(-50%);
+    background: hsl(var(--popover));
+    color: hsl(var(--popover-foreground));
+    padding: var(--spacing-sm) var(--spacing-md);
+    border-radius: var(--radius);
+    font-size: 0.75rem;
+    white-space: nowrap;
+    opacity: 0;
+    visibility: hidden;
+    transition: all var(--transition-fast);
+    z-index: 1000;
+    box-shadow: var(--shadow-md);
+    border: 1px solid hsl(var(--border));
+}
+
+.tooltip::after {
+    content: '';
+    position: absolute;
+    bottom: 115%;
+    left: 50%;
+    transform: translateX(-50%);
+    border: 5px solid transparent;
+    border-top-color: hsl(var(--popover));
+    opacity: 0;
+    visibility: hidden;
+    transition: all var(--transition-fast);
+}
+
+.tooltip:hover::before,
+.tooltip:hover::after {
+    opacity: 1;
+    visibility: visible;
+}
+
+/* ===== ENHANCED DRAG & DROP STYLES ===== */
+.file-upload-label.dragover {
+    border-color: hsl(var(--primary));
+    background: hsl(var(--primary) / 0.1);
+    transform: scale(1.02);
+}
+
+.drop-zone {
+    min-height: 120px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: var(--spacing-sm);
+    text-align: center;
+}
+
+.drop-zone-icon {
+    width: 2rem;
+    height: 2rem;
+    color: hsl(var(--muted-foreground));
+    transition: all var(--transition-fast);
+}
+
+.file-upload-label:hover .drop-zone-icon,
+.file-upload-label.dragover .drop-zone-icon {
+    color: hsl(var(--primary));
+    transform: scale(1.1);
+}
+
+/* ===== ADVANCED ANIMATIONS ===== */
+@keyframes shake {
+    0%, 100% { transform: translateX(0); }
+    25% { transform: translateX(-4px); }
+    75% { transform: translateX(4px); }
+}
+
+@keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.7; }
+}
+
+@keyframes fillProgress {
+    0% { width: 0%; }
+    100% { width: 100%; }
+}
+
+@keyframes bounce {
+    0%, 20%, 53%, 80%, 100% {
+        animation-timing-function: cubic-bezier(0.215, 0.61, 0.355, 1);
+        transform: translateY(0);
+    }
+    40%, 43% {
+        animation-timing-function: cubic-bezier(0.755, 0.05, 0.855, 0.06);
+        transform: translateY(-8px);
+    }
+    70% {
+        animation-timing-function: cubic-bezier(0.755, 0.05, 0.855, 0.06);
+        transform: translateY(-4px);
+    }
+    90% {
+        transform: translateY(-2px);
+    }
+}
+
+@keyframes slideUp {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes slideDown {
+    from {
+        opacity: 0;
+        transform: translateY(-20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* ===== PRINT STYLES ===== */
+@media print {
+    .dashboard-content {
+        background: white;
+        box-shadow: none;
+        padding: 0;
+    }
+    
+    .settings-tabs,
+    .header-actions,
+    .btn-primary,
+    .btn-secondary,
+    .notification {
+        display: none;
+    }
+    
+    .settings-container {
+        border: none;
+        box-shadow: none;
+    }
+    
+    .tab-content {
+        display: block !important;
+        padding: 0;
+    }
+    
+    .settings-group {
+        break-inside: avoid;
+        page-break-inside: avoid;
+        margin-bottom: 1rem;
+    }
+}
+
+/* ===== HIGH CONTRAST MODE SUPPORT ===== */
+@media (prefers-contrast: high) {
+    :root {
+        --border: 0 0% 20%;
+        --input: 0 0% 20%;
+        --ring: 220 88% 40%;
+    }
+    
+    .form-control {
+        border-width: 2px;
+    }
+    
+    .btn-primary,
+    .btn-secondary {
+        border-width: 2px;
+    }
+    
+    .tab-button.active {
+        border-right-width: 3px;
+    }
+}
+
+/* ===== REDUCED MOTION SUPPORT ===== */
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+        scroll-behavior: auto !important;
+    }
+    
+    .notification {
+        animation: none;
+    }
+    
+    .tab-button,
+    .btn-primary,
+    .btn-secondary,
+    .checkbox-option,
+    .share-option {
+        transition: none;
+    }
+}
+
+/* ===== UTILITY CLASSES ===== */
+.sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+}
+
+.hidden {
+    display: none !important;
+}
+
+.visible {
+    display: block !important;
+}
+
+.text-center {
+    text-align: center;
+}
+
+.text-left {
+    text-align: left;
+}
+
+.text-right {
+    text-align: right;
+}
+
+.font-mono {
+    font-family: var(--font-mono);
+}
+
+.font-sans {
+    font-family: var(--font-sans);
+}
+
+.text-xs {
+    font-size: 0.75rem;
+}
+
+.text-sm {
+    font-size: 0.875rem;
+}
+
+.text-base {
+    font-size: 1rem;
+}
+
+.text-lg {
+    font-size: 1.125rem;
+}
+
+.text-xl {
+    font-size: 1.25rem;
+}
+
+.font-normal {
+    font-weight: 400;
+}
+
+.font-medium {
+    font-weight: 500;
+}
+
+.font-semibold {
+    font-weight: 600;
+}
+
+.font-bold {
+    font-weight: 700;
+}
+
+.opacity-50 {
+    opacity: 0.5;
+}
+
+.opacity-75 {
+    opacity: 0.75;
+}
+
+.opacity-100 {
+    opacity: 1;
+}
+
+.cursor-pointer {
+    cursor: pointer;
+}
+
+.cursor-not-allowed {
+    cursor: not-allowed;
+}
+
+.select-none {
+    user-select: none;
+}
+
+.select-all {
+    user-select: all;
+}
+
+.pointer-events-none {
+    pointer-events: none;
+}
+
+.pointer-events-auto {
+    pointer-events: auto;
+}
+
+/* ===== COMPONENT SPECIFIC ENHANCEMENTS ===== */
+.settings-group:hover {
+    box-shadow: var(--shadow-md);
+    transition: box-shadow var(--transition-fast);
+}
+
+.form-control:placeholder-shown {
+    color: hsl(var(--muted-foreground));
+}
+
+.tab-content {
+    scrollbar-width: thin;
+    scrollbar-color: hsl(var(--muted)) transparent;
+}
+
+.tab-content::-webkit-scrollbar {
+    width: 6px;
+}
+
+.tab-content::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.tab-content::-webkit-scrollbar-thumb {
+    background: hsl(var(--muted));
+    border-radius: 3px;
+}
+
+.tab-content::-webkit-scrollbar-thumb:hover {
+    background: hsl(var(--muted-foreground));
+}
+
+/* ===== FINAL POLISH ===== */
+.dashboard-content * {
+    box-sizing: border-box;
+}
+
+.dashboard-content img {
+    max-width: 100%;
+    height: auto;
+}
+
+.dashboard-content code {
+    font-family: var(--font-mono);
+    font-size: 0.875em;
+    background: hsl(var(--muted) / 0.3);
+    padding: 0.125rem 0.25rem;
+    border-radius: calc(var(--radius) / 2);
+}
+
+.dashboard-content pre {
+    font-family: var(--font-mono);
+    background: hsl(var(--muted) / 0.1);
+    padding: var(--spacing-md);
+    border-radius: var(--radius);
+    border: 1px solid hsl(var(--border));
+    overflow-x: auto;
+    line-height: 1.4;
+}
+
+/* Ensure consistent focus styles across all interactive elements */
+.dashboard-content *:focus-visible {
+    outline: 2px solid hsl(var(--ring));
+    outline-offset: 2px;
+}
+</style>
