@@ -2999,6 +2999,9 @@ jQuery(document).ready(function($) {
   position: relative;
 }
 
+
+
+
 .btn-loading-percent::after {
   content: attr(data-progress) "%";
   position: absolute;
