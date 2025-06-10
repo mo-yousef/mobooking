@@ -123,6 +123,7 @@ body {
 }
 
 .dashboard-content {
+    width: 100%;
     flex: 1;
     padding: 2rem 2rem 2rem;
 }
@@ -967,4 +968,82 @@ body {
     .btn-danger {
         display: none;
     }
+}
+
+
+
+
+
+
+/* ==================================================
+   LAYOUT & CONTAINERS
+   ================================================== */
+
+.bookings-page {
+    animation: fadeInUp 0.6s ease-out;
+}
+
+/* Page Header */
+.page-header {
+    margin-bottom: 2rem;
+    padding-bottom: 1.5rem;
+    border-bottom: 1px solid hsl(var(--border));
+}
+
+.header-content {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 2rem;
+}
+
+.header-info {
+    flex: 1;
+}
+
+.page-title {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin: 0 0 0.5rem 0;
+    font-size: 26px;
+    font-weight: 700;
+    color: hsl(var(--foreground));
+    line-height: 1.2;
+}
+
+.title-icon {
+    width: 2rem;
+    height: 2rem;
+    color: hsl(var(--primary));
+    flex-shrink: 0;
+}
+
+.bookings-count {
+    background: hsl(var(--primary) / 0.1);
+    color: hsl(var(--primary));
+    padding: 0.25rem 0.75rem;
+    border-radius: 9999px;
+    font-size: 0.875rem;
+    font-weight: 600;
+    margin-left: 0.5rem;
+}
+
+.page-subtitle {
+    margin: 0;
+    font-size: 1rem;
+    color: hsl(var(--muted-foreground));
+    line-height: 1.5;
+}
+
+.header-actions {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    flex-shrink: 0;
+}
+
+.header-action-group {
+    display: flex;
+    gap: 0.75rem;
 }

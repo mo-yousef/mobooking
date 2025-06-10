@@ -41,31 +41,37 @@ $booking_form_manager = new \MoBooking\BookingForm\Manager();
 $settings = $booking_form_manager->get_settings($current_user->ID);
 ?>
 
-<div class="dashboard-content">
-    <div class="content-header">
-        <div class="header-left">
-            <h1><?php _e('Booking Form Settings', 'mobooking'); ?></h1>
-            <p><?php _e('Customize your booking form appearance and functionality', 'mobooking'); ?></p>
-        </div>
-        <div class="header-actions">
-            <button type="button" id="reset-settings-btn" class="btn-secondary">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/>
-                    <path d="M3 3v5h5"/>
-                </svg>
-                <?php _e('Reset to Defaults', 'mobooking'); ?>
-            </button>
-            <button type="submit" form="booking-form-settings" id="save-settings-btn" class="btn-primary">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
-                    <polyline points="17,21 17,13 7,13 7,21"/>
-                    <polyline points="7,3 7,8 15,8"/>
-                </svg>
-                <?php _e('Save Settings', 'mobooking'); ?>
-            </button>
+
+    <!-- Page Header -->
+    <div class="page-header">
+        <div class="header-content">
+            <div class="header-info">
+                <h1 class="page-title">
+                    <svg class="title-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M17 2V4H20.0066C20.5552 4 21 4.44495 21 4.9934V21.0066C21 21.5552 20.5551 22 20.0066 22H3.9934C3.44476 22 3 21.5551 3 21.0066V4.9934C3 4.44476 3.44495 4 3.9934 4H7V2H17ZM7 6H5V20H19V6H17V8H7V6ZM9 16V18H7V16H9ZM9 13V15H7V13H9ZM9 10V12H7V10H9ZM15 4H9V6H15V4Z"></path></svg>
+                    <?php _e('Booking Form', 'mobooking'); ?>
+                </h1>
+                <p class="page-subtitle"><?php _e('Customize your booking form appearance and functionality', 'mobooking'); ?></p>
+            </div>
+
+            <div class="header-actions">
+                <button type="button" id="reset-settings-btn" class="btn-secondary">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/>
+                        <path d="M3 3v5h5"/>
+                    </svg>
+                    <?php _e('Reset to Defaults', 'mobooking'); ?>
+                </button>
+                <button type="submit" form="booking-form-settings" id="save-settings-btn" class="btn-primary">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
+                        <polyline points="17,21 17,13 7,13 7,21"/>
+                        <polyline points="7,3 7,8 15,8"/>
+                    </svg>
+                    <?php _e('Save Settings', 'mobooking'); ?>
+                </button>
+            </div>
         </div>
     </div>
-
     <div class="settings-container">
         <div class="settings-tabs">
             <button type="button" class="tab-button active" data-tab="general">
@@ -630,7 +636,7 @@ $settings = $booking_form_manager->get_settings($current_user->ID);
             </div>
         </form>
     </div>
-</div>
+
 
 <!-- Enhanced CSS for new features -->
 <style>
@@ -1488,14 +1494,7 @@ add_action('wp_ajax_mobooking_upload_logo', function() {
 }
 
 /* ===== DASHBOARD LAYOUT ===== */
-.dashboard-content {
-    max-width: 1200px;
-    margin: 0 auto;
-    padding: var(--spacing-lg);
-    background: hsl(var(--background));
-    min-height: 100vh;
-    font-family: var(--font-sans);
-}
+
 
 .content-header {
     display: flex;
@@ -1635,18 +1634,6 @@ add_action('wp_ajax_mobooking_upload_logo', function() {
     font-weight: 600;
     color: hsl(var(--foreground));
     position: relative;
-}
-
-.group-header h3::before {
-    content: '';
-    position: absolute;
-    left: -1rem;
-    top: 50%;
-    width: 3px;
-    height: 1.5rem;
-    background: hsl(var(--primary));
-    border-radius: 2px;
-    transform: translateY(-50%);
 }
 
 .group-header p {
@@ -2922,4 +2909,9 @@ add_action('wp_ajax_mobooking_upload_logo', function() {
     outline: 2px solid hsl(var(--ring));
     outline-offset: 2px;
 }
+
+
+
+
+
 </style>
