@@ -148,10 +148,6 @@
 
 /* Enhanced Form Container */
 .booking-form {
-  background: white;
-  border-radius: var(--booking-radius);
-  box-shadow: var(--booking-shadow);
-  border: 1px solid var(--booking-gray-200);
   overflow: hidden;
 }
 

@@ -117,7 +117,7 @@ body {
     background: #fff;
     border-bottom: 1px solid #e5e7eb;
     padding: 1rem 2rem;
-    position: sticky;
+    /* position: sticky; */
     top: 0;
     z-index: 5;
 }

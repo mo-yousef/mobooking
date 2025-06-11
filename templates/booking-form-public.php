@@ -1,10 +1,10 @@
 <?php
 /**
- * Public Booking Form Template - FIXED VERSION
+ * Enhanced Public Booking Form Template - UPDATED VERSION
  * File: templates/booking-form-public.php
  * 
- * This template displays the public booking form for customers
- * Fixed issues: proper template structure, service options loading, form validation
+ * This template displays the public booking form for customers with full settings integration
+ * Updated to match all dashboard settings: step indicator styles, button styles, form layout, width, etc.
  */
 
 // Prevent direct access
@@ -60,7 +60,7 @@ if (empty($services) || empty($areas)) {
     <div class="mobooking-setup-container" style="padding: 2rem;text-align: center;display: flex;flex-direction: column;align-items: center;gap: 0.5rem;background: #eeeeee66;border: 1px dashed #ccc;max-width: 500px;margin: 2rem auto;border-radius: 10px;">
         <h2><?php _e('Booking Setup In Progress', 'mobooking'); ?></h2>
         <p><?php _e('This booking form is being configured. Please check back soon.', 'mobooking'); ?></p>
-        <a href="<?php echo home_url(); ?>" class="btn-psrimary"><?php _e('Go Home', 'mobooking'); ?></a>
+        <a href="<?php echo home_url(); ?>" class="btn-primary"><?php _e('Go Home', 'mobooking'); ?></a>
     </div>
     <?php
     get_footer();
@@ -112,7 +112,12 @@ $localize_data = array(
         'secondaryColor' => $settings->secondary_color,
         'showServiceDescriptions' => $settings->show_service_descriptions,
         'showPriceBreakdown' => $settings->show_price_breakdown,
-        'enableZipValidation' => $settings->enable_zip_validation
+        'enableZipValidation' => $settings->enable_zip_validation,
+        'stepIndicatorStyle' => $settings->step_indicator_style ?? 'progress',
+        'buttonStyle' => $settings->button_style ?? 'rounded',
+        'formLayout' => $settings->form_layout ?? 'modern',
+        'formWidth' => $settings->form_width ?? 'standard',
+        'language' => $settings->language ?? 'en'
     )
 );
 
@@ -120,9 +125,36 @@ wp_localize_script('mobooking-booking-form', 'mobookingBooking', $localize_data)
 
 // Get service options manager
 $options_manager = new \MoBooking\Services\ServiceOptionsManager();
+
+// Determine form container class based on width setting
+$form_width_class = '';
+switch ($settings->form_width ?? 'standard') {
+    case 'narrow':
+        $form_width_class = 'form-width-narrow';
+        break;
+    case 'wide':
+        $form_width_class = 'form-width-wide';
+        break;
+    case 'full':
+        $form_width_class = 'form-width-full';
+        break;
+    case 'standard':
+    default:
+        $form_width_class = 'form-width-standard';
+        break;
+}
+
+// Determine layout class
+$form_layout_class = 'form-layout-' . ($settings->form_layout ?? 'modern');
+
+// Determine step indicator class
+$step_indicator_class = 'step-indicator-' . ($settings->step_indicator_style ?? 'progress');
+
+// Determine button style class
+$button_style_class = 'button-style-' . ($settings->button_style ?? 'rounded');
 ?>
 
-<div class="mobooking-booking-form-page">
+<div class="mobooking-booking-form-page <?php echo esc_attr($form_layout_class . ' ' . $form_width_class . ' ' . $button_style_class); ?>">
     <?php if ($settings->show_form_header) : ?>
         <div class="booking-form-page-header" style="text-align: center; padding: 2rem 1rem; margin-bottom: 2rem;">
             <?php if (!empty($settings->logo_url)) : ?>
@@ -144,39 +176,115 @@ $options_manager = new \MoBooking\Services\ServiceOptionsManager();
     <?php endif; ?>
 
     <!-- Main Booking Form Container -->
-    <div class="mobooking-booking-form-container">
-        <!-- Enhanced Progress Indicator -->
-        <div class="booking-progress">
-            <div class="progress-bar">
-                <div class="progress-fill" style="width: 16.66%;"></div>
+    <div class="mobooking-booking-form-container <?php echo esc_attr($step_indicator_class); ?>">
+        <!-- Enhanced Progress Indicator with Multiple Styles -->
+        <?php if (($settings->step_indicator_style ?? 'progress') !== 'none') : ?>
+            <div class="booking-progress <?php echo esc_attr($step_indicator_class); ?>">
+                <?php if (($settings->step_indicator_style ?? 'progress') === 'progress') : ?>
+                    <!-- Progress Bar Style -->
+                    <div class="progress-bar">
+                        <div class="progress-fill" style="width: 16.66%;"></div>
+                    </div>
+                    <div class="progress-steps">
+                        <div class="step active">
+                            <div class="step-number">1</div>
+                            <div class="step-label"><?php _e('Location', 'mobooking'); ?></div>
+                        </div>
+                        <div class="step">
+                            <div class="step-number">2</div>
+                            <div class="step-label"><?php _e('Services', 'mobooking'); ?></div>
+                        </div>
+                        <div class="step">
+                            <div class="step-number">3</div>
+                            <div class="step-label"><?php _e('Options', 'mobooking'); ?></div>
+                        </div>
+                        <div class="step">
+                            <div class="step-number">4</div>
+                            <div class="step-label"><?php _e('Details', 'mobooking'); ?></div>
+                        </div>
+                        <div class="step">
+                            <div class="step-number">5</div>
+                            <div class="step-label"><?php _e('Review', 'mobooking'); ?></div>
+                        </div>
+                        <div class="step">
+                            <div class="step-number">6</div>
+                            <div class="step-label"><?php _e('Complete', 'mobooking'); ?></div>
+                        </div>
+                    </div>
+                
+                <?php elseif (($settings->step_indicator_style ?? 'progress') === 'dots') : ?>
+                    <!-- Dots Style -->
+                    <div class="progress-dots">
+                        <div class="dot active" data-step="1"></div>
+                        <div class="dot" data-step="2"></div>
+                        <div class="dot" data-step="3"></div>
+                        <div class="dot" data-step="4"></div>
+                        <div class="dot" data-step="5"></div>
+                        <div class="dot" data-step="6"></div>
+                    </div>
+                    <div class="step-labels">
+                        <span class="active"><?php _e('Location', 'mobooking'); ?></span>
+                        <span><?php _e('Services', 'mobooking'); ?></span>
+                        <span><?php _e('Options', 'mobooking'); ?></span>
+                        <span><?php _e('Details', 'mobooking'); ?></span>
+                        <span><?php _e('Review', 'mobooking'); ?></span>
+                        <span><?php _e('Complete', 'mobooking'); ?></span>
+                    </div>
+                
+                <?php elseif (($settings->step_indicator_style ?? 'progress') === 'numbers') : ?>
+                    <!-- Numbers Style -->
+                    <div class="progress-numbers">
+                        <div class="number-step active">
+                            <span class="number">1</span>
+                            <span class="label"><?php _e('Location', 'mobooking'); ?></span>
+                        </div>
+                        <div class="number-step">
+                            <span class="number">2</span>
+                            <span class="label"><?php _e('Services', 'mobooking'); ?></span>
+                        </div>
+                        <div class="number-step">
+                            <span class="number">3</span>
+                            <span class="label"><?php _e('Options', 'mobooking'); ?></span>
+                        </div>
+                        <div class="number-step">
+                            <span class="number">4</span>
+                            <span class="label"><?php _e('Details', 'mobooking'); ?></span>
+                        </div>
+                        <div class="number-step">
+                            <span class="number">5</span>
+                            <span class="label"><?php _e('Review', 'mobooking'); ?></span>
+                        </div>
+                        <div class="number-step">
+                            <span class="number">6</span>
+                            <span class="label"><?php _e('Complete', 'mobooking'); ?></span>
+                        </div>
+                    </div>
+                
+                <?php elseif (($settings->step_indicator_style ?? 'progress') === 'arrows') : ?>
+                    <!-- Arrows Style -->
+                    <div class="progress-arrows">
+                        <div class="arrow-step active">
+                            <span class="step-text"><?php _e('Location', 'mobooking'); ?></span>
+                        </div>
+                        <div class="arrow-step">
+                            <span class="step-text"><?php _e('Services', 'mobooking'); ?></span>
+                        </div>
+                        <div class="arrow-step">
+                            <span class="step-text"><?php _e('Options', 'mobooking'); ?></span>
+                        </div>
+                        <div class="arrow-step">
+                            <span class="step-text"><?php _e('Details', 'mobooking'); ?></span>
+                        </div>
+                        <div class="arrow-step">
+                            <span class="step-text"><?php _e('Review', 'mobooking'); ?></span>
+                        </div>
+                        <div class="arrow-step">
+                            <span class="step-text"><?php _e('Complete', 'mobooking'); ?></span>
+                        </div>
+                    </div>
+                <?php endif; ?>
             </div>
-            <div class="progress-steps">
-                <div class="step active">
-                    <div class="step-number">1</div>
-                    <div class="step-label"><?php _e('Location', 'mobooking'); ?></div>
-                </div>
-                <div class="step">
-                    <div class="step-number">2</div>
-                    <div class="step-label"><?php _e('Services', 'mobooking'); ?></div>
-                </div>
-                <div class="step">
-                    <div class="step-number">3</div>
-                    <div class="step-label"><?php _e('Options', 'mobooking'); ?></div>
-                </div>
-                <div class="step">
-                    <div class="step-number">4</div>
-                    <div class="step-label"><?php _e('Details', 'mobooking'); ?></div>
-                </div>
-                <div class="step">
-                    <div class="step-number">5</div>
-                    <div class="step-label"><?php _e('Review', 'mobooking'); ?></div>
-                </div>
-                <div class="step">
-                    <div class="step-number">6</div>
-                    <div class="step-label"><?php _e('Complete', 'mobooking'); ?></div>
-                </div>
-            </div>
-        </div>
+        <?php endif; ?>
         
         <form id="mobooking-booking-form" class="booking-form">
             <!-- Hidden fields -->
@@ -482,22 +590,55 @@ $options_manager = new \MoBooking\Services\ServiceOptionsManager();
         </form>
     </div>
 
-    <?php if ($settings->show_form_footer && !empty($settings->custom_footer_text)) : ?>
+    <?php if ($settings->show_form_footer) : ?>
         <div class="booking-form-page-footer" style="text-align: center; padding: 2rem 1rem; margin-top: 2rem; border-top: 1px solid #e5e7eb;">
-            <?php echo wp_kses_post($settings->custom_footer_text); ?>
+            <?php if (!empty($settings->custom_footer_text)) : ?>
+                <div class="custom-footer-content">
+                    <?php echo wp_kses_post($settings->custom_footer_text); ?>
+                </div>
+            <?php endif; ?>
+            
+            <?php if (!empty($settings->contact_info)) : ?>
+                <div class="contact-info" style="margin-top: 1rem;">
+                    <p style="margin: 0; color: #6b7280; font-size: 0.875rem;">
+                        <?php echo nl2br(esc_html($settings->contact_info)); ?>
+                    </p>
+                </div>
+            <?php endif; ?>
+            
+            <?php if (!empty($settings->social_links)) : ?>
+                <div class="social-links" style="margin-top: 1rem;">
+                    <?php
+                    $social_links = explode("\n", $settings->social_links);
+                    foreach ($social_links as $link) {
+                        $link = trim($link);
+                        if (strpos($link, ':') !== false) {
+                            list($platform, $url) = explode(':', $link, 2);
+                            $platform = trim($platform);
+                            $url = trim($url);
+                            if (!empty($url)) {
+                                echo '<a href="' . esc_url($url) . '" target="_blank" rel="noopener" style="margin: 0 0.5rem; color: ' . esc_attr($settings->primary_color) . ';">' . esc_html($platform) . '</a>';
+                            }
+                        }
+                    }
+                    ?>
+                </div>
+            <?php endif; ?>
         </div>
     <?php endif; ?>
 </div>
 
-<!-- Custom styling based on form settings -->
+<!-- Enhanced Custom styling based on all form settings -->
 <style>
 :root {
     --booking-primary: <?php echo esc_attr($settings->primary_color); ?>;
     --booking-primary-dark: <?php echo esc_attr($settings->secondary_color); ?>;
     --booking-text: <?php echo esc_attr($settings->text_color); ?>;
     --booking-bg: <?php echo esc_attr($settings->background_color); ?>;
+    --booking-primary-rgb: <?php echo implode(',', sscanf($settings->primary_color, "#%02x%02x%02x")); ?>;
 }
 
+/* Base Form Styling */
 .mobooking-booking-form-page {
     background-color: var(--booking-bg);
     color: var(--booking-text);
@@ -509,40 +650,300 @@ $options_manager = new \MoBooking\Services\ServiceOptionsManager();
     color: var(--booking-primary) !important;
 }
 
+/* Form Width Settings */
+.form-width-narrow .mobooking-booking-form-container {
+    max-width: 600px;
+    margin: 0 auto;
+}
+
+.form-width-standard .mobooking-booking-form-container {
+    max-width: 800px;
+    margin: 0 auto;
+}
+
+.form-width-wide .mobooking-booking-form-container {
+    max-width: 1000px;
+    margin: 0 auto;
+}
+
+.form-width-full .mobooking-booking-form-container {
+    max-width: 100%;
+    margin: 0;
+}
+
+/* Form Layout Styles */
+.form-layout-modern .booking-step {
+    background: white;
+    border-radius: 16px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+    padding: 2rem;
+    margin-bottom: 2rem;
+}
+
+.form-layout-classic .booking-step {
+    background: white;
+    border: 2px solid #e5e7eb;
+    border-radius: 8px;
+    padding: 2rem;
+    margin-bottom: 1rem;
+}
+
+.form-layout-minimal .booking-step {
+    background: transparent;
+    border: none;
+    border-bottom: 1px solid #e5e7eb;
+    padding: 1.5rem 0;
+    margin-bottom: 0;
+}
+
+/* Button Style Settings */
+.button-style-rounded .btn-primary,
+.button-style-rounded .btn-secondary {
+    border-radius: 8px;
+}
+
+.button-style-square .btn-primary,
+.button-style-square .btn-secondary {
+    border-radius: 4px;
+}
+
+.button-style-pill .btn-primary,
+.button-style-pill .btn-secondary {
+    border-radius: 50px;
+}
+
+.button-style-outline .btn-primary {
+    background: transparent;
+    color: var(--booking-primary);
+    border: 2px solid var(--booking-primary);
+}
+
+.button-style-outline .btn-primary:hover {
+    background: var(--booking-primary);
+    color: white;
+}
+
+.button-style-outline .btn-secondary {
+    background: transparent;
+    color: var(--booking-text);
+    border: 2px solid #e5e7eb;
+}
+
+/* Primary Button Styling */
 .mobooking-booking-form-container .btn-primary {
     background: linear-gradient(135deg, var(--booking-primary), var(--booking-primary-dark)) !important;
     border-color: var(--booking-primary) !important;
+    color: white;
+    font-weight: 600;
+    padding: 0.875rem 1.5rem;
+    transition: all 0.2s ease;
+    border: none;
+    cursor: pointer;
 }
 
 .mobooking-booking-form-container .btn-primary:hover:not(:disabled) {
     background: linear-gradient(135deg, var(--booking-primary-dark), var(--booking-primary)) !important;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(var(--booking-primary-rgb), 0.3);
 }
 
-.mobooking-booking-form-container .progress-fill {
+/* Secondary Button Styling */
+.mobooking-booking-form-container .btn-secondary {
+    background: #f8f9fa;
+    color: var(--booking-text);
+    border: 1px solid #e5e7eb;
+    font-weight: 500;
+    padding: 0.875rem 1.5rem;
+    transition: all 0.2s ease;
+    cursor: pointer;
+}
+
+.mobooking-booking-form-container .btn-secondary:hover {
+    background: #e9ecef;
+    border-color: var(--booking-primary);
+}
+
+/* Step Indicator Styles */
+
+/* Progress Bar Style */
+.step-indicator-progress .progress-fill {
     background: linear-gradient(90deg, var(--booking-primary), var(--booking-primary-dark)) !important;
 }
 
-.mobooking-booking-form-container .step.active .step-number {
+.step-indicator-progress .step.active .step-number {
     background-color: var(--booking-primary) !important;
     border-color: var(--booking-primary-dark) !important;
+    color: white;
 }
 
+.step-indicator-progress .step.completed .step-number {
+    background-color: #10b981 !important;
+    border-color: #059669 !important;
+    color: white;
+}
+
+/* Dots Style */
+.step-indicator-dots .progress-dots {
+    display: flex;
+    justify-content: center;
+    gap: 1rem;
+    margin-bottom: 1rem;
+}
+
+.step-indicator-dots .dot {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: #e5e7eb;
+    transition: all 0.3s ease;
+}
+
+.step-indicator-dots .dot.active {
+    background: var(--booking-primary);
+    transform: scale(1.2);
+}
+
+.step-indicator-dots .dot.completed {
+    background: #10b981;
+}
+
+.step-indicator-dots .step-labels {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.875rem;
+    color: #6b7280;
+}
+
+.step-indicator-dots .step-labels span.active {
+    color: var(--booking-primary);
+    font-weight: 600;
+}
+
+/* Numbers Style */
+.step-indicator-numbers .progress-numbers {
+    display: flex;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-bottom: 2rem;
+}
+
+.step-indicator-numbers .number-step {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.5rem;
+    flex: 1;
+}
+
+.step-indicator-numbers .number {
+    width: 2rem;
+    height: 2rem;
+    border-radius: 50%;
+    background: #e5e7eb;
+    color: #6b7280;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 600;
+    font-size: 0.875rem;
+    transition: all 0.3s ease;
+}
+
+.step-indicator-numbers .number-step.active .number {
+    background: var(--booking-primary);
+    color: white;
+}
+
+.step-indicator-numbers .number-step.completed .number {
+    background: #10b981;
+    color: white;
+}
+
+.step-indicator-numbers .label {
+    font-size: 0.75rem;
+    color: #6b7280;
+    text-align: center;
+}
+
+.step-indicator-numbers .number-step.active .label {
+    color: var(--booking-primary);
+    font-weight: 600;
+}
+
+/* Arrows Style */
+.step-indicator-arrows .progress-arrows {
+    display: flex;
+    margin-bottom: 2rem;
+}
+
+.step-indicator-arrows .arrow-step {
+    flex: 1;
+    background: #f8f9fa;
+    color: #6b7280;
+    padding: 1rem;
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 500;
+    font-size: 0.875rem;
+    transition: all 0.3s ease;
+}
+
+.step-indicator-arrows .arrow-step:not(:last-child)::after {
+    content: '';
+    position: absolute;
+    right: -12px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 0;
+    height: 0;
+    border-left: 12px solid #f8f9fa;
+    border-top: 24px solid transparent;
+    border-bottom: 24px solid transparent;
+    z-index: 2;
+}
+
+.step-indicator-arrows .arrow-step.active {
+    background: var(--booking-primary);
+    color: white;
+}
+
+.step-indicator-arrows .arrow-step.active::after {
+    border-left-color: var(--booking-primary);
+}
+
+.step-indicator-arrows .arrow-step.completed {
+    background: #10b981;
+    color: white;
+}
+
+.step-indicator-arrows .arrow-step.completed::after {
+    border-left-color: #10b981;
+}
+
+/* Service Card Styling */
 .mobooking-booking-form-container .service-card.selected {
     border-color: var(--booking-primary) !important;
-    background: rgba(<?php echo implode(',', sscanf($settings->primary_color, "#%02x%02x%02x")); ?>, 0.05) !important;
+    background: rgba(var(--booking-primary-rgb), 0.05) !important;
+    box-shadow: 0 0 0 2px rgba(var(--booking-primary-rgb), 0.2);
 }
 
 .mobooking-booking-form-container .service-card:hover {
     border-color: var(--booking-primary) !important;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
 }
 
-
+/* Form Input Styling */
+.mobooking-booking-form-container input:focus,
 .mobooking-booking-form-container select:focus,
 .mobooking-booking-form-container textarea:focus {
     border-color: var(--booking-primary) !important;
-    box-shadow: 0 0 0 3px rgba(<?php echo implode(',', sscanf($settings->primary_color, "#%02x%02x%02x")); ?>, 0.1) !important;
+    box-shadow: 0 0 0 3px rgba(var(--booking-primary-rgb), 0.1) !important;
+    outline: none;
 }
 
+/* ZIP Validation Icons */
 .zip-validation-icon.success {
     color: #10b981 !important;
 }
@@ -551,15 +952,53 @@ $options_manager = new \MoBooking\Services\ServiceOptionsManager();
     color: #ef4444 !important;
 }
 
-/* Responsive adjustments */
+/* Pricing Summary */
+.pricing-summary .total {
+    color: var(--booking-primary);
+    font-weight: 700;
+    font-size: 1.125rem;
+    border-top: 2px solid var(--booking-primary);
+    padding-top: 0.75rem;
+    margin-top: 0.75rem;
+}
+
+/* Success State */
+.step-success .success-icon {
+    color: #10b981;
+    background: rgba(16, 185, 129, 0.1);
+    border-radius: 50%;
+    padding: 1rem;
+    margin: 0 auto 1rem;
+    width: fit-content;
+}
+
+/* Responsive Design Enhancements */
 @media (max-width: 768px) {
-    .mobooking-booking-form-container {
+    .form-width-narrow .mobooking-booking-form-container,
+    .form-width-standard .mobooking-booking-form-container,
+    .form-width-wide .mobooking-booking-form-container {
+        max-width: 100%;
+        margin: 0;
         padding: 0 0.5rem;
-        margin: 1rem auto;
     }
     
-    .booking-step {
+    .form-layout-modern .booking-step,
+    .form-layout-classic .booking-step {
         padding: 1.5rem;
+        margin-bottom: 1rem;
+    }
+    
+    .step-indicator-arrows .progress-arrows {
+        flex-direction: column;
+    }
+    
+    .step-indicator-arrows .arrow-step::after {
+        display: none;
+    }
+    
+    .step-indicator-numbers .progress-numbers {
+        grid-template-columns: repeat(3, 1fr);
+        gap: 0.5rem;
     }
     
     .services-grid {
@@ -616,6 +1055,14 @@ $options_manager = new \MoBooking\Services\ServiceOptionsManager();
     
     .service-card {
         padding: 1rem;
+    }
+    
+    .step-indicator-dots .step-labels {
+        font-size: 0.75rem;
+    }
+    
+    .step-indicator-numbers .progress-numbers {
+        grid-template-columns: repeat(2, 1fr);
     }
 }
 
@@ -682,6 +1129,20 @@ $options_manager = new \MoBooking\Services\ServiceOptionsManager();
         transition-duration: 0.01ms !important;
     }
 }
+
+/* Language-specific adjustments */
+.mobooking-booking-form-page[lang="ar"],
+.mobooking-booking-form-page[lang="he"] {
+    direction: rtl;
+}
+
+.mobooking-booking-form-page[lang="ar"] .step-indicator-arrows .arrow-step::after,
+.mobooking-booking-form-page[lang="he"] .step-indicator-arrows .arrow-step::after {
+    right: auto;
+    left: -12px;
+    border-left: none;
+    border-right: 12px solid #f8f9fa;
+}
 </style>
 
 <?php if (!empty($settings->custom_css)) : ?>
@@ -700,6 +1161,86 @@ $options_manager = new \MoBooking\Services\ServiceOptionsManager();
 <!-- Analytics Code -->
 <?php echo wp_strip_all_tags($settings->analytics_code); ?>
 <?php endif; ?>
+
+<script>
+// Enhanced JavaScript to handle all the new settings
+jQuery(document).ready(function($) {
+    // Initialize form with settings
+    const formSettings = window.mobookingBooking?.settings || {};
+    
+    // Update step indicators based on style setting
+    function updateStepIndicator(currentStep, totalSteps) {
+        const stepIndicatorStyle = formSettings.stepIndicatorStyle || 'progress';
+        const progressPercentage = (currentStep / totalSteps) * 100;
+        
+        switch (stepIndicatorStyle) {
+            case 'progress':
+                $('.progress-fill').css('width', progressPercentage + '%');
+                $('.progress-steps .step').removeClass('active completed');
+                $('.progress-steps .step').each(function(index) {
+                    if (index < currentStep - 1) {
+                        $(this).addClass('completed');
+                    } else if (index === currentStep - 1) {
+                        $(this).addClass('active');
+                    }
+                });
+                break;
+                
+            case 'dots':
+                $('.progress-dots .dot').removeClass('active completed');
+                $('.step-labels span').removeClass('active');
+                $('.progress-dots .dot').each(function(index) {
+                    if (index < currentStep - 1) {
+                        $(this).addClass('completed');
+                    } else if (index === currentStep - 1) {
+                        $(this).addClass('active');
+                    }
+                });
+                $('.step-labels span').eq(currentStep - 1).addClass('active');
+                break;
+                
+            case 'numbers':
+                $('.progress-numbers .number-step').removeClass('active completed');
+                $('.progress-numbers .number-step').each(function(index) {
+                    if (index < currentStep - 1) {
+                        $(this).addClass('completed');
+                    } else if (index === currentStep - 1) {
+                        $(this).addClass('active');
+                    }
+                });
+                break;
+                
+            case 'arrows':
+                $('.progress-arrows .arrow-step').removeClass('active completed');
+                $('.progress-arrows .arrow-step').each(function(index) {
+                    if (index < currentStep - 1) {
+                        $(this).addClass('completed');
+                    } else if (index === currentStep - 1) {
+                        $(this).addClass('active');
+                    }
+                });
+                break;
+        }
+    }
+    
+    // Initialize step indicator
+    updateStepIndicator(1, 6);
+    
+    // Update step indicator when steps change
+    $(document).on('stepChanged', function(e, data) {
+        updateStepIndicator(data.currentStep, data.totalSteps);
+    });
+    
+    // Apply language setting to form
+    if (formSettings.language) {
+        $('.mobooking-booking-form-page').attr('lang', formSettings.language);
+    }
+    
+    // Enhanced form validation and interaction
+    // This would integrate with your existing booking form JavaScript
+    console.log('Enhanced booking form initialized with settings:', formSettings);
+});
+</script>
 
 <?php
 // Include footer
