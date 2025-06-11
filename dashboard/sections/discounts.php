@@ -32,46 +32,33 @@ $total_usage = array_sum(array_column($discounts, 'usage_count'));
 ?>
 
 <div class="discounts-section">
-    <div class="discounts-header">
-        <div class="discounts-header-content">
-            <div class="discounts-title-group">
-                <h1 class="discounts-main-title">
-                    <svg class="title-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M19 5L5 19M9 6.5C9 7.88071 7.88071 9 6.5 9C5.11929 9 4 7.88071 4 6.5C4 5.11929 5.11929 4 6.5 4C7.88071 4 9 5.11929 9 6.5ZM20 17.5C20 18.8807 18.8807 20 17.5 20C16.1193 20 15 18.8807 15 17.5C15 16.1193 16.1193 15 17.5 15C18.8807 15 20 16.1193 20 17.5Z"/>
-                    </svg>
-                    <?php _e('Discount Codes', 'mobooking'); ?>
-                </h1>
-                <p class="discounts-subtitle"><?php _e('Create and manage discount codes for your services', 'mobooking'); ?></p>
-            </div>
-            
-            <?php if (!empty($discounts)) : ?>
-                <div class="discounts-stats">
-                    <div class="stat-item">
-                        <span class="stat-number"><?php echo $total_discounts; ?></span>
-                        <span class="stat-label"><?php _e('Total Codes', 'mobooking'); ?></span>
-                    </div>
-                    <div class="stat-item">
-                        <span class="stat-number"><?php echo $active_discounts; ?></span>
-                        <span class="stat-label"><?php _e('Active', 'mobooking'); ?></span>
-                    </div>
-                    <div class="stat-item">
-                        <span class="stat-number"><?php echo $total_usage; ?></span>
-                        <span class="stat-label"><?php _e('Total Uses', 'mobooking'); ?></span>
-                    </div>
-                </div>
-            <?php endif; ?>
+<!-- Page Header -->
+<div class="page-header">
+    <div class="header-content">
+        <div class="header-content-inner">
+
+          <div class="header-info">
+              <h1 class="page-title">
+                  <svg class="title-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <path d="M19 5L5 19M9 6.5C9 7.88071 7.88071 9 6.5 9C5.11929 9 4 7.88071 4 6.5C4 5.11929 5.11929 4 6.5 4C7.88071 4 9 5.11929 9 6.5ZM20 17.5C20 18.8807 18.8807 20 17.5 20C16.1193 20 15 18.8807 15 17.5C15 16.1193 16.1193 15 17.5 15C18.8807 15 20 16.1193 20 17.5Z"/>
+                  </svg>
+                  <?php _e('Discount Codes', 'mobooking'); ?>
+              </h1>
+              <p class="page-subtitle"><?php _e('Create and manage discount codes for your services', 'mobooking'); ?></p>
+          </div>
         </div>
-        
-        <div class="discounts-header-actions">
-            <button type="button" id="add-discount-btn" class="btn-primary">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M12 5v14M5 12h14"/>
-                </svg>
-                <?php _e('Create Discount Code', 'mobooking'); ?>
-            </button>
-        </div>
+
+    <div class="header-actions">
+        <button type="button" id="add-discount-btn" class="btn-primary">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M12 5v14M5 12h14"/>
+            </svg>
+            <?php _e('Create Discount Code', 'mobooking'); ?>
+        </button>
     </div>
-    
+    </div>
+
+</div>
     <?php if (empty($discounts)) : ?>
         <!-- Empty State -->
         <div class="discounts-empty-state">
@@ -101,68 +88,71 @@ $total_usage = array_sum(array_column($discounts, 'usage_count'));
     <?php else : ?>
         <!-- Discounts Management -->
         <div class="discounts-management">
-            <!-- Quick Stats Cards -->
-            <div class="discounts-stats-grid">
-                <div class="stat-card total-discounts">
-                    <div class="stat-card-header">
-                        <div class="stat-icon">
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <path d="M19 5L5 19M9 6.5C9 7.88071 7.88071 9 6.5 9C5.11929 9 4 7.88071 4 6.5C4 5.11929 5.11929 4 6.5 4C7.88071 4 9 5.11929 9 6.5ZM20 17.5C20 18.8807 18.8807 20 17.5 20C16.1193 20 15 18.8807 15 17.5C15 16.1193 16.1193 15 17.5 15C18.8807 15 20 16.1193 20 17.5Z"/>
-                            </svg>
-                        </div>
-                        <div class="stat-info">
-                            <div class="stat-value"><?php echo $total_discounts; ?></div>
-                            <div class="stat-label"><?php _e('Total Codes', 'mobooking'); ?></div>
-                        </div>
+
+        
+        <div class="mobooking-metric-cards">
+            <div class="mobooking-stat-card mobooking-total-discounts">
+                <div class="mobooking-stat-card-header">
+                    <div class="mobooking-stat-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M19 5L5 19M9 6.5C9 7.88071 7.88071 9 6.5 9C5.11929 9 4 7.88071 4 6.5C4 5.11929 5.11929 4 6.5 4C7.88071 4 9 5.11929 9 6.5ZM20 17.5C20 18.8807 18.8807 20 17.5 20C16.1193 20 15 18.8807 15 17.5C15 16.1193 16.1193 15 17.5 15C18.8807 15 20 16.1193 20 17.5Z"/>
+                        </svg>
                     </div>
-                </div>
-                
-                <div class="stat-card active-discounts">
-                    <div class="stat-card-header">
-                        <div class="stat-icon">
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <path d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2ZM8 12l2 2 4-4"/>
-                            </svg>
-                        </div>
-                        <div class="stat-info">
-                            <div class="stat-value"><?php echo $active_discounts; ?></div>
-                            <div class="stat-label"><?php _e('Active Codes', 'mobooking'); ?></div>
-                        </div>
-                    </div>
-                </div>
-                
-                <div class="stat-card expired-discounts">
-                    <div class="stat-card-header">
-                        <div class="stat-icon">
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <circle cx="12" cy="12" r="10"></circle>
-                                <path d="M12 6v6l4 2"></path>
-                            </svg>
-                        </div>
-                        <div class="stat-info">
-                            <div class="stat-value"><?php echo $expired_discounts; ?></div>
-                            <div class="stat-label"><?php _e('Expired', 'mobooking'); ?></div>
-                        </div>
-                    </div>
-                </div>
-                
-                <div class="stat-card total-usage">
-                    <div class="stat-card-header">
-                        <div class="stat-icon">
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path>
-                                <circle cx="9" cy="7" r="4"></circle>
-                                <path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"></path>
-                            </svg>
-                        </div>
-                        <div class="stat-info">
-                            <div class="stat-value"><?php echo $total_usage; ?></div>
-                            <div class="stat-label"><?php _e('Total Uses', 'mobooking'); ?></div>
-                        </div>
+                    <div class="mobooking-stat-info">
+                        <div class="mobooking-stat-value"><?php echo $total_discounts; ?></div>
+                        <div class="mobooking-stat-label"><?php _e('Total Codes', 'mobooking'); ?></div>
                     </div>
                 </div>
             </div>
             
+            <div class="mobooking-stat-card mobooking-active-discounts">
+                <div class="mobooking-stat-card-header">
+                    <div class="mobooking-stat-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2ZM8 12l2 2 4-4"/>
+                        </svg>
+                    </div>
+                    <div class="mobooking-stat-info">
+                        <div class="mobooking-stat-value"><?php echo $active_discounts; ?></div>
+                        <div class="mobooking-stat-label"><?php _e('Active Codes', 'mobooking'); ?></div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="mobooking-stat-card mobooking-expired-discounts">
+                <div class="mobooking-stat-card-header">
+                    <div class="mobooking-stat-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <circle cx="12" cy="12" r="10"></circle>
+                            <path d="M12 6v6l4 2"></path>
+                        </svg>
+                    </div>
+                    <div class="mobooking-stat-info">
+                        <div class="mobooking-stat-value"><?php echo $expired_discounts; ?></div>
+                        <div class="mobooking-stat-label"><?php _e('Expired', 'mobooking'); ?></div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="mobooking-stat-card mobooking-total-usage">
+                <div class="mobooking-stat-card-header">
+                    <div class="mobooking-stat-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path>
+                            <circle cx="9" cy="7" r="4"></circle>
+                            <path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"></path>
+                        </svg>
+                    </div>
+                    <div class="mobooking-stat-info">
+                        <div class="mobooking-stat-value"><?php echo $total_usage; ?></div>
+                        <div class="mobooking-stat-label"><?php _e('Total Uses', 'mobooking'); ?></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+
+
             <!-- Filters and Actions -->
             <div class="discounts-toolbar">
                 <div class="filters-section">
@@ -1861,10 +1851,6 @@ jQuery(document).ready(function($) {
 
 /* Base styles and reset */
 .discounts-section {
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-  line-height: 1.6;
-  color: hsl(var(--foreground));
-  background: hsl(var(--background));
   animation: fadeInUp 0.5s ease-out;
   max-width: 100%;
   overflow-x: hidden;
@@ -2192,7 +2178,6 @@ jQuery(document).ready(function($) {
   border: 1px solid hsl(var(--border));
   border-radius: var(--radius);
   overflow: hidden;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
 }
 
 .discounts-grid-header {
@@ -2235,7 +2220,7 @@ jQuery(document).ready(function($) {
 
 .discount-row {
   display: grid;
-  grid-template-columns: 2fr 1fr 1fr 1.5fr 1.5fr 1fr 1fr;
+  grid-template-columns:2fr 1.5fr 1fr 1fr 1.5fr 1fr 1fr;
   gap: 1rem;
   padding: 1rem 1.5rem;
   border-bottom: 1px solid hsl(var(--border) / 0.5);
@@ -2245,7 +2230,6 @@ jQuery(document).ready(function($) {
 
 .discount-row:hover {
   background: hsl(var(--muted) / 0.3);
-  transform: translateX(4px);
 }
 
 .discount-row:last-child {

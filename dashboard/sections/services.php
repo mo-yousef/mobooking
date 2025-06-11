@@ -1014,7 +1014,6 @@ $available_icons = array(
 
 /* ===== MODERN FORM VIEW ===== */
 .service-form-modern {
-    max-width: 800px;
     margin: 0 auto;
 }
 
