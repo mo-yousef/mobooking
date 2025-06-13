@@ -2630,7 +2630,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 formData.append('action', 'mobooking_save_service');
                 // Main nonce ('nonce') is already included in formData by virtue of being an input field
 
-                fetch(ajaxurl, { method: 'POST', body: formData })
+                fetch(window.mobookingDashboard.ajaxUrl, { method: 'POST', body: formData })
                 .then(response => response.json())
                 .then(data => {
                     if (window.setButtonLoading) {
@@ -2703,7 +2703,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     imageFormData.append('service_id', currentServiceId);
                 }
 
-                fetch(ajaxurl, {
+                fetch(window.mobookingDashboard.ajaxUrl, {
                     method: 'POST',
                     body: imageFormData,
                     //contentType: false, // Not needed for fetch() with FormData
