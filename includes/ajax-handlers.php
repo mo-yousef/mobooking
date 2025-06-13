@@ -1463,10 +1463,84 @@ function mobooking_ajax_save_settings() {
         // Use the settings manager if available
         if (class_exists('\MoBooking\Database\SettingsManager')) {
             $settings_manager = new \MoBooking\Database\SettingsManager();
+            // This call likely handles both main settings and potentially some user meta.
+            // We will add explicit user meta handling after this for fields not covered by SettingsManager.
             $settings_manager->update_settings($user_id, $_POST);
+        }
+
+        // Define user meta fields to be saved
+        $user_meta_fields = array(
+            'business_email',
+            'business_address',
+            'website',
+            'business_description',
+            'notify_new_booking',
+            'notify_booking_changes',
+            'notify_reminders',
+            'require_terms_acceptance',
+            'booking_lead_time',
+            'max_bookings_per_day',
+            'auto_confirm_bookings',
+            'allow_same_day_booking',
+            'send_booking_reminders'
+            // 'business_hours' is handled separately
+        );
+
+        foreach ($user_meta_fields as $field_key) {
+            $value_to_save = null;
+            if (in_array($field_key, ['notify_new_booking', 'notify_booking_changes', 'notify_reminders', 'require_terms_acceptance', 'auto_confirm_bookings', 'allow_same_day_booking', 'send_booking_reminders'])) {
+                // Checkbox fields
+                $value_to_save = isset($_POST[$field_key]) ? '1' : '0';
+            } elseif (isset($_POST[$field_key])) {
+                // Other field types
+                $raw_value = $_POST[$field_key];
+                switch ($field_key) {
+                    case 'business_email':
+                        $value_to_save = sanitize_email($raw_value);
+                        break;
+                    case 'business_address':
+                        $value_to_save = sanitize_textarea_field($raw_value);
+                        break;
+                    case 'website':
+                        $value_to_save = esc_url_raw($raw_value);
+                        break;
+                    case 'business_description':
+                        $value_to_save = wp_kses_post($raw_value);
+                        break;
+                    case 'booking_lead_time':
+                    case 'max_bookings_per_day':
+                        $value_to_save = absint($raw_value);
+                        break;
+                    default:
+                        $value_to_save = sanitize_text_field($raw_value);
+                }
+            }
+
+            if ($value_to_save !== null) {
+                update_user_meta($user_id, $field_key, $value_to_save);
+            } else {
+                // If not set and not a checkbox, consider deleting or setting to empty,
+                // depending on desired behavior. For now, we only update if set.
+                // For checkboxes, '0' is saved if not set.
+            }
+        }
+
+        // Special handling for business_hours
+        if (isset($_POST['business_hours']) && is_array($_POST['business_hours'])) {
+            $sanitized_business_hours = array();
+            foreach ($_POST['business_hours'] as $day => $hours) {
+                $sanitized_day = sanitize_text_field($day);
+                $sanitized_business_hours[$sanitized_day] = array(
+                    'open'  => isset($hours['open']) ? '1' : '0',
+                    'start' => isset($hours['start']) ? sanitize_text_field(preg_replace('/[^0-9:]/', '', $hours['start'])) : '',
+                    'end'   => isset($hours['end']) ? sanitize_text_field(preg_replace('/[^0-9:]/', '', $hours['end'])) : '',
+                );
+            }
+            update_user_meta($user_id, 'business_hours', $sanitized_business_hours);
         } else {
-            // Fallback direct save with transaction
-            mobooking_fallback_save_settings($user_id, $_POST);
+            // If business_hours is not set in POST, decide whether to delete or save empty.
+            // For this implementation, let's save an empty array to signify 'cleared'.
+            update_user_meta($user_id, 'business_hours', array());
         }
         
         $wpdb->query('COMMIT');
@@ -1482,36 +1556,6 @@ function mobooking_ajax_save_settings() {
             error_log('MoBooking Settings Save Exception: ' . $e->getMessage());
         }
         wp_send_json_error(__('An error occurred while saving settings.', 'mobooking'));
-    }
-}
-
-/**
- * UPDATED: Fallback settings save function with transaction support
- */
-function mobooking_fallback_save_settings($user_id, $data) {
-    $saved_count = 0;
-    
-    // Save basic settings to user meta with validation
-    $settings_fields = array(
-        'company_name' => 'sanitize_text_field',
-        'phone' => 'sanitize_text_field',
-        'primary_color' => 'sanitize_hex_color',
-        'logo_url' => 'esc_url_raw',
-        'business_email' => 'sanitize_email',
-        'business_address' => 'sanitize_textarea_field',
-    );
-    
-    foreach ($settings_fields as $field => $sanitize_func) {
-        if (isset($data[$field])) {
-            $value = $sanitize_func($data[$field]);
-            if (update_user_meta($user_id, 'mobooking_' . $field, $value)) {
-                $saved_count++;
-            }
-        }
-    }
-    
-    if ($saved_count === 0) {
-        throw new Exception('No settings were updated');
     }
 }
 
