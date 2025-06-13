@@ -18,7 +18,17 @@ $selected_country = get_user_meta($user_id, 'mobooking_service_country', true);
 
 // Updated supported countries with local JSON data indicators
 $supported_countries = $geography_manager->get_supported_countries();
+
+$script_data = $geography_manager->get_areas_script_data();
 ?>
+<script type="text/javascript">
+    window.mobooking_area_vars = <?php echo json_encode($script_data); ?>;
+    window.ajax_object = window.mobooking_area_vars; // Define ajax_object immediately
+    // mobooking_current_country is part of mobooking_area_vars now, so no separate global needed unless specifically used outside this object.
+    // If window.mobooking_current_country is used directly elsewhere, it can be set:
+    // window.mobooking_current_country = <?php echo json_encode($script_data['current_country']); ?>;
+    // However, it's better to access it via window.mobooking_area_vars.current_country
+</script>
 
 <div class="areas-section enhanced-areas">
     <div class="areas-header">
@@ -335,6 +345,11 @@ $supported_countries = $geography_manager->get_supported_countries();
 <script>
 // Complete JavaScript for dashboard/sections/areas.php with Local JSON Support
 document.addEventListener('DOMContentLoaded', function() {
+    /*
+    if (typeof window.mobooking_area_vars === 'undefined') { ... } // REMOVE THIS BLOCK
+    window.ajax_object = window.mobooking_area_vars; // This is now done in the script tag above
+    */
+
     const EnhancedAreasManager = {
         // Configuration
         selectedAreas: new Set(),
@@ -345,14 +360,6 @@ document.addEventListener('DOMContentLoaded', function() {
             this.bindEvents();
             this.setupDataSourceInfo();
             this.initializeExistingElements();
-            
-            // Set up AJAX URL and nonce if not already available
-            if (typeof mobooking_area_vars === 'undefined') {
-                window.mobooking_area_vars = {
-                    ajax_url: ajax_object?.ajax_url || '/wp-admin/admin-ajax.php',
-                    nonce: ajax_object?.nonce || ''
-                };
-            }
             
             console.log('Enhanced Areas Manager initialized');
         },
@@ -652,15 +659,15 @@ document.addEventListener('DOMContentLoaded', function() {
         // Get current country code
         getCurrentCountry: function() {
             // Try to get from various sources
-            const countryMeta = document.querySelector('meta[name="mobooking-country"]');
-            if (countryMeta) return countryMeta.content;
+            // const countryMeta = document.querySelector('meta[name="mobooking-country"]'); // This is fine if used
+            // if (countryMeta) return countryMeta.content;
             
-            const countryData = document.querySelector('[data-country-code]');
-            if (countryData) return countryData.dataset.countryCode;
+            // const countryData = document.querySelector('[data-country-code]'); // This is fine if used
+            // if (countryData) return countryData.dataset.countryCode;
             
-            // Extract from PHP variables if available
-            if (typeof mobooking_current_country !== 'undefined') {
-                return mobooking_current_country;
+            // Extract from PHP variables if available (this is the primary one now)
+            if (typeof window.mobooking_area_vars !== 'undefined' && typeof window.mobooking_area_vars.current_country !== 'undefined') {
+                return window.mobooking_area_vars.current_country;
             }
             
             return null;
