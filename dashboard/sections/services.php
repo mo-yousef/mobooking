@@ -488,11 +488,11 @@ $available_icons = array(
 
 <!-- Modals (Keep existing modals but with modern styling) -->
 <!-- Option Modal -->
-<div id="option-modal" class="modal-modern" style="display:none;">
+<div id="option-modal" class="modal-modern" style="display:none;" role="dialog" aria-modal="true" aria-labelledby="option-modal-title">
     <div class="modal-content-modern">
         <div class="modal-header-modern">
             <h3 id="option-modal-title">Add New Option</h3>
-            <button class="modal-close-modern" aria-label="Close">
+            <button type="button" class="modal-close-modern" aria-label="Close">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <path d="M18 6 6 18M6 6l12 12"/>
                 </svg>
@@ -563,6 +563,7 @@ $available_icons = array(
         
         <div class="modal-footer-modern">
             <button type="button" id="delete-option-btn" class="btn-delete" style="display: none;">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 0.875rem; height: 0.875rem; margin-right: 0.5rem;"><path d="m3 6 3 18h12l3-18"></path><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path></svg>
                 Delete Option
             </button>
             <div class="modal-actions">
@@ -580,10 +581,10 @@ $available_icons = array(
 </div>
 
 <!-- Confirmation Modal -->
-<div id="confirmation-modal" class="modal-modern" style="display:none;">
+<div id="confirmation-modal" class="modal-modern" style="display:none;" role="alertdialog" aria-modal="true" aria-labelledby="confirmation-modal-title" aria-describedby="confirmation-message">
     <div class="modal-content-modern small">
         <div class="modal-header-modern">
-            <h3>Confirm Delete</h3>
+            <h3 id="confirmation-modal-title">Confirm Delete</h3>
         </div>
         <div class="modal-body-modern">
             <p id="confirmation-message">Are you sure you want to delete this? This action cannot be undone.</p>
@@ -591,6 +592,7 @@ $available_icons = array(
         <div class="modal-footer-modern">
             <button type="button" class="btn-cancel cancel-delete-btn">Cancel</button>
             <button type="button" class="btn-delete confirm-delete-btn">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 0.875rem; height: 0.875rem; margin-right: 0.5rem;"><path d="m3 6 3 18h12l3-18"></path><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path></svg>
                 <span class="btn-text">Delete</span>
                 <span class="btn-loading" style="display: none;">
                     <div class="spinner-modern"></div>
@@ -1983,6 +1985,308 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Make setButtonLoading globally available
     window.setButtonLoading = setButtonLoading;
+
+    // --- MODAL HANDLING START --- //
+    // Modal DOM Elements
+    const optionModal = document.getElementById('option-modal');
+    const confirmationModal = document.getElementById('confirmation-modal');
+
+    // Option Modal Specific Elements
+    const addOptionBtn = document.getElementById('add-option-btn');
+    const optionForm = document.getElementById('option-form');
+    const optionModalTitle = document.getElementById('option-modal-title');
+    const optionIdInput = document.getElementById('option-id'); // Hidden input for option ID
+    const optionServiceIdInput = document.getElementById('option-service-id'); // Hidden input for service ID in option
+    const deleteOptionBtnInModal = document.getElementById('delete-option-btn');
+    const serviceOptionsContainer = document.getElementById('service-options-container'); // For edit option event delegation
+
+    // Confirmation Modal Specific Elements
+    const confirmationMessage = document.getElementById('confirmation-message');
+    const confirmDeleteBtn = confirmationModal ? confirmationModal.querySelector('.confirm-delete-btn') : null;
+
+    // General Service Form Elements (used for context)
+    const serviceIdInput = document.getElementById('service-id'); // Main service ID on the page
+
+    // Modal State Variables
+    let activeModal = null;       // Tracks the currently displayed modal
+    let lastFocusedElement = null; // Stores the element that had focus before modal opening, to restore focus on close
+
+    /**
+     * Opens a specified modal.
+     * @param {HTMLElement} modal - The modal element to open.
+     * @param {string} focusElementSelector - A CSS selector for the element to focus within the modal.
+     */
+    function openModal(modal, focusElementSelector) {
+        if (!modal) return;
+
+        lastFocusedElement = document.activeElement; // Store current focus
+        modal.style.display = 'flex';
+
+        setTimeout(() => { // Allow display change to register before adding class for transition
+            modal.classList.add('active');
+            activeModal = modal;
+            const focusElement = modal.querySelector(focusElementSelector);
+            if (focusElement) {
+                focusElement.focus();
+            }
+        }, 10);
+    }
+
+    /**
+     * Closes a specified modal.
+     * @param {HTMLElement} modal - The modal element to close.
+     */
+    function closeModal(modal) {
+        if (!modal) return;
+
+        modal.classList.remove('active');
+
+        setTimeout(() => { // Allow transition to complete before hiding
+            modal.style.display = 'none';
+            if (activeModal === modal) {
+                activeModal = null;
+            }
+            if (lastFocusedElement) {
+                lastFocusedElement.focus(); // Restore focus to the element that opened the modal
+                lastFocusedElement = null;
+            }
+        }, 300); // Duration should match CSS transition duration
+    }
+
+    /**
+     * Resets the Option Modal to its default state (for adding a new option).
+     */
+    function resetOptionModal() {
+        if (optionForm) optionForm.reset();
+        if (optionModalTitle) optionModalTitle.textContent = 'Add New Option';
+        if (optionIdInput) optionIdInput.value = '';
+        if (deleteOptionBtnInModal) deleteOptionBtnInModal.style.display = 'none';
+
+        const dynamicFieldsContainer = document.getElementById('option-dynamic-fields');
+        if (dynamicFieldsContainer) dynamicFieldsContainer.innerHTML = ''; // Clear any dynamically added fields
+
+        const priceImpactGroup = document.getElementById('price-impact-group');
+        if (priceImpactGroup) priceImpactGroup.style.display = 'block'; // Or based on default visibility logic
+    }
+
+    /**
+     * Resets the Confirmation Modal to its default state.
+     */
+    function resetConfirmationModal() {
+        if (confirmationMessage) confirmationMessage.textContent = 'Are you sure you want to delete this? This action cannot be undone.';
+        if (confirmDeleteBtn) {
+            confirmDeleteBtn.removeAttribute('data-item-id');
+            confirmDeleteBtn.removeAttribute('data-item-type');
+        }
+    }
+
+    // --- Event Listeners for Opening Modals ---
+
+    // Open Option Modal for Adding New Option
+    if (addOptionBtn && optionModal) {
+        addOptionBtn.addEventListener('click', function() {
+            if (this.disabled) return; // Respect disabled state (e.g., if service not saved yet)
+
+            resetOptionModal();
+            if (optionServiceIdInput && serviceIdInput) {
+                optionServiceIdInput.value = serviceIdInput.value; // Pass current service ID
+            }
+            // Title and button visibility are handled by resetOptionModal for "add" case
+            openModal(optionModal, '#option-name');
+        });
+    }
+
+    /**
+     * Mock function to simulate fetching option data for editing.
+     * In a real application, this would involve an AJAX request to the server.
+     * @param {string} optionId - The ID of the option to fetch.
+     * @param {string} serviceId - The ID of the parent service.
+     * @returns {object} Mock option data.
+     */
+    function fetchMockOptionData(optionId, serviceId) {
+        console.log(`Fetching mock data for optionId: ${optionId}, serviceId: ${serviceId}`);
+        // Simulate data structure that might come from a backend
+        return {
+            id: optionId,
+            service_id: serviceId,
+            name: `Mock Option ${optionId.replace('opt_', '')}`,
+            type: (parseInt(optionId.slice(-1)) % 3 === 0) ? 'select' : (parseInt(optionId.slice(-1)) % 2 === 0) ? 'text' : 'checkbox',
+            description: `This is a detailed mock description for option ${optionId}. It helps illustrate how content might fill the modal.`,
+            is_required: (parseInt(optionId.slice(-1)) % 2 === 0) ? '1' : '0',
+            price_type: (parseInt(optionId.slice(-1)) % 3 === 0) ? 'percentage' : 'fixed',
+            price_impact: (parseInt(optionId.slice(-1)) * 5 + 5).toFixed(2), // e.g., 5.00, 10.00, 15.00
+            // Example 'values' for select/radio types - actual population of these is a TODO
+            values: (parseInt(optionId.slice(-1)) % 3 === 0) ? [{value: 'val1', label: 'Value 1'}, {value: 'val2', label: 'Value 2'}] : []
+        };
+    }
+
+    // Open Option Modal for Editing Existing Option (Event Delegation)
+    if (serviceOptionsContainer && optionModal) {
+        serviceOptionsContainer.addEventListener('click', function(event) {
+            const editButton = event.target.closest('.edit-option-btn');
+            if (!editButton) return;
+
+            const optionId = editButton.dataset.optionId;
+            const currentServiceId = serviceIdInput ? serviceIdInput.value : null;
+
+            if (!optionId) {
+                console.error('Edit option button clicked: missing data-option-id attribute.');
+                return;
+            }
+            if (!currentServiceId) {
+                console.error('Cannot edit option: main service ID is not available.');
+                // Potentially show a user-facing error here.
+                return;
+            }
+
+            resetOptionModal();
+
+            const mockData = fetchMockOptionData(optionId, currentServiceId);
+
+            if (optionModalTitle) optionModalTitle.textContent = 'Edit Option';
+            if (optionIdInput) optionIdInput.value = mockData.id;
+            if (optionServiceIdInput) optionServiceIdInput.value = mockData.service_id;
+
+            // Populate form fields
+            const fields = {
+                'option-name': mockData.name,
+                'option-type': mockData.type,
+                'option-description': mockData.description,
+                'option-required': mockData.is_required,
+                'option-price-type': mockData.price_type,
+                'option-price-impact': mockData.price_impact
+            };
+
+            for (const [id, value] of Object.entries(fields)) {
+                const element = document.getElementById(id);
+                if (element) element.value = value;
+            }
+
+            // TODO: Handle dynamic fields based on mockData.type (e.g., populating select options)
+            // const dynamicFieldsContainer = document.getElementById('option-dynamic-fields');
+            // if (dynamicFieldsContainer) {
+            //    dynamicFieldsContainer.innerHTML = `<p>Dynamic fields for type '${mockData.type}' need implementation.</p>`;
+            // }
+
+            if (deleteOptionBtnInModal) deleteOptionBtnInModal.style.display = 'flex';
+            openModal(optionModal, '#option-name');
+        });
+    }
+
+    // Open Confirmation Modal (Event Delegation on document.body)
+    // Handles both "Delete Service" and "Delete Option" buttons
+    document.body.addEventListener('click', function(event) {
+        const target = event.target;
+        const deleteServiceButton = target.closest('.delete-service-btn');
+        const deleteOptionButton = target.closest('#delete-option-btn') || target.closest('.delete-option-btn-list');
+
+        let itemId = null;
+        let itemType = null;
+        let message = '';
+
+        if (deleteServiceButton) {
+            itemId = deleteServiceButton.dataset.id;
+            itemType = 'service';
+            message = 'Are you sure you want to delete this service? This action cannot be undone.';
+        } else if (deleteOptionButton) {
+            itemId = deleteOptionButton.dataset.optionId || (optionIdInput ? optionIdInput.value : null);
+            itemType = 'option';
+            message = 'Are you sure you want to delete this option? This action cannot be undone.';
+        }
+
+        if (itemId && itemType) {
+            if (!confirmationModal) return;
+            resetConfirmationModal();
+            if (confirmationMessage) confirmationMessage.textContent = message;
+            if (confirmDeleteBtn) {
+                confirmDeleteBtn.setAttribute('data-item-id', itemId);
+                confirmDeleteBtn.setAttribute('data-item-type', itemType);
+            }
+            openModal(confirmationModal, '.cancel-delete-btn');
+        }
+    });
+
+    // --- Event Listeners for Closing Modals ---
+
+    // Generic Close Handlers (X button, Click Outside)
+    [optionModal, confirmationModal].forEach(modal => {
+        if (!modal) return;
+
+        const closeBtn = modal.querySelector('.modal-close-modern');
+        if (closeBtn) {
+            closeBtn.addEventListener('click', () => {
+                closeModal(modal);
+                if (modal === optionModal) resetOptionModal();
+                else if (modal === confirmationModal) resetConfirmationModal();
+            });
+        }
+
+        modal.addEventListener('click', function(event) { // Click outside
+            if (event.target === modal) {
+                closeModal(modal);
+                if (modal === optionModal) resetOptionModal();
+                else if (modal === confirmationModal) resetConfirmationModal();
+            }
+        });
+    });
+
+    // Specific Cancel Buttons
+    const cancelOptionBtn = document.getElementById('cancel-option-btn');
+    if (cancelOptionBtn && optionModal) {
+        cancelOptionBtn.addEventListener('click', () => {
+            closeModal(optionModal);
+            resetOptionModal();
+        });
+    }
+
+    const cancelDeleteBtn = confirmationModal ? confirmationModal.querySelector('.cancel-delete-btn') : null;
+    if (cancelDeleteBtn && confirmationModal) {
+        cancelDeleteBtn.addEventListener('click', () => {
+            closeModal(confirmationModal);
+            resetConfirmationModal();
+        });
+    }
+
+    // --- Global Accessibility Enhancements for Modals (Escape Key & Focus Trapping) ---
+    document.addEventListener('keydown', function(event) {
+        if (!activeModal) return; // Only act if a modal is active
+
+        // Escape Key: Close active modal
+        if (event.key === 'Escape') {
+            closeModal(activeModal);
+            if (activeModal === optionModal) resetOptionModal();
+            else if (activeModal === confirmationModal) resetConfirmationModal();
+        }
+
+        // Tab Key: Trap focus within the active modal
+        if (event.key === 'Tab') {
+            const focusableElements = Array.from(activeModal.querySelectorAll(
+                'a[href]:not([disabled]), button:not([disabled]), input:not([disabled]), textarea:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])'
+            )).filter(el => el.offsetParent !== null); // Ensure element is visible
+
+            if (!focusableElements.length) { // Should not happen with well-structured modals
+                event.preventDefault();
+                return;
+            }
+
+            const firstElement = focusableElements[0];
+            const lastElement = focusableElements[focusableElements.length - 1];
+            const currentFocus = document.activeElement;
+
+            if (event.shiftKey) { // Shift + Tab (moving backwards)
+                if (currentFocus === firstElement || !focusableElements.includes(currentFocus)) {
+                    event.preventDefault();
+                    lastElement.focus(); // Wrap to last element
+                }
+            } else { // Tab (moving forwards)
+                if (currentFocus === lastElement || !focusableElements.includes(currentFocus)) {
+                    event.preventDefault();
+                    firstElement.focus(); // Wrap to first element
+                }
+            }
+        }
+    });
+    // --- MODAL HANDLING END --- //
 });
 
 // CSS animation for fade in
