@@ -1,5 +1,5 @@
 <?php
-// dashboard/sections/areas.php - Enhanced Service Areas Management with Real API Integration
+// dashboard/sections/areas.php - Enhanced Service Areas Management with Local JSON Data
 // Prevent direct access
 if (!defined('ABSPATH')) {
     exit;
@@ -16,26 +16,8 @@ $active_areas = count(array_filter($areas, function($area) { return $area->activ
 // Get user's selected country
 $selected_country = get_user_meta($user_id, 'mobooking_service_country', true);
 
-// Countries supported with comprehensive city lists and API integration
-$supported_countries = array(
-    'US' => array('name' => 'United States', 'has_api' => true),
-    'CA' => array('name' => 'Canada', 'has_api' => true),
-    'GB' => array('name' => 'United Kingdom', 'has_api' => true),
-    'DE' => array('name' => 'Germany', 'has_api' => true),
-    'FR' => array('name' => 'France', 'has_api' => true),
-    'ES' => array('name' => 'Spain', 'has_api' => true),
-    'IT' => array('name' => 'Italy', 'has_api' => true),
-    'AU' => array('name' => 'Australia', 'has_api' => true),
-    'SE' => array('name' => 'Sweden', 'has_api' => true),
-    'CY' => array('name' => 'Cyprus', 'has_api' => true),
-    'NL' => array('name' => 'Netherlands', 'has_api' => true),
-    'BE' => array('name' => 'Belgium', 'has_api' => true),
-    'CH' => array('name' => 'Switzerland', 'has_api' => true),
-    'AT' => array('name' => 'Austria', 'has_api' => true),
-    'NO' => array('name' => 'Norway', 'has_api' => true),
-    'DK' => array('name' => 'Denmark', 'has_api' => true),
-    'FI' => array('name' => 'Finland', 'has_api' => true)
-);
+// Updated supported countries with local JSON data indicators
+$supported_countries = $geography_manager->get_supported_countries();
 ?>
 
 <div class="areas-section enhanced-areas">
@@ -49,70 +31,23 @@ $supported_countries = array(
                     </svg>
                     <?php _e('Service Areas', 'mobooking'); ?>
                 </h1>
-                <p class="areas-subtitle"><?php _e('Manage cities and neighborhoods where you provide services', 'mobooking'); ?></p>
+                <p class="areas-subtitle"><?php _e('Manage your service coverage areas with real ZIP code data', 'mobooking'); ?></p>
             </div>
             
-            <?php if (!empty($areas)) : ?>
-                <div class="areas-stats">
-                    <div class="stat-item">
-                        <span class="stat-number"><?php echo $total_areas; ?></span>
-                        <span class="stat-label"><?php _e('Total Areas', 'mobooking'); ?></span>
-                    </div>
-                    <div class="stat-item">
-                        <span class="stat-number"><?php echo $active_areas; ?></span>
-                        <span class="stat-label"><?php _e('Active', 'mobooking'); ?></span>
-                    </div>
-                    <?php if ($selected_country) : ?>
-                    <div class="stat-item">
-                        <span class="stat-number"><?php echo esc_html($supported_countries[$selected_country]['name'] ?? $selected_country); ?></span>
-                        <span class="stat-label"><?php _e('Country', 'mobooking'); ?></span>
-                    </div>
-                    <?php endif; ?>
+            <div class="areas-stats">
+                <div class="stat-item">
+                    <span class="stat-number"><?php echo $total_areas; ?></span>
+                    <span class="stat-label"><?php _e('Total Areas', 'mobooking'); ?></span>
                 </div>
-            <?php endif; ?>
-        </div>
-        
-        <div class="areas-header-actions">
-            <?php if ($selected_country && !empty($areas)) : ?>
-                <button type="button" id="add-city-btn" class="btn-primary">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M12 5v14M5 12h14"/>
-                    </svg>
-                    <?php _e('Add City', 'mobooking'); ?>
-                </button>
-                <button type="button" id="change-country-btn" class="btn-secondary">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/>
-                    </svg>
-                    <?php _e('Change Country', 'mobooking'); ?>
-                </button>
-            <?php elseif ($selected_country) : ?>
-                <button type="button" id="add-first-city-btn" class="btn-primary">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/>
-                        <circle cx="12" cy="10" r="3"/>
-                    </svg>
-                    <?php _e('Add Your First City', 'mobooking'); ?>
-                </button>
-                <button type="button" id="change-country-btn" class="btn-secondary">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/>
-                    </svg>
-                    <?php _e('Change Country', 'mobooking'); ?>
-                </button>
-            <?php else : ?>
-                <button type="button" id="select-country-btn" class="btn-primary">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <circle cx="12" cy="12" r="10"/>
-                        <path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
-                    </svg>
-                    <?php _e('Select Country', 'mobooking'); ?>
-                </button>
-            <?php endif; ?>
+                <div class="stat-item">
+                    <span class="stat-number"><?php echo $active_areas; ?></span>
+                    <span class="stat-label"><?php _e('Active Areas', 'mobooking'); ?></span>
+                </div>
+            </div>
         </div>
     </div>
     
-    <?php if (!$selected_country) : ?>
+    <?php if (empty($selected_country)) : ?>
         <!-- Step 1: Country Selection -->
         <div class="country-selection-container">
             <div class="country-selection-card">
@@ -124,7 +59,7 @@ $supported_countries = array(
                         </svg>
                     </div>
                     <h2><?php _e('Select Your Service Country', 'mobooking'); ?></h2>
-                    <p><?php _e('Choose the country where you provide services. We\'ll fetch real area data using external APIs.', 'mobooking'); ?></p>
+                    <p><?php _e('Choose your primary service country to access comprehensive area and ZIP code data. Nordic countries (Sweden, Norway, Denmark, Finland) use local high-quality data, while other countries use external APIs.', 'mobooking'); ?></p>
                 </div>
                 
                 <div class="country-selection-form">
@@ -133,15 +68,28 @@ $supported_countries = array(
                         <select id="country-select" class="country-dropdown">
                             <option value=""><?php _e('Select a country...', 'mobooking'); ?></option>
                             <?php foreach ($supported_countries as $code => $info) : ?>
-                                <option value="<?php echo esc_attr($code); ?>" data-has-api="<?php echo $info['has_api'] ? '1' : '0'; ?>">
+                                <option value="<?php echo esc_attr($code); ?>" 
+                                        data-has-local-data="<?php echo isset($info['has_local_data']) && $info['has_local_data'] ? '1' : '0'; ?>"
+                                        data-has-api="<?php echo isset($info['has_api']) && $info['has_api'] ? '1' : '0'; ?>">
                                     <?php echo esc_html($info['name']); ?>
-                                    <?php if ($info['has_api']) : ?>
-                                        <span class="api-indicator">🌐</span>
+                                    <?php if (isset($info['has_local_data']) && $info['has_local_data']) : ?>
+                                        <span class="data-indicator">🏠</span>
+                                    <?php elseif (isset($info['has_api']) && $info['has_api']) : ?>
+                                        <span class="data-indicator">🌐</span>
                                     <?php endif; ?>
                                 </option>
                             <?php endforeach; ?>
                         </select>
-                        <p class="field-help"><?php _e('Countries with 🌐 have real-time area data available via external APIs.', 'mobooking'); ?></p>
+                        <p class="field-help">
+                            <?php _e('🏠 = Local high-quality data | 🌐 = External API data', 'mobooking'); ?>
+                        </p>
+                    </div>
+                    
+                    <div class="data-source-info" id="data-source-info" style="display: none;">
+                        <div class="info-card">
+                            <h4 id="data-source-title"></h4>
+                            <p id="data-source-description"></p>
+                        </div>
                     </div>
                     
                     <button type="button" id="confirm-country-btn" class="btn-primary" disabled>
@@ -165,25 +113,83 @@ $supported_countries = array(
                         </svg>
                     </div>
                     <h2><?php printf(__('Add Your First City in %s', 'mobooking'), $supported_countries[$selected_country]['name']); ?></h2>
-                    <p><?php _e('Enter a city name and we\'ll fetch all available areas and neighborhoods with ZIP codes from external data sources.', 'mobooking'); ?></p>
+                    
+                    <?php if (isset($supported_countries[$selected_country]['has_local_data']) && $supported_countries[$selected_country]['has_local_data']) : ?>
+                        <p><?php _e('Enter a city name and we\'ll fetch all available areas and neighborhoods with ZIP codes from our comprehensive local database.', 'mobooking'); ?></p>
+                        <div class="data-quality-badge local-data">
+                            <span class="badge-icon">🏠</span>
+                            <span class="badge-text"><?php _e('High-Quality Local Data', 'mobooking'); ?></span>
+                        </div>
+                    <?php else : ?>
+                        <p><?php _e('Enter a city name and we\'ll fetch all available areas and neighborhoods with ZIP codes from external data sources.', 'mobooking'); ?></p>
+                        <div class="data-quality-badge api-data">
+                            <span class="badge-icon">🌐</span>
+                            <span class="badge-text"><?php _e('External API Data', 'mobooking'); ?></span>
+                        </div>
+                    <?php endif; ?>
                 </div>
                 
                 <div class="city-input-form">
                     <div class="form-group">
-                        <label for="city-name-input"><?php _e('City Name', 'mobooking'); ?></label>
-                        <input type="text" id="city-name-input" class="city-input" 
-                               placeholder="<?php _e('Enter city name (e.g., New York, London, Paris)', 'mobooking'); ?>" 
-                               autocomplete="off">
-                        <div class="city-suggestions" id="city-suggestions" style="display: none;"></div>
-                        <p class="field-help"><?php _e('Start typing to see suggestions, or enter any city name.', 'mobooking'); ?></p>
+                        <label for="city-search"><?php _e('City Name', 'mobooking'); ?></label>
+                        <div class="search-input-group">
+                            <input type="text" id="city-search" class="city-search-input" 
+                                   placeholder="<?php _e('Enter city name...', 'mobooking'); ?>" autocomplete="off">
+                            <button type="button" id="search-city-btn" class="search-btn">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <circle cx="11" cy="11" r="8"/>
+                                    <path d="m21 21-4.35-4.35"/>
+                                </svg>
+                            </button>
+                        </div>
+                        <div id="city-suggestions" class="city-suggestions" style="display: none;"></div>
                     </div>
                     
-                    <button type="button" id="fetch-city-areas-btn" class="btn-primary btn-large" disabled>
+                    <div class="search-status" id="search-status" style="display: none;">
+                        <div class="status-content">
+                            <div class="status-spinner"></div>
+                            <span class="status-text"><?php _e('Searching for areas...', 'mobooking'); ?></span>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="country-actions">
+                    <button type="button" id="change-country-btn" class="btn-secondary">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <path d="M21 12a9 9 0 11-6.219-8.56"/>
+                            <path d="M19 12H5M12 19l-7-7 7-7"/>
                         </svg>
-                        <span class="btn-text"><?php _e('Get Areas for This City', 'mobooking'); ?></span>
-                        <span class="btn-loading" style="display: none;"><?php _e('Fetching...', 'mobooking'); ?></span>
+                        <?php _e('Change Country', 'mobooking'); ?>
+                    </button>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Areas Results -->
+        <div id="areas-results" class="areas-results" style="display: none;">
+            <div class="results-header">
+                <h3><?php _e('Select Areas to Add', 'mobooking'); ?></h3>
+                <p class="results-subtitle"></p>
+            </div>
+            
+            <div class="areas-grid" id="areas-grid">
+                <!-- Area items will be populated here -->
+            </div>
+            
+            <div class="selection-actions">
+                <div class="selection-info">
+                    <span id="selected-count">0</span> <?php _e('areas selected', 'mobooking'); ?>
+                </div>
+                <div class="action-buttons">
+                    <button type="button" id="select-all-btn" class="btn-outline">
+                        <?php _e('Select All', 'mobooking'); ?>
+                    </button>
+                    <button type="button" id="save-selected-btn" class="btn-primary" disabled>
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
+                            <polyline points="17,21 17,13 7,13 7,21"/>
+                            <polyline points="7,3 7,8 15,8"/>
+                        </svg>
+                        <?php _e('Save Selected Areas', 'mobooking'); ?>
                     </button>
                 </div>
             </div>
@@ -191,1167 +197,1702 @@ $supported_countries = array(
     <?php else : ?>
         <!-- Step 3: Manage Existing Areas -->
         <div class="areas-management">
-            <!-- Quick Stats & Actions -->
-            <div class="areas-toolbar">
-                <div class="toolbar-section">
-                    <div class="country-indicator">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <circle cx="12" cy="12" r="10"/>
-                            <path d="M2 12h20"/>
-                        </svg>
-                        <span><?php echo esc_html($supported_countries[$selected_country]['name']); ?></span>
+            <div class="management-header">
+                <div class="header-content">
+                    <h2><?php printf(__('Service Areas in %s', 'mobooking'), $supported_countries[$selected_country]['name']); ?></h2>
+                    <div class="data-source-indicator">
+                        <?php if (isset($supported_countries[$selected_country]['has_local_data']) && $supported_countries[$selected_country]['has_local_data']) : ?>
+                            <span class="indicator local-data">
+                                <span class="indicator-icon">🏠</span>
+                                <?php _e('Local Data', 'mobooking'); ?>
+                            </span>
+                        <?php else : ?>
+                            <span class="indicator api-data">
+                                <span class="indicator-icon">🌐</span>
+                                <?php _e('API Data', 'mobooking'); ?>
+                            </span>
+                        <?php endif; ?>
                     </div>
                 </div>
                 
-                <div class="toolbar-section">
-                    <div class="bulk-actions">
-                        <select id="bulk-action-select">
-                            <option value=""><?php _e('Bulk Actions', 'mobooking'); ?></option>
-                            <option value="activate"><?php _e('Activate', 'mobooking'); ?></option>
-                            <option value="deactivate"><?php _e('Deactivate', 'mobooking'); ?></option>
-                            <option value="delete"><?php _e('Delete', 'mobooking'); ?></option>
-                        </select>
-                        <button type="button" id="apply-bulk-action" class="btn-secondary"><?php _e('Apply', 'mobooking'); ?></button>
-                    </div>
-                    
-                    <div class="areas-search">
-                        <input type="text" id="areas-search-input" placeholder="<?php _e('Search areas or ZIP codes...', 'mobooking'); ?>" class="search-input">
-                        <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <circle cx="11" cy="11" r="8"/>
-                            <path d="m21 21-4.35-4.35"/>
+                <div class="header-actions">
+                    <button type="button" id="add-more-areas-btn" class="btn-primary">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <circle cx="12" cy="12" r="10"/>
+                            <line x1="12" y1="8" x2="12" y2="16"/>
+                            <line x1="8" y1="12" x2="16" y2="12"/>
                         </svg>
-                    </div>
+                        <?php _e('Add More Areas', 'mobooking'); ?>
+                    </button>
+                    <button type="button" id="change-country-manage-btn" class="btn-outline">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <circle cx="12" cy="12" r="10"/>
+                            <path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
+                        </svg>
+                        <?php _e('Change Country', 'mobooking'); ?>
+                    </button>
                 </div>
             </div>
             
-            <!-- Areas Grid -->
-            <div class="areas-container">
-                <div class="areas-grid-header">
-                    <div class="grid-header-cell select-all">
-                        <input type="checkbox" id="select-all-areas" class="select-checkbox">
-                    </div>
-                    <div class="grid-header-cell area-name"><?php _e('Area Name', 'mobooking'); ?></div>
-                    <div class="grid-header-cell zip-code"><?php _e('ZIP Code', 'mobooking'); ?></div>
-                    <div class="grid-header-cell city"><?php _e('City', 'mobooking'); ?></div>
-                    <div class="grid-header-cell status"><?php _e('Status', 'mobooking'); ?></div>
-                    <div class="grid-header-cell last-updated"><?php _e('Last Updated', 'mobooking'); ?></div>
-                    <div class="grid-header-cell actions"><?php _e('Actions', 'mobooking'); ?></div>
+            <div class="areas-table-container">
+                <table class="areas-table">
+                    <thead>
+                        <tr>
+                            <th class="checkbox-col">
+                                <input type="checkbox" id="select-all-areas">
+                            </th>
+                            <th class="area-name-col"><?php _e('Area Name', 'mobooking'); ?></th>
+                            <th class="zip-codes-col"><?php _e('ZIP Codes', 'mobooking'); ?></th>
+                            <th class="state-col"><?php _e('State/Region', 'mobooking'); ?></th>
+                            <th class="status-col"><?php _e('Status', 'mobooking'); ?></th>
+                            <th class="actions-col"><?php _e('Actions', 'mobooking'); ?></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <?php foreach ($areas as $area) : ?>
+                            <tr class="area-row" data-area-id="<?php echo $area->id; ?>">
+                                <td class="checkbox-col">
+                                    <input type="checkbox" class="area-checkbox" value="<?php echo $area->id; ?>">
+                                </td>
+                                <td class="area-name-col">
+                                    <div class="area-name">
+                                        <strong><?php echo esc_html($area->area_name); ?></strong>
+                                        <?php if (!empty($area->state)) : ?>
+                                            <span class="area-state"><?php echo esc_html($area->state); ?></span>
+                                        <?php endif; ?>
+                                    </div>
+                                </td>
+                                <td class="zip-codes-col">
+                                    <span class="zip-codes-display"><?php echo esc_html($area->zip_codes); ?></span>
+                                </td>
+                                <td class="state-col">
+                                    <?php echo esc_html($area->state ?: '—'); ?>
+                                </td>
+                                <td class="status-col">
+                                    <label class="status-toggle">
+                                        <input type="checkbox" class="area-status-toggle" 
+                                               data-area-id="<?php echo $area->id; ?>"
+                                               <?php checked($area->active, 1); ?>>
+                                        <span class="toggle-slider"></span>
+                                        <span class="toggle-label">
+                                            <?php echo $area->active ? __('Active', 'mobooking') : __('Inactive', 'mobooking'); ?>
+                                        </span>
+                                    </label>
+                                </td>
+                                <td class="actions-col">
+                                    <div class="action-buttons">
+                                        <button type="button" class="btn-icon edit-area-btn" 
+                                                data-area-id="<?php echo $area->id; ?>"
+                                                title="<?php _e('Edit Area', 'mobooking'); ?>">
+                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                                                <path d="m18.5 2.5 a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                                            </svg>
+                                        </button>
+                                        <button type="button" class="btn-icon delete-area-btn" 
+                                                data-area-id="<?php echo $area->id; ?>"
+                                                title="<?php _e('Delete Area', 'mobooking'); ?>">
+                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                                <polyline points="3,6 5,6 21,6"/>
+                                                <path d="m19,6v14a2,2 0 0,1-2,2H7a2,2 0 0,1-2-2V6m3,0V4a2,2 0 0,1,2-2h4a2,2 0 0,1,2,2v2"/>
+                                                <line x1="10" y1="11" x2="10" y2="17"/>
+                                                <line x1="14" y1="11" x2="14" y2="17"/>
+                                            </svg>
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                        <?php endforeach; ?>
+                    </tbody>
+                </table>
+            </div>
+            
+            <div class="bulk-actions">
+                <div class="bulk-actions-left">
+                    <select id="bulk-action-select">
+                        <option value=""><?php _e('Bulk Actions', 'mobooking'); ?></option>
+                        <option value="activate"><?php _e('Activate Selected', 'mobooking'); ?></option>
+                        <option value="deactivate"><?php _e('Deactivate Selected', 'mobooking'); ?></option>
+                        <option value="delete"><?php _e('Delete Selected', 'mobooking'); ?></option>
+                    </select>
+                    <button type="button" id="apply-bulk-action-btn" class="btn-secondary" disabled>
+                        <?php _e('Apply', 'mobooking'); ?>
+                    </button>
                 </div>
                 
-                <div class="areas-grid-body" id="areas-list">
-                    <?php foreach ($areas as $area) : 
-                        // Parse ZIP codes from the stored data
-                        $zip_codes = !empty($area->zip_codes) ? json_decode($area->zip_codes, true) : array();
-                        if (!is_array($zip_codes)) {
-                            $zip_codes = !empty($area->zip_code) ? array($area->zip_code) : array();
-                        }
-                        $main_zip = !empty($zip_codes) ? $zip_codes[0] : ($area->zip_code ?: 'N/A');
-                        $area_name = $area->city_name ?: $area->label ?: 'Unnamed Area';
-                    ?>
-                        <div class="area-row enhanced" data-area-id="<?php echo esc_attr($area->id); ?>" data-area-name="<?php echo esc_attr($area_name); ?>">
-                            <div class="grid-cell select">
-                                <input type="checkbox" class="area-checkbox" value="<?php echo esc_attr($area->id); ?>">
-                            </div>
-                            <div class="grid-cell area-name">
-                                <div class="area-info">
-                                    <span class="area-name-text"><?php echo esc_html($area_name); ?></span>
-                                    <?php if (!empty($area->description)) : ?>
-                                        <span class="area-description"><?php echo esc_html($area->description); ?></span>
-                                    <?php endif; ?>
-                                </div>
-                            </div>
-                            <div class="grid-cell zip-code">
-                                <div class="zip-info">
-                                    <span class="zip-code-main"><?php echo esc_html($main_zip); ?></span>
-                                    <?php if (count($zip_codes) > 1) : ?>
-                                        <span class="zip-additional">+<?php echo (count($zip_codes) - 1); ?> more</span>
-                                    <?php endif; ?>
-                                </div>
-                            </div>
-                            <div class="grid-cell city">
-                                <span class="city-name"><?php echo esc_html($area->state ? $area->state : ($area->country ?: 'N/A')); ?></span>
-                            </div>
-                            <div class="grid-cell status">
-                                <span class="status-badge <?php echo $area->active ? 'active' : 'inactive'; ?>">
-                                    <?php if ($area->active) : ?>
-                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                            <path d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2ZM8 12l2 2 4-4"/>
-                                        </svg>
-                                        <?php _e('Active', 'mobooking'); ?>
-                                    <?php else : ?>
-                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                            <circle cx="12" cy="12" r="10"/>
-                                            <path d="M8 12h8"/>
-                                        </svg>
-                                        <?php _e('Inactive', 'mobooking'); ?>
-                                    <?php endif; ?>
-                                </span>
-                            </div>
-                            <div class="grid-cell last-updated">
-                                <time datetime="<?php echo esc_attr($area->updated_at); ?>">
-                                    <?php echo esc_html(human_time_diff(strtotime($area->updated_at), current_time('timestamp')) . ' ago'); ?>
-                                </time>
-                            </div>
-                            <div class="grid-cell actions">
-                                <div class="action-buttons">
-                                    <button type="button" class="btn-icon toggle-area-btn" data-area-id="<?php echo esc_attr($area->id); ?>" data-active="<?php echo $area->active ? '1' : '0'; ?>" title="<?php echo $area->active ? __('Deactivate', 'mobooking') : __('Activate', 'mobooking'); ?>">
-                                        <?php if ($area->active) : ?>
-                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                                <circle cx="12" cy="12" r="10"/>
-                                                <path d="M8 12h8"/>
-                                            </svg>
-                                        <?php else : ?>
-                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                                <path d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2ZM8 12l2 2 4-4"/>
-                                            </svg>
-                                        <?php endif; ?>
-                                    </button>
-                                    <button type="button" class="btn-icon btn-danger delete-area-btn" data-area-id="<?php echo esc_attr($area->id); ?>" title="<?php _e('Delete Area', 'mobooking'); ?>">
-                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                            <path d="m3 6 3 18h12l3-18"></path>
-                                            <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path>
-                                        </svg>
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-                    <?php endforeach; ?>
+                <div class="bulk-actions-right">
+                    <span class="areas-count">
+                        <?php printf(__('Showing %d of %d areas', 'mobooking'), count($areas), $total_areas); ?>
+                    </span>
                 </div>
             </div>
         </div>
     <?php endif; ?>
 </div>
 
-<!-- Add City Modal -->
-<div id="add-city-modal" class="mobooking-modal" style="display:none;">
-    <div class="modal-content modal-lg">
-        <button class="modal-close" aria-label="<?php _e('Close', 'mobooking'); ?>">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M18 6 6 18M6 6l12 12"/>
-            </svg>
-        </button>
-        
-        <h3 id="add-city-modal-title"><?php _e('Add City Areas', 'mobooking'); ?></h3>
-        
-        <div class="add-city-content">
-            <div class="city-input-section">
-                <div class="form-group">
-                    <label for="modal-city-input"><?php _e('City Name', 'mobooking'); ?></label>
-                    <input type="text" id="modal-city-input" class="city-input" 
-                           placeholder="<?php _e('Enter city name', 'mobooking'); ?>" 
-                           autocomplete="off">
-                    <div class="city-suggestions" id="modal-city-suggestions" style="display: none;"></div>
-                </div>
-                
-                <button type="button" id="modal-fetch-areas-btn" class="btn-primary" disabled>
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M21 12a9 9 0 11-6.219-8.56"/>
-                    </svg>
-                    <span class="btn-text"><?php _e('Get Areas', 'mobooking'); ?></span>
-                    <span class="btn-loading" style="display: none;"><?php _e('Fetching...', 'mobooking'); ?></span>
-                </button>
-            </div>
-            
-            <div class="areas-results-section" id="areas-results" style="display: none;">
-                <div class="results-header">
-                    <h4><?php _e('Available Areas', 'mobooking'); ?></h4>
-                    <div class="results-actions">
-                        <button type="button" id="select-all-areas-btn" class="btn-secondary btn-sm">
-                            <?php _e('Select All', 'mobooking'); ?>
-                        </button>
-                        <button type="button" id="clear-all-areas-btn" class="btn-secondary btn-sm">
-                            <?php _e('Clear All', 'mobooking'); ?>
-                        </button>
-                    </div>
-                </div>
-                
-                <div class="areas-grid" id="fetched-areas-grid">
-                    <!-- Areas will be populated here -->
-                </div>
-                
-                <div class="areas-summary">
-                    <div class="selected-count">
-                        <span id="selected-areas-count">0</span> <?php _e('areas selected', 'mobooking'); ?>
-                    </div>
-                    <button type="button" id="save-selected-areas-btn" class="btn-primary btn-large" disabled>
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
-                            <polyline points="17,21 17,13 7,13 7,21"/>
-                            <polyline points="7,3 7,8 15,8"/>
-                        </svg>
-                        <span class="btn-text"><?php _e('Save Selected Areas', 'mobooking'); ?></span>
-                        <span class="btn-loading" style="display: none;"><?php _e('Saving...', 'mobooking'); ?></span>
-                    </button>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- Country Selection Confirmation Modal -->
-<div id="country-confirmation-modal" class="mobooking-modal" style="display:none;">
-    <div class="modal-content">
-        <h3><?php _e('Confirm Country Selection', 'mobooking'); ?></h3>
-        <div class="confirmation-content">
-            <div class="warning-icon">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
-                    <line x1="12" y1="9" x2="12" y2="13"/>
-                    <line x1="12" y1="17" x2="12.01" y2="17"/>
-                </svg>
-            </div>
-            <p id="country-confirmation-message"><?php _e('You are about to select [COUNTRY] as your service country. This cannot be changed later without losing all your current service areas. Are you sure?', 'mobooking'); ?></p>
-        </div>
-        
-        <div class="form-actions">
-            <button type="button" class="btn-secondary cancel-country-btn">
-                <?php _e('Cancel', 'mobooking'); ?>
-            </button>
-            <button type="button" class="btn-primary confirm-country-selection-btn">
-                <span class="btn-text"><?php _e('Yes, Select This Country', 'mobooking'); ?></span>
-                <span class="btn-loading" style="display: none;"><?php _e('Saving...', 'mobooking'); ?></span>
-            </button>
-        </div>
-    </div>
-</div>
-
-<!-- Confirmation Modal -->
-<div id="confirmation-modal" class="mobooking-modal" style="display:none;">
-    <div class="modal-content">
-        <h3><?php _e('Confirm Action', 'mobooking'); ?></h3>
-        <p id="confirmation-message"><?php _e('Are you sure you want to perform this action?', 'mobooking'); ?></p>
-        
-        <div class="form-actions">
-            <button type="button" class="btn-secondary cancel-action-btn">
-                <?php _e('Cancel', 'mobooking'); ?>
-            </button>
-            <button type="button" class="btn-danger confirm-action-btn">
-                <span class="btn-text"><?php _e('Confirm', 'mobooking'); ?></span>
-                <span class="btn-loading" style="display: none;"><?php _e('Processing...', 'mobooking'); ?></span>
-            </button>
-        </div>
-    </div>
-</div>
-
-<style>
-/* Enhanced Areas Management CSS */
-.enhanced-areas {
-    --primary: #3b82f6;
-    --success: #10b981;
-    --warning: #f59e0b;
-    --danger: #ef4444;
-    --gray-50: #f9fafb;
-    --gray-100: #f3f4f6;
-    --gray-200: #e5e7eb;
-    --gray-300: #d1d5db;
-    --gray-400: #9ca3af;
-    --gray-500: #6b7280;
-    --gray-600: #4b5563;
-    --gray-700: #374151;
-    --gray-800: #1f2937;
-    --gray-900: #111827;
-}
-
-/* Layout */
-.areas-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 2rem; flex-wrap: wrap; gap: 1rem; }
-.areas-header-content { flex: 1; min-width: 300px; }
-.areas-title-group h1 { font-size: 1.875rem; font-weight: 700; color: var(--gray-900); margin: 0 0 0.5rem 0; display: flex; align-items: center; gap: 0.75rem; }
-.areas-title-group .title-icon { width: 32px; height: 32px; color: var(--primary); }
-.areas-subtitle { color: var(--gray-600); margin: 0; font-size: 1rem; }
-.areas-stats { display: flex; gap: 1.5rem; margin-top: 1rem; }
-.stat-item { text-align: center; }
-.stat-number { display: block; font-size: 1.5rem; font-weight: 700; color: var(--primary); }
-.stat-label { font-size: 0.875rem; color: var(--gray-500); }
-.areas-header-actions { display: flex; gap: 0.75rem; align-items: flex-start; }
-
-/* Country Selection */
-.country-selection-container { display: flex; justify-content: center; align-items: center; min-height: 60vh; padding: 2rem; }
-.country-selection-card { background: white; border-radius: 12px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); padding: 3rem; max-width: 500px; width: 100%; text-align: center; }
-.selection-header { margin-bottom: 2rem; }
-.selection-icon { width: 64px; height: 64px; background: linear-gradient(135deg, var(--primary), #1d4ed8); border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 1.5rem; color: white; }
-.selection-icon svg { width: 32px; height: 32px; }
-.country-selection-form .form-group { margin-bottom: 1.5rem; text-align: left; }
-.country-dropdown { width: 100%; padding: 0.75rem 1rem; border: 2px solid var(--gray-200); border-radius: 8px; font-size: 1rem; transition: all 0.2s; }
-.country-dropdown:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px rgba(59,130,246,0.1); }
-
-/* First City Addition */
-.first-city-container { display: flex; justify-content: center; align-items: center; min-height: 60vh; padding: 2rem; }
-.first-city-card { background: white; border-radius: 12px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); padding: 3rem; max-width: 600px; width: 100%; text-align: center; }
-.city-input-form .form-group { margin-bottom: 1.5rem; text-align: left; position: relative; }
-.city-input { width: 100%; padding: 0.75rem 1rem; border: 2px solid var(--gray-200); border-radius: 8px; font-size: 1rem; transition: all 0.2s; }
-.city-input:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px rgba(59,130,246,0.1); }
-.city-suggestions { position: absolute; top: 100%; left: 0; right: 0; background: white; border: 1px solid var(--gray-200); border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); z-index: 1000; max-height: 200px; overflow-y: auto; }
-.city-suggestion { padding: 0.75rem 1rem; cursor: pointer; transition: background 0.2s; border-bottom: 1px solid var(--gray-100); }
-.city-suggestion:hover { background: var(--gray-50); }
-.city-suggestion:last-child { border-bottom: none; }
-
-/* Toolbar */
-.areas-toolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; padding: 1rem; background: var(--gray-50); border-radius: 8px; flex-wrap: wrap; gap: 1rem; }
-.toolbar-section { display: flex; align-items: center; gap: 1rem; }
-.country-indicator { display: flex; align-items: center; gap: 0.5rem; padding: 0.5rem 1rem; background: var(--gray-100); border-radius: 6px; font-weight: 500; color: var(--gray-700); }
-.country-indicator svg { width: 18px; height: 18px; }
-.bulk-actions { display: flex; align-items: center; gap: 0.5rem; }
-.bulk-actions select { padding: 0.5rem; border: 1px solid var(--gray-300); border-radius: 6px; }
-.areas-search { position: relative; }
-.search-input { padding: 0.5rem 2.5rem 0.5rem 1rem; border: 1px solid var(--gray-300); border-radius: 6px; width: 250px; }
-.search-icon { position: absolute; right: 0.75rem; top: 50%; transform: translateY(-50%); width: 16px; height: 16px; color: var(--gray-400); }
-
-/* Areas Grid */
-.areas-container { background: white; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); overflow: hidden; }
-.areas-grid-header { display: grid; grid-template-columns: 40px 2fr 1fr 1fr 100px 120px 120px; gap: 1rem; padding: 1rem; background: var(--gray-50); border-bottom: 1px solid var(--gray-200); font-weight: 600; color: var(--gray-700); }
-.areas-grid-body { max-height: 600px; overflow-y: auto; }
-.area-row { display: grid; grid-template-columns: 40px 2fr 1fr 1fr 100px 120px 120px; gap: 1rem; padding: 1rem; border-bottom: 1px solid var(--gray-100); align-items: center; transition: all 0.2s; border-left: 4px solid transparent; }
-.area-row:hover { background: var(--gray-50); border-left-color: var(--primary); }
-.area-row:last-child { border-bottom: none; }
-
-/* Grid Cells */
-.grid-cell { display: flex; align-items: center; }
-.select-checkbox, .area-checkbox { margin: 0; }
-.area-info { display: flex; flex-direction: column; gap: 0.25rem; }
-.area-name-text { font-weight: 600; color: var(--gray-900); }
-.area-description { font-size: 0.875rem; color: var(--gray-500); }
-.zip-info { display: flex; flex-direction: column; gap: 0.25rem; }
-.zip-code-main { font-weight: 500; color: var(--gray-700); font-family: 'Courier New', monospace; }
-.zip-additional { font-size: 0.875rem; color: var(--primary); font-weight: 500; }
-.city-name { font-weight: 500; color: var(--gray-700); }
-
-/* Status Badge */
-.status-badge { display: inline-flex; align-items: center; gap: 0.5rem; padding: 0.375rem 0.75rem; border-radius: 6px; font-size: 0.875rem; font-weight: 500; }
-.status-badge.active { background: #dcfce7; color: #166534; }
-.status-badge.inactive { background: #fef3c7; color: #92400e; }
-.status-badge svg { width: 16px; height: 16px; }
-
-/* Action Buttons */
-.action-buttons { display: flex; gap: 0.25rem; }
-.btn-icon { width: 32px; height: 32px; border: none; background: none; color: var(--gray-600); border-radius: 4px; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.2s; }
-.btn-icon:hover { background: var(--gray-100); color: var(--gray-900); }
-.btn-icon.btn-danger:hover { background: #fee2e2; color: var(--danger); }
-.btn-icon svg { width: 16px; height: 16px; }
-
-/* Modal Styles */
-.mobooking-modal { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 10000; padding: 1rem; }
-.modal-content { background: white; border-radius: 12px; max-width: 600px; width: 100%; margin: 2rem auto; position: relative; max-height: 90vh; overflow-y: auto; padding: 2rem; }
-.modal-lg { max-width: 900px; }
-.modal-close { position: absolute; top: 1rem; right: 1rem; width: 32px; height: 32px; border: none; background: var(--gray-100); border-radius: 50%; color: var(--gray-600); cursor: pointer; display: flex; align-items: center; justify-content: center; }
-.modal-close:hover { background: var(--gray-200); }
-
-/* Add City Modal */
-.add-city-content { display: flex; flex-direction: column; gap: 2rem; }
-.city-input-section { padding-bottom: 2rem; border-bottom: 1px solid var(--gray-200); }
-.areas-results-section { padding-top: 2rem; }
-.results-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; }
-.results-actions { display: flex; gap: 0.5rem; }
-.areas-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 1rem; margin-bottom: 2rem; max-height: 400px; overflow-y: auto; padding: 0.5rem; }
-.area-card { padding: 1rem; border: 2px solid var(--gray-200); border-radius: 8px; background: white; transition: all 0.2s; cursor: pointer; }
-.area-card:hover { border-color: var(--primary); box-shadow: 0 4px 12px rgba(59, 130, 246, 0.1); }
-.area-card.selected { border-color: var(--primary); background: rgba(59, 130, 246, 0.05); box-shadow: 0 4px 12px rgba(59, 130, 246, 0.15); }
-.area-card-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 0.75rem; }
-.area-card-title { font-weight: 600; color: var(--gray-900); margin: 0; }
-.area-card-zip { font-family: 'Courier New', monospace; font-weight: 500; color: var(--primary); background: rgba(59, 130, 246, 0.1); padding: 0.25rem 0.5rem; border-radius: 4px; font-size: 0.875rem; }
-.area-card-meta { display: flex; flex-direction: column; gap: 0.25rem; }
-.area-card-source { font-size: 0.875rem; color: var(--gray-500); }
-.area-card-coordinates { font-size: 0.75rem; color: var(--gray-400); font-family: 'Courier New', monospace; }
-.areas-summary { display: flex; justify-content: space-between; align-items: center; padding: 1.5rem; background: var(--gray-50); border-radius: 8px; margin-top: 1rem; }
-.selected-count { font-size: 1.125rem; font-weight: 600; color: var(--gray-700); }
-
-/* Forms */
-.form-group { margin-bottom: 1.5rem; }
-.form-group label { display: block; margin-bottom: 0.5rem; font-weight: 500; color: var(--gray-700); }
-.form-control { width: 100%; padding: 0.75rem; border: 1px solid var(--gray-300); border-radius: 6px; font-size: 1rem; transition: all 0.2s; }
-.form-control:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px rgba(59,130,246,0.1); }
-.field-help { font-size: 0.875rem; color: var(--gray-500); margin-top: 0.25rem; }
-
-/* Confirmation Modal */
-.confirmation-content { text-align: center; padding: 1rem 0; }
-.warning-icon { width: 64px; height: 64px; background: var(--warning); border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 1rem; color: white; }
-.warning-icon svg { width: 32px; height: 32px; }
-
-/* Form Actions */
-.form-actions { display: flex; align-items: center; gap: 1rem; padding: 1.5rem; border-top: 1px solid var(--gray-200); margin: 1rem -2rem -2rem; }
-.spacer { flex: 1; }
-
-/* Buttons */
-.btn-primary, .btn-secondary, .btn-danger { padding: 0.75rem 1.5rem; border-radius: 6px; font-weight: 500; cursor: pointer; transition: all 0.2s; display: inline-flex; align-items: center; gap: 0.5rem; text-decoration: none; border: none; }
-.btn-primary { background: var(--primary); color: white; }
-.btn-primary:hover:not(:disabled) { background: #2563eb; }
-.btn-secondary { background: var(--gray-100); color: var(--gray-700); }
-.btn-secondary:hover:not(:disabled) { background: var(--gray-200); }
-.btn-danger:hover:not(:disabled) { background: #dc2626; }
-.btn-sm { padding: 0.5rem 1rem; font-size: 0.875rem; }
-.btn-large { padding: 1rem 2rem; font-size: 1.125rem; }
-
-/* Button Loading States */
-.loading .btn-text { display: none; }
-.loading .btn-loading { display: inline-flex; }
-.btn-loading { display: none; }
-
-/* API Indicator */
-.api-indicator { margin-left: 0.5rem; }
-
-/* Responsive */
-@media (max-width: 768px) {
-    .areas-header { flex-direction: column; align-items: stretch; }
-    .areas-stats { justify-content: space-around; }
-    .areas-toolbar { flex-direction: column; align-items: stretch; }
-    .toolbar-section { flex-wrap: wrap; }
-    .areas-search .search-input { width: 100%; }
-    .areas-grid-header { display: none; }
-    .area-row { display: flex; flex-direction: column; gap: 1rem; padding: 1rem; border: 1px solid var(--gray-200); border-radius: 8px; margin-bottom: 0.75rem; }
-    .grid-cell { justify-content: space-between; }
-    .modal-lg { max-width: 95vw; margin: 1rem; }
-    .country-selection-card, .first-city-card { padding: 2rem 1.5rem; }
-    .areas-grid { grid-template-columns: 1fr; }
-    .areas-summary { flex-direction: column; gap: 1rem; text-align: center; }
-}
-
-@media (max-width: 480px) {
-    .country-selection-card, .first-city-card { padding: 1.5rem 1rem; }
-    .form-actions { flex-direction: column-reverse; align-items: stretch; }
-    .btn-primary, .btn-secondary, .btn-danger { width: 100%; justify-content: center; }
-    .modal-content { padding: 1rem; margin: 0.5rem; }
-}
-
-/* Animations */
-@keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-.area-row { animation: fadeIn 0.3s ease-out; }
-.area-card { animation: fadeIn 0.2s ease-out; }
-
-/* Focus Styles */
-.btn-primary:focus, .btn-secondary:focus, .btn-danger:focus { outline: 2px solid var(--primary); outline-offset: 2px; }
-.form-control:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px rgba(59,130,246,0.1); }
-</style>
+<!-- Enhanced JavaScript for Local JSON Support -->
 
 <script>
-// Enhanced Areas Management JavaScript with Real API Integration
-jQuery(document).ready(function($) {
+// Complete JavaScript for dashboard/sections/areas.php with Local JSON Support
+document.addEventListener('DOMContentLoaded', function() {
     const EnhancedAreasManager = {
-        config: {
-            ajaxUrl: '<?php echo admin_url('admin-ajax.php'); ?>',
-            nonce: '<?php echo wp_create_nonce('mobooking-area-nonce'); ?>',
-            userId: <?php echo $user_id; ?>,
-            selectedCountry: '<?php echo esc_js($selected_country); ?>',
-            supportedCountries: <?php echo json_encode($supported_countries); ?>
-        },
+        // Configuration
+        selectedAreas: new Set(),
+        isLoading: false,
         
-        state: {
-            isProcessing: false,
-            currentAreaId: null,
-            selectedAreas: [],
-            fetchedAreas: [],
-            currentCity: '',
-            confirmAction: null
-        },
-        
+        // Initialize the manager
         init: function() {
-            console.log('🚀 Enhanced Areas Manager with API integration initializing...');
-            this.attachEventListeners();
-            this.initializeComponents();
-            console.log('✅ Enhanced Areas Manager initialized');
+            this.bindEvents();
+            this.setupDataSourceInfo();
+            this.initializeExistingElements();
+            
+            // Set up AJAX URL and nonce if not already available
+            if (typeof mobooking_area_vars === 'undefined') {
+                window.mobooking_area_vars = {
+                    ajax_url: ajax_object?.ajax_url || '/wp-admin/admin-ajax.php',
+                    nonce: ajax_object?.nonce || ''
+                };
+            }
+            
+            console.log('Enhanced Areas Manager initialized');
         },
         
-        attachEventListeners: function() {
-            const self = this;
-            
+        // Bind all event listeners
+        bindEvents: function() {
             // Country selection
-            $('#country-select').on('change', function() {
-                const selectedCountry = $(this).val();
-                $('#confirm-country-btn').prop('disabled', !selectedCountry);
-                
-                if (selectedCountry) {
-                    const countryName = self.config.supportedCountries[selectedCountry].name;
-                    $('#confirm-country-btn').find('.btn-text').text('Confirm ' + countryName);
-                }
-            });
+            const countrySelect = document.getElementById('country-select');
+            const confirmBtn = document.getElementById('confirm-country-btn');
             
-            $('#select-country-btn, #confirm-country-btn').on('click', function() {
-                self.showCountryConfirmation();
-            });
+            if (countrySelect) {
+                countrySelect.addEventListener('change', this.handleCountryChange.bind(this));
+            }
             
-            $('#change-country-btn').on('click', function() {
-                self.changeCountry();
-            });
+            if (confirmBtn) {
+                confirmBtn.addEventListener('click', this.confirmCountrySelection.bind(this));
+            }
             
-            // City input and fetching
-            $('#city-name-input, #modal-city-input').on('input', function() {
-                const cityName = $(this).val().trim();
-                const targetBtn = $(this).attr('id') === 'city-name-input' ? '#fetch-city-areas-btn' : '#modal-fetch-areas-btn';
-                $(targetBtn).prop('disabled', cityName.length < 2);
-                
-                // Show city suggestions (if available)
-                if (cityName.length >= 2) {
-                    self.showCitySuggestions($(this), cityName);
-                } else {
-                    self.hideCitySuggestions($(this));
-                }
-            });
+            // City search
+            const citySearch = document.getElementById('city-search');
+            const searchBtn = document.getElementById('search-city-btn');
             
-            // City suggestions
-            $(document).on('click', '.city-suggestion', function() {
-                const cityName = $(this).text();
-                const input = $(this).closest('.form-group').find('.city-input');
-                input.val(cityName);
-                self.hideCitySuggestions(input);
-                
-                const targetBtn = input.attr('id') === 'city-name-input' ? '#fetch-city-areas-btn' : '#modal-fetch-areas-btn';
-                $(targetBtn).prop('disabled', false);
-            });
+            if (citySearch) {
+                citySearch.addEventListener('input', this.handleCityInput.bind(this));
+                citySearch.addEventListener('keypress', this.handleCityKeypress.bind(this));
+            }
             
-            // Fetch city areas
-            $('#fetch-city-areas-btn, #add-first-city-btn, #add-city-btn, #modal-fetch-areas-btn').on('click', function() {
-                let cityName = '';
-                
-                if ($(this).attr('id') === 'modal-fetch-areas-btn') {
-                    cityName = $('#modal-city-input').val().trim();
-                    if (!cityName) {
-                        self.showNotification('Please enter a city name', 'warning');
-                        return;
-                    }
-                    self.fetchCityAreas(cityName, true); // true = in modal
-                } else if ($(this).attr('id') === 'fetch-city-areas-btn') {
-                    cityName = $('#city-name-input').val().trim();
-                    if (!cityName) {
-                        self.showNotification('Please enter a city name', 'warning');
-                        return;
-                    }
-                    self.fetchCityAreas(cityName, false); // false = not in modal
-                } else {
-                    // Add city button clicked - show modal
-                    self.showModal('#add-city-modal');
-                }
-            });
+            if (searchBtn) {
+                searchBtn.addEventListener('click', this.searchCityAreas.bind(this));
+            }
             
-            // Area selection in modal
-            $(document).on('click', '.area-card', function() {
-                const checkbox = $(this).find('.area-checkbox');
-                const isSelected = checkbox.is(':checked');
-                checkbox.prop('checked', !isSelected);
-                $(this).toggleClass('selected', !isSelected);
-                self.updateSelectedAreasCount();
-            });
-            
-            $(document).on('change', '.area-checkbox', function() {
-                const isSelected = $(this).is(':checked');
-                $(this).closest('.area-card').toggleClass('selected', isSelected);
-                self.updateSelectedAreasCount();
-            });
-            
-            // Area selection actions
-            $('#select-all-areas-btn').on('click', function() {
-                $('.area-checkbox:visible').prop('checked', true);
-                $('.area-card:visible').addClass('selected');
-                self.updateSelectedAreasCount();
-            });
-            
-            $('#clear-all-areas-btn').on('click', function() {
-                $('.area-checkbox').prop('checked', false);
-                $('.area-card').removeClass('selected');
-                self.updateSelectedAreasCount();
-            });
+            // Area selection and actions
+            document.addEventListener('click', this.handleDocumentClick.bind(this));
+            document.addEventListener('change', this.handleDocumentChange.bind(this));
             
             // Save selected areas
-            $('#save-selected-areas-btn').on('click', function() {
-                self.saveSelectedAreas();
+            const saveBtn = document.getElementById('save-selected-btn');
+            if (saveBtn) {
+                saveBtn.addEventListener('click', this.saveSelectedAreas.bind(this));
+            }
+            
+            // Select all areas
+            const selectAllBtn = document.getElementById('select-all-btn');
+            if (selectAllBtn) {
+                selectAllBtn.addEventListener('click', this.toggleSelectAll.bind(this));
+            }
+            
+            // Change country buttons
+            const changeCountryBtns = document.querySelectorAll('#change-country-btn, #change-country-manage-btn');
+            changeCountryBtns.forEach(btn => {
+                btn.addEventListener('click', this.resetCountrySelection.bind(this));
             });
             
-            // Area management
-            $(document).on('click', '.toggle-area-btn', function() {
-                const areaId = $(this).data('area-id');
-                const isActive = $(this).data('active') === 1;
-                self.toggleAreaStatus(areaId, !isActive);
-            });
+            // Add more areas button
+            const addMoreBtn = document.getElementById('add-more-areas-btn');
+            if (addMoreBtn) {
+                addMoreBtn.addEventListener('click', this.showAddMoreAreas.bind(this));
+            }
             
-            $(document).on('click', '.delete-area-btn', function() {
-                const areaId = $(this).data('area-id');
-                self.deleteArea(areaId);
-            });
+            // Area management events
+            this.bindAreaManagementEvents();
+        },
+        
+        // Handle document-level click events
+        handleDocumentClick: function(e) {
+            // Area checkbox selection
+            if (e.target.matches('.area-checkbox')) {
+                this.handleAreaCheckboxChange(e.target);
+            }
             
-            // Bulk actions
-            $('#apply-bulk-action').on('click', function() {
-                self.applyBulkAction();
-            });
-            
-            // Select all checkbox
-            $('#select-all-areas').on('change', function() {
-                $('.area-checkbox').prop('checked', $(this).is(':checked'));
-            });
-            
-            // Search functionality
-            $('#areas-search-input').on('input', function() {
-                self.filterAreas($(this).val());
-            });
-            
-            // Modal controls
-            $('.modal-close, .cancel-action-btn, .cancel-country-btn').on('click', function() {
-                self.hideModals();
-            });
-            
-            // Confirmation actions
-            $('.confirm-country-selection-btn').on('click', function() {
-                self.confirmCountrySelection();
-            });
-            
-            $('.confirm-action-btn').on('click', function() {
-                self.executeConfirmedAction();
-            });
-            
-            // Hide suggestions when clicking outside
-            $(document).on('click', function(e) {
-                if (!$(e.target).closest('.form-group').length) {
-                    $('.city-suggestions').hide();
+            // Area item clicks (to select checkbox)
+            if (e.target.closest('.area-item') && !e.target.matches('input')) {
+                const areaItem = e.target.closest('.area-item');
+                const checkbox = areaItem.querySelector('.area-checkbox');
+                if (checkbox) {
+                    checkbox.checked = !checkbox.checked;
+                    this.handleAreaCheckboxChange(checkbox);
                 }
-            });
-        },
-        
-        initializeComponents: function() {
-            this.updateSelectedAreasCount();
-        },
-        
-        showCitySuggestions: function($input, searchTerm) {
-            const $suggestions = $input.siblings('.city-suggestions');
+            }
             
-            // Get city suggestions for the selected country
-            if (this.config.selectedCountry && this.config.supportedCountries[this.config.selectedCountry]) {
-                // In a real implementation, you would fetch cities from an API
-                // For now, we'll show a simple message
-                $suggestions.html(`
-                    <div class="city-suggestion">
-                        <strong>${searchTerm}</strong> - Search for this city
-                    </div>
-                `).show();
-            } else {
-                $suggestions.hide();
+            // Delete area buttons
+            if (e.target.closest('.delete-area-btn')) {
+                e.preventDefault();
+                this.handleDeleteArea(e);
+            }
+            
+            // Edit area buttons
+            if (e.target.closest('.edit-area-btn')) {
+                e.preventDefault();
+                this.handleEditArea(e);
+            }
+            
+            // Bulk action apply button
+            if (e.target.matches('#apply-bulk-action-btn')) {
+                e.preventDefault();
+                this.handleBulkAction();
+            }
+            
+            // Close notification
+            if (e.target.matches('.notification-close')) {
+                e.target.closest('.notification').remove();
             }
         },
         
-        hideCitySuggestions: function($input) {
-            $input.siblings('.city-suggestions').hide();
+        // Handle document-level change events
+        handleDocumentChange: function(e) {
+            // Area status toggles
+            if (e.target.matches('.area-status-toggle')) {
+                this.handleStatusToggle(e);
+            }
+            
+            // Select all areas checkbox
+            if (e.target.matches('#select-all-areas')) {
+                this.handleSelectAllAreas(e.target.checked);
+            }
+            
+            // Individual area checkboxes in management table
+            if (e.target.matches('.area-checkbox')) {
+                this.updateBulkActionState();
+            }
+            
+            // Bulk action select dropdown
+            if (e.target.matches('#bulk-action-select')) {
+                this.updateBulkActionState();
+            }
         },
         
-        fetchCityAreas: function(cityName, inModal = false) {
-            if (this.state.isProcessing) return;
-            
-            this.state.isProcessing = true;
-            this.state.currentCity = cityName;
-            
-            const $btn = inModal ? $('#modal-fetch-areas-btn') : $('#fetch-city-areas-btn');
-            this.setLoading($btn, true);
-            
-            const data = {
-                action: 'mobooking_fetch_city_areas',
-                city_name: cityName,
-                country_code: this.config.selectedCountry,
-                state: '', // You could add state selection
-                nonce: this.config.nonce
+        // Setup data source information
+        setupDataSourceInfo: function() {
+            this.dataSourceDescriptions = {
+                local_data: {
+                    title: 'High-Quality Local Data',
+                    description: 'This country uses our comprehensive local database with accurate ZIP codes and area information. Data is stored locally for fast access and high reliability.'
+                },
+                api_data: {
+                    title: 'External API Data',
+                    description: 'This country uses data from external APIs including Zippopotam and GeoNames. Data quality is good but depends on external service availability.'
+                }
             };
+        },
+        
+        // Initialize existing elements
+        initializeExistingElements: function() {
+            // Update selection count if area results are already visible
+            if (document.getElementById('areas-results') && document.getElementById('areas-results').style.display !== 'none') {
+                this.updateSelectionCount();
+            }
             
-            $.ajax({
-                url: this.config.ajaxUrl,
-                type: 'POST',
-                data: data,
-                timeout: 30000, // 30 second timeout for API calls
-                success: (response) => {
-                    if (response.success) {
-                        this.state.fetchedAreas = response.data.areas;
-                        this.displayFetchedAreas(response.data.areas, inModal);
-                        this.showNotification(`Found ${response.data.total_areas} areas in ${cityName}`, 'success');
-                    } else {
-                        this.showNotification(response.data?.message || 'Failed to fetch areas', 'error');
-                    }
-                },
-                error: (xhr, status, error) => {
-                    if (status === 'timeout') {
-                        this.showNotification('Request timed out. Please try again.', 'error');
-                    } else {
-                        this.showNotification('Error fetching city areas', 'error');
-                    }
-                },
-                complete: () => {
-                    this.state.isProcessing = false;
-                    this.setLoading($btn, false);
+            // Update bulk action state if in management view
+            if (document.querySelector('.areas-management')) {
+                this.updateBulkActionState();
+            }
+        },
+        
+        // Handle country selection change
+        handleCountryChange: function(e) {
+            const countrySelect = e.target;
+            const confirmBtn = document.getElementById('confirm-country-btn');
+            const infoDiv = document.getElementById('data-source-info');
+            const titleEl = document.getElementById('data-source-title');
+            const descEl = document.getElementById('data-source-description');
+            
+            if (countrySelect.value) {
+                confirmBtn.disabled = false;
+                
+                const option = countrySelect.selectedOptions[0];
+                const hasLocalData = option.dataset.hasLocalData === '1';
+                const hasApi = option.dataset.hasApi === '1';
+                
+                let infoType = hasLocalData ? 'local_data' : 'api_data';
+                const info = this.dataSourceDescriptions[infoType];
+                
+                if (titleEl && descEl) {
+                    titleEl.textContent = info.title;
+                    descEl.textContent = info.description;
                 }
+                
+                if (infoDiv) {
+                    infoDiv.style.display = 'block';
+                    infoDiv.className = 'data-source-info ' + (hasLocalData ? 'local-data' : 'api-data');
+                }
+            } else {
+                confirmBtn.disabled = true;
+                if (infoDiv) {
+                    infoDiv.style.display = 'none';
+                }
+            }
+        },
+        
+        // Confirm country selection
+        confirmCountrySelection: function() {
+            const countrySelect = document.getElementById('country-select');
+            if (!countrySelect || !countrySelect.value) {
+                this.showNotification('Please select a country first.', 'warning');
+                return;
+            }
+            
+            const countryCode = countrySelect.value;
+            this.showLoadingState('Setting up your service country...');
+            
+            const formData = new FormData();
+            formData.append('action', 'mobooking_set_service_country');
+            formData.append('country_code', countryCode);
+            formData.append('nonce', mobooking_area_vars.nonce || '');
+            
+            fetch(mobooking_area_vars.ajax_url, {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    this.showNotification(data.data.message || 'Country updated successfully!', 'success');
+                    setTimeout(() => {
+                        location.reload();
+                    }, 1000);
+                } else {
+                    this.showNotification(data.data || 'Error setting country', 'error');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                this.showNotification('Network error occurred', 'error');
+            })
+            .finally(() => {
+                this.hideLoadingState();
             });
         },
         
-        displayFetchedAreas: function(areas, inModal = false) {
-            const containerId = inModal ? '#fetched-areas-grid' : '#areas-results-grid';
-            const $container = $(containerId);
-            const $resultsSection = inModal ? $('#areas-results') : $('#areas-results-section');
+        // Handle city input
+        handleCityInput: function(e) {
+            // Enable search button when user types
+            const searchBtn = document.getElementById('search-city-btn');
+            if (searchBtn) {
+                searchBtn.disabled = !e.target.value.trim();
+            }
             
-            $container.empty();
+            // Future: Implement city suggestions/autocomplete here
+        },
+        
+        // Handle city input keypress
+        handleCityKeypress: function(e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                this.searchCityAreas();
+            }
+        },
+        
+        // Search for city areas
+        searchCityAreas: function() {
+            const cityInput = document.getElementById('city-search');
+            if (!cityInput) return;
             
-            if (!areas || areas.length === 0) {
-                $container.html(`
-                    <div class="no-areas-message" style="text-align: center; padding: 2rem; grid-column: 1 / -1;">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="width: 48px; height: 48px; margin-bottom: 1rem; color: #9ca3af;">
-                            <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/>
-                            <circle cx="12" cy="10" r="3"/>
-                        </svg>
-                        <h3 style="color: #6b7280; margin: 0 0 0.5rem 0;">No areas found</h3>
-                        <p style="color: #9ca3af;">Try a different city name or check the spelling.</p>
-                    </div>
-                `);
-            } else {
-                areas.forEach((area, index) => {
-                    const areaCard = this.createAreaCard(area, index);
-                    $container.append(areaCard);
+            const cityName = cityInput.value.trim();
+            if (!cityName) {
+                this.showNotification('Please enter a city name', 'warning');
+                cityInput.focus();
+                return;
+            }
+            
+            // Get current country from various possible sources
+            const countryCode = this.getCurrentCountry();
+            if (!countryCode) {
+                this.showNotification('Country not set. Please refresh the page.', 'error');
+                return;
+            }
+            
+            this.showSearchStatus();
+            
+            const formData = new FormData();
+            formData.append('action', 'mobooking_fetch_city_areas');
+            formData.append('city_name', cityName);
+            formData.append('country_code', countryCode);
+            formData.append('nonce', mobooking_area_vars.nonce || '');
+            
+            fetch(mobooking_area_vars.ajax_url, {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    this.displayAreaResults(data.data);
+                } else {
+                    this.showNotification(data.data || 'Error fetching areas', 'error');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                this.showNotification('Network error occurred', 'error');
+            })
+            .finally(() => {
+                this.hideSearchStatus();
+            });
+        },
+        
+        // Get current country code
+        getCurrentCountry: function() {
+            // Try to get from various sources
+            const countryMeta = document.querySelector('meta[name="mobooking-country"]');
+            if (countryMeta) return countryMeta.content;
+            
+            const countryData = document.querySelector('[data-country-code]');
+            if (countryData) return countryData.dataset.countryCode;
+            
+            // Extract from PHP variables if available
+            if (typeof mobooking_current_country !== 'undefined') {
+                return mobooking_current_country;
+            }
+            
+            return null;
+        },
+        
+        // Display area search results
+        displayAreaResults: function(data) {
+            const resultsDiv = document.getElementById('areas-results');
+            const gridDiv = document.getElementById('areas-grid');
+            const subtitle = resultsDiv?.querySelector('.results-subtitle');
+            
+            if (!resultsDiv || !gridDiv) {
+                this.showNotification('Results container not found', 'error');
+                return;
+            }
+            
+            // Update subtitle with data source info
+            const dataSourceText = data.is_nordic ? 'From local database' : 'From external APIs';
+            if (subtitle) {
+                subtitle.textContent = `${data.total_found || 0} areas found for ${data.city || 'city'} (${dataSourceText})`;
+            }
+            
+            // Clear previous results
+            gridDiv.innerHTML = '';
+            this.selectedAreas.clear();
+            
+            if (data.areas && data.areas.length > 0) {
+                data.areas.forEach(area => {
+                    const areaItem = this.createAreaItem(area);
+                    gridDiv.appendChild(areaItem);
                 });
-            }
-            
-            $resultsSection.show();
-            this.updateSelectedAreasCount();
-        },
-        
-        createAreaCard: function(area, index) {
-            const coordinates = area.latitude && area.longitude ? 
-                `${parseFloat(area.latitude).toFixed(4)}, ${parseFloat(area.longitude).toFixed(4)}` : 
-                'Coordinates not available';
-            
-            return $(`
-                <div class="area-card" data-area-index="${index}">
-                    <input type="checkbox" class="area-checkbox" value="${index}" style="position: absolute; opacity: 0; pointer-events: none;">
-                    <div class="area-card-header">
-                        <h4 class="area-card-title">${this.escapeHtml(area.area_name)}</h4>
-                        <div class="area-card-zip">${this.escapeHtml(area.zip_code)}</div>
-                    </div>
-                    <div class="area-card-meta">
-                        <div class="area-card-source">Source: ${this.escapeHtml(area.source)}</div>
-                        ${coordinates !== 'Coordinates not available' ? `<div class="area-card-coordinates">${coordinates}</div>` : ''}
-                    </div>
-                </div>
-            `);
-        },
-        
-        updateSelectedAreasCount: function() {
-            const selectedCount = $('.area-checkbox:checked').length;
-            $('#selected-areas-count').text(selectedCount);
-            $('#save-selected-areas-btn').prop('disabled', selectedCount === 0);
-            
-            if (selectedCount > 0) {
-                $('#save-selected-areas-btn').find('.btn-text').text(`Save ${selectedCount} Selected Areas`);
+                
+                resultsDiv.style.display = 'block';
+                resultsDiv.scrollIntoView({ behavior: 'smooth', block: 'start' });
             } else {
-                $('#save-selected-areas-btn').find('.btn-text').text('Save Selected Areas');
+                this.showNotification('No areas found for this city', 'info');
+            }
+            
+            this.updateSelectionCount();
+        },
+        
+        // Create area item element
+        createAreaItem: function(area) {
+            const item = document.createElement('div');
+            item.className = 'area-item';
+            
+            const areaData = JSON.stringify(area).replace(/"/g, '&quot;');
+            
+            item.innerHTML = `
+                <input type="checkbox" class="area-checkbox" data-area="${areaData}">
+                <div class="area-content">
+                    <div class="area-name">${this.escapeHtml(area.area_name || '')}</div>
+                    <div class="area-details">
+                        <span class="zip-code">${this.escapeHtml(area.zip_code || '')}</span>
+                        ${area.state ? `<span class="area-state">${this.escapeHtml(area.state)}</span>` : ''}
+                        <span class="data-source">${this.escapeHtml(area.source || 'Unknown')}</span>
+                    </div>
+                    ${area.latitude && area.longitude ? `
+                        <div class="area-coordinates">
+                            <small>📍 ${parseFloat(area.latitude).toFixed(4)}, ${parseFloat(area.longitude).toFixed(4)}</small>
+                        </div>
+                    ` : ''}
+                </div>
+            `;
+            
+            return item;
+        },
+        
+        // Handle area checkbox change
+        handleAreaCheckboxChange: function(checkbox) {
+            const areaData = checkbox.dataset.area;
+            if (checkbox.checked) {
+                this.selectedAreas.add(areaData);
+            } else {
+                this.selectedAreas.delete(areaData);
+            }
+            this.updateSelectionCount();
+        },
+        
+        // Toggle select all areas
+        toggleSelectAll: function() {
+            const checkboxes = document.querySelectorAll('#areas-grid .area-checkbox');
+            const allChecked = Array.from(checkboxes).every(cb => cb.checked);
+            const newState = !allChecked;
+            
+            checkboxes.forEach(cb => {
+                cb.checked = newState;
+                const areaData = cb.dataset.area;
+                if (newState) {
+                    this.selectedAreas.add(areaData);
+                } else {
+                    this.selectedAreas.delete(areaData);
+                }
+            });
+            
+            this.updateSelectionCount();
+        },
+        
+        // Update selection count display
+        updateSelectionCount: function() {
+            const countEl = document.getElementById('selected-count');
+            const saveBtn = document.getElementById('save-selected-btn');
+            const selectAllBtn = document.getElementById('select-all-btn');
+            
+            const count = this.selectedAreas.size;
+            
+            if (countEl) {
+                countEl.textContent = count;
+            }
+            
+            if (saveBtn) {
+                saveBtn.disabled = count === 0;
+            }
+            
+            if (selectAllBtn) {
+                const totalCheckboxes = document.querySelectorAll('#areas-grid .area-checkbox').length;
+                const allSelected = count === totalCheckboxes && totalCheckboxes > 0;
+                selectAllBtn.textContent = allSelected ? 'Deselect All' : 'Select All';
             }
         },
         
+        // Save selected areas
         saveSelectedAreas: function() {
-            const selectedIndices = $('.area-checkbox:checked').map((i, el) => parseInt($(el).val())).get();
-            
-            if (selectedIndices.length === 0) {
+            if (this.selectedAreas.size === 0) {
                 this.showNotification('Please select at least one area', 'warning');
                 return;
             }
             
-            // Get selected areas from fetched data
-            const selectedAreas = selectedIndices.map(index => this.state.fetchedAreas[index]);
+            if (this.isLoading) return;
+            this.isLoading = true;
             
-            if (this.state.isProcessing) return;
-            
-            this.state.isProcessing = true;
-            const $btn = $('#save-selected-areas-btn');
-            this.setLoading($btn, true);
-            
-            const data = {
-                action: 'mobooking_save_selected_areas',
-                areas_data: JSON.stringify(selectedAreas),
-                city_name: this.state.currentCity,
-                country_code: this.config.selectedCountry,
-                state: '', // Add state if needed
-                nonce: this.config.nonce
-            };
-            
-            $.ajax({
-                url: this.config.ajaxUrl,
-                type: 'POST',
-                data: data,
-                timeout: 60000, // 60 second timeout for database operations
-                success: (response) => {
-                    if (response.success) {
-                        this.showNotification(response.data.message, 'success');
-                        this.hideModals();
-                        
-                        // Refresh the page to show new areas
-                        setTimeout(() => {
-                            location.reload();
-                        }, 1500);
-                    } else {
-                        this.showNotification(response.data?.message || 'Failed to save areas', 'error');
-                        
-                        // Show additional error details if available
-                        if (response.data?.errors && response.data.errors.length > 0) {
-                            console.error('Save errors:', response.data.errors);
-                        }
-                    }
-                },
-                error: (xhr, status, error) => {
-                    if (status === 'timeout') {
-                        this.showNotification('Save operation timed out. Please try again.', 'error');
-                    } else {
-                        this.showNotification('Error saving areas', 'error');
-                    }
-                    console.error('AJAX Error:', xhr.responseText);
-                },
-                complete: () => {
-                    this.state.isProcessing = false;
-                    this.setLoading($btn, false);
+            const selectedAreasArray = Array.from(this.selectedAreas).map(areaDataStr => {
+                try {
+                    return JSON.parse(areaDataStr.replace(/&quot;/g, '"'));
+                } catch (e) {
+                    console.error('Error parsing area data:', e);
+                    return null;
                 }
-            });
-        },
-        
-        showCountryConfirmation: function() {
-            const selectedCountry = $('#country-select').val();
-            if (!selectedCountry) {
-                this.showNotification('Please select a country first', 'warning');
+            }).filter(area => area !== null);
+            
+            if (selectedAreasArray.length === 0) {
+                this.showNotification('Error processing selected areas', 'error');
+                this.isLoading = false;
                 return;
             }
             
-            const countryName = this.config.supportedCountries[selectedCountry].name;
-            const message = '<?php _e('You are about to select [COUNTRY] as your service country. This cannot be changed later without losing all your current service areas. Are you sure?', 'mobooking'); ?>';
+            this.showLoadingState('Saving selected areas...');
             
-            $('#country-confirmation-message').text(message.replace('[COUNTRY]', countryName));
-            this.showModal('#country-confirmation-modal');
-        },
-        
-        confirmCountrySelection: function() {
-            const selectedCountry = $('#country-select').val();
+            const formData = new FormData();
+            formData.append('action', 'mobooking_save_selected_areas');
+            formData.append('selected_areas', JSON.stringify(selectedAreasArray));
+            formData.append('nonce', mobooking_area_vars.nonce || '');
             
-            if (this.state.isProcessing) return;
-            
-            this.state.isProcessing = true;
-            const $btn = $('.confirm-country-selection-btn');
-            this.setLoading($btn, true);
-            
-            const data = {
-                action: 'mobooking_set_service_country',
-                country: selectedCountry,
-                nonce: this.config.nonce
-            };
-            
-            $.ajax({
-                url: this.config.ajaxUrl,
-                type: 'POST',
-                data: data,
-                success: (response) => {
-                    if (response.success) {
-                        this.showNotification(response.data.message, 'success');
-                        this.hideModals();
-                        setTimeout(() => {
-                            location.reload();
-                        }, 1000);
-                    } else {
-                        this.showNotification(response.data?.message || 'Failed to set country', 'error');
-                    }
-                },
-                error: () => {
-                    this.showNotification('Error setting country', 'error');
-                },
-                complete: () => {
-                    this.state.isProcessing = false;
-                    this.setLoading($btn, false);
+            fetch(mobooking_area_vars.ajax_url, {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    this.showNotification(data.data.message || 'Areas saved successfully!', 'success');
+                    setTimeout(() => {
+                        location.reload();
+                    }, 1500);
+                } else {
+                    this.showNotification(data.data || 'Error saving areas', 'error');
                 }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                this.showNotification('Network error occurred', 'error');
+            })
+            .finally(() => {
+                this.hideLoadingState();
+                this.isLoading = false;
             });
         },
         
-        changeCountry: function() {
-            const message = '<?php _e('Changing your service country will delete all existing service areas. This action cannot be undone. Are you sure?', 'mobooking'); ?>';
-            $('#confirmation-message').text(message);
-            this.state.confirmAction = 'change_country';
-            this.showModal('#confirmation-modal');
-        },
-        
-        toggleAreaStatus: function(areaId, isActive) {
-            const data = {
-                action: 'mobooking_toggle_area_status',
-                id: areaId,
-                active: isActive ? 1 : 0,
-                nonce: this.config.nonce
-            };
-            
-            $.ajax({
-                url: this.config.ajaxUrl,
-                type: 'POST',
-                data: data,
-                success: (response) => {
-                    if (response.success) {
-                        this.showNotification(response.data.message, 'success');
-                        this.refreshAreasDisplay();
-                    } else {
-                        this.showNotification('Failed to update area status', 'error');
-                    }
-                },
-                error: () => {
-                    this.showNotification('Error updating area status', 'error');
-                }
-            });
-        },
-        
-        deleteArea: function(areaId) {
-            this.state.currentAreaId = areaId;
-            this.state.confirmAction = 'delete_area';
-            
-            const $row = $(`.area-row[data-area-id="${areaId}"]`);
-            const areaName = $row.find('.area-name-text').text();
-            
-            const message = `<?php _e('Are you sure you want to delete the service area "[AREA]"? This action cannot be undone.', 'mobooking'); ?>`;
-            $('#confirmation-message').text(message.replace('[AREA]', areaName));
-            
-            this.showModal('#confirmation-modal');
-        },
-        
-        executeConfirmedAction: function() {
-            const action = this.state.confirmAction;
-            
-            if (action === 'delete_area') {
-                this.performDeleteArea();
-            } else if (action === 'change_country') {
-                this.performChangeCountry();
-            }
-        },
-        
-        performDeleteArea: function() {
-            if (!this.state.currentAreaId) return;
-            
-            const $btn = $('.confirm-action-btn');
-            this.setLoading($btn, true);
-            
-            const data = {
-                action: 'mobooking_delete_area',
-                id: this.state.currentAreaId,
-                nonce: this.config.nonce
-            };
-            
-            $.ajax({
-                url: this.config.ajaxUrl,
-                type: 'POST',
-                data: data,
-                success: (response) => {
-                    if (response.success) {
-                        this.showNotification(response.data.message, 'success');
-                        this.hideModals();
-                        this.refreshAreasDisplay();
-                    } else {
-                        this.showNotification('Failed to delete area', 'error');
-                    }
-                },
-                error: () => {
-                    this.showNotification('Error deleting area', 'error');
-                },
-                complete: () => {
-                    this.setLoading($btn, false);
-                }
-            });
-        },
-        
-        performChangeCountry: function() {
-            const $btn = $('.confirm-action-btn');
-            this.setLoading($btn, true);
-            
-            const data = {
-                action: 'mobooking_reset_service_country',
-                nonce: this.config.nonce
-            };
-            
-            $.ajax({
-                url: this.config.ajaxUrl,
-                type: 'POST',
-                data: data,
-                success: (response) => {
-                    if (response.success) {
-                        this.showNotification(response.data.message, 'success');
-                        this.hideModals();
-                        setTimeout(() => {
-                            location.reload();
-                        }, 1000);
-                    } else {
-                        this.showNotification('Failed to reset country', 'error');
-                    }
-                },
-                error: () => {
-                    this.showNotification('Error resetting country', 'error');
-                },
-                complete: () => {
-                    this.setLoading($btn, false);
-                }
-            });
-        },
-        
-        applyBulkAction: function() {
-            const action = $('#bulk-action-select').val();
-            const selectedIds = $('.area-checkbox:checked').map((i, el) => $(el).val()).get();
-            
-            if (!action || selectedIds.length === 0) {
-                this.showNotification('Please select an action and at least one area', 'warning');
+        // Reset country selection
+        resetCountrySelection: function() {
+            if (!confirm('Are you sure? This will reset your country selection and remove all current areas.')) {
                 return;
             }
             
-            // Handle different bulk actions
-            if (action === 'delete') {
-                this.state.selectedAreas = selectedIds;
-                this.state.confirmAction = 'bulk_delete';
-                const message = `<?php _e('Are you sure you want to delete [COUNT] service area(s)? This action cannot be undone.', 'mobooking'); ?>`;
-                $('#confirmation-message').text(message.replace('[COUNT]', selectedIds.length));
-                this.showModal('#confirmation-modal');
-                return;
-            }
+            this.showLoadingState('Resetting country selection...');
             
-            // Execute other bulk actions immediately
-            this.executeBulkAction(action, selectedIds);
-        },
-        
-        executeBulkAction: function(action, ids) {
-            const data = {
-                action: 'mobooking_bulk_area_action',
-                bulk_action: action,
-                area_ids: ids,
-                nonce: this.config.nonce
-            };
+            const formData = new FormData();
+            formData.append('action', 'mobooking_reset_service_country');
+            formData.append('nonce', mobooking_area_vars.nonce || '');
             
-            $.ajax({
-                url: this.config.ajaxUrl,
-                type: 'POST',
-                data: data,
-                success: (response) => {
-                    if (response.success) {
-                        this.showNotification(response.data.message, 'success');
-                        this.refreshAreasDisplay();
-                        
-                        // Clear selections
-                        $('.area-checkbox').prop('checked', false);
-                        $('#select-all-areas').prop('checked', false);
-                        $('#bulk-action-select').val('');
-                    } else {
-                        this.showNotification('Bulk action failed', 'error');
-                    }
-                },
-                error: () => {
-                    this.showNotification('Error executing bulk action', 'error');
+            fetch(mobooking_area_vars.ajax_url, {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    this.showNotification(data.data.message || 'Country reset successfully!', 'success');
+                    setTimeout(() => {
+                        location.reload();
+                    }, 1000);
+                } else {
+                    this.showNotification(data.data || 'Error resetting country', 'error');
                 }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                this.showNotification('Network error occurred', 'error');
+            })
+            .finally(() => {
+                this.hideLoadingState();
             });
         },
         
-        filterAreas: function(searchTerm) {
-            const $rows = $('.area-row');
+        // Show add more areas interface
+        showAddMoreAreas: function() {
+            // Hide management view and show city search
+            const managementDiv = document.querySelector('.areas-management');
+            const cityDiv = document.querySelector('.first-city-container');
             
-            if (!searchTerm) {
-                $rows.show();
+            if (managementDiv) managementDiv.style.display = 'none';
+            if (cityDiv) {
+                cityDiv.style.display = 'block';
+                const cityInput = document.getElementById('city-search');
+                if (cityInput) {
+                    cityInput.value = '';
+                    cityInput.focus();
+                }
+            }
+        },
+        
+        // Area Management Events
+        bindAreaManagementEvents: function() {
+            // These are handled in handleDocumentClick and handleDocumentChange
+            // This method is for any additional specific management events
+            
+            // Update bulk action state on page load
+            this.updateBulkActionState();
+        },
+        
+        // Handle status toggle
+        handleStatusToggle: function(e) {
+            const areaId = e.target.dataset.areaId;
+            if (!areaId) return;
+            
+            const formData = new FormData();
+            formData.append('action', 'mobooking_toggle_area_status');
+            formData.append('area_id', areaId);
+            formData.append('nonce', mobooking_area_vars.nonce || '');
+            
+            fetch(mobooking_area_vars.ajax_url, {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    this.showNotification(data.data.message || 'Status updated successfully!', 'success');
+                    
+                    // Update the toggle label
+                    const label = e.target.parentNode.querySelector('.toggle-label');
+                    if (label) {
+                        label.textContent = data.data.new_status ? 'Active' : 'Inactive';
+                    }
+                } else {
+                    // Revert the toggle
+                    e.target.checked = !e.target.checked;
+                    this.showNotification(data.data || 'Error updating status', 'error');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                e.target.checked = !e.target.checked;
+                this.showNotification('Network error occurred', 'error');
+            });
+        },
+        
+        // Handle delete area
+        handleDeleteArea: function(e) {
+            const deleteBtn = e.target.closest('.delete-area-btn');
+            const areaId = deleteBtn?.dataset.areaId;
+            const areaRow = deleteBtn?.closest('.area-row');
+            const areaNameEl = areaRow?.querySelector('.area-name strong');
+            
+            if (!areaId || !areaRow || !areaNameEl) {
+                this.showNotification('Error: Could not identify area to delete', 'error');
                 return;
             }
             
-            searchTerm = searchTerm.toLowerCase();
+            const areaName = areaNameEl.textContent;
             
-            $rows.each(function() {
-                const $row = $(this);
-                const areaName = $row.find('.area-name-text').text().toLowerCase();
-                const zipCode = $row.find('.zip-code-main').text().toLowerCase();
-                const cityName = $row.find('.city-name').text().toLowerCase();
-                
-                const matches = areaName.includes(searchTerm) || 
-                              zipCode.includes(searchTerm) || 
-                              cityName.includes(searchTerm);
-                
-                $row.toggle(matches);
+            if (!confirm(`Are you sure you want to delete "${areaName}"?`)) {
+                return;
+            }
+            
+            const formData = new FormData();
+            formData.append('action', 'mobooking_delete_area');
+            formData.append('area_id', areaId);
+            formData.append('nonce', mobooking_area_vars.nonce || '');
+            
+            fetch(mobooking_area_vars.ajax_url, {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    this.showNotification(data.data.message || 'Area deleted successfully!', 'success');
+                    areaRow.remove();
+                    this.updateBulkActionState();
+                } else {
+                    this.showNotification(data.data || 'Error deleting area', 'error');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                this.showNotification('Network error occurred', 'error');
             });
         },
         
-        refreshAreasDisplay: function() {
-            // Reload the page to refresh the areas display
-            // In a more sophisticated implementation, this could be done via AJAX
-            location.reload();
-        },
-        
-        showModal: function(selector) {
-            $(selector).fadeIn(300);
-            $('body').addClass('modal-open');
-        },
-        
-        hideModals: function() {
-            $('.mobooking-modal').fadeOut(300);
-            $('body').removeClass('modal-open');
+        // Handle edit area
+        handleEditArea: function(e) {
+            const editBtn = e.target.closest('.edit-area-btn');
+            const areaId = editBtn?.dataset.areaId;
             
-            // Reset state
-            this.state.currentAreaId = null;
-            this.state.selectedAreas = [];
-            this.state.confirmAction = null;
-            this.state.fetchedAreas = [];
-            this.state.currentCity = '';
+            if (!areaId) {
+                this.showNotification('Error: Could not identify area to edit', 'error');
+                return;
+            }
             
-            // Clear forms
-            $('#city-name-input, #modal-city-input').val('');
-            $('#areas-results').hide();
-            $('.city-suggestions').hide();
+            // For now, just show a message. You can implement edit functionality later
+            this.showNotification('Edit functionality coming soon!', 'info');
         },
         
-        setLoading: function($btn, loading) {
-            if (loading) {
-                $btn.addClass('loading').prop('disabled', true);
-            } else {
-                $btn.removeClass('loading').prop('disabled', false);
+        // Handle select all areas in management table
+        handleSelectAllAreas: function(checked) {
+            const checkboxes = document.querySelectorAll('.area-checkbox');
+            checkboxes.forEach(cb => {
+                cb.checked = checked;
+            });
+            this.updateBulkActionState();
+        },
+        
+        // Get selected area IDs
+        getSelectedAreaIds: function() {
+            const checkedBoxes = document.querySelectorAll('.area-checkbox:checked');
+            return Array.from(checkedBoxes).map(cb => cb.value).filter(id => id);
+        },
+        
+        // Update bulk action state
+        updateBulkActionState: function() {
+            const selectedIds = this.getSelectedAreaIds();
+            const bulkSelect = document.getElementById('bulk-action-select');
+            const applyBtn = document.getElementById('apply-bulk-action-btn');
+            
+            if (applyBtn) {
+                applyBtn.disabled = !selectedIds.length || !bulkSelect?.value;
+            }
+            
+            // Update select all checkbox
+            const selectAllCheckbox = document.getElementById('select-all-areas');
+            const allCheckboxes = document.querySelectorAll('.area-checkbox');
+            
+            if (selectAllCheckbox && allCheckboxes.length > 0) {
+                const checkedCount = selectedIds.length;
+                selectAllCheckbox.checked = checkedCount === allCheckboxes.length;
+                selectAllCheckbox.indeterminate = checkedCount > 0 && checkedCount < allCheckboxes.length;
             }
         },
         
-        showNotification: function(message, type = 'info') {
-            const colors = {
-                success: '#10b981',
-                error: '#ef4444',
-                warning: '#f59e0b',
-                info: '#3b82f6'
-            };
+        // Handle bulk action
+        handleBulkAction: function() {
+            const selectedIds = this.getSelectedAreaIds();
+            const bulkSelect = document.getElementById('bulk-action-select');
+            const action = bulkSelect?.value;
             
-            // Remove existing notifications
-            $('.notification').remove();
+            if (!selectedIds.length || !action) {
+                this.showNotification('Please select areas and an action', 'warning');
+                return;
+            }
             
-            const notification = $(`
-                <div class="notification notification-${type}" style="
-                    position: fixed; top: 24px; right: 24px; z-index: 10000;
-                    display: flex; align-items: center; gap: 12px;
-                    padding: 16px 20px; border-radius: 8px;
-                    background: ${colors[type]}; color: white;
-                    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
-                    font-weight: 500; max-width: 400px;
-                    transform: translateX(100%); opacity: 0;
-                    transition: all 0.3s ease;
-                ">
-                    ${message}
+            const actionName = bulkSelect.selectedOptions[0].textContent;
+            if (!confirm(`Are you sure you want to ${actionName.toLowerCase()} ${selectedIds.length} areas?`)) {
+                return;
+            }
+            
+            this.showLoadingState('Applying bulk action...');
+            
+            const formData = new FormData();
+            formData.append('action', 'mobooking_bulk_area_action');
+            formData.append('area_ids', JSON.stringify(selectedIds));
+            formData.append('bulk_action', action);
+            formData.append('nonce', mobooking_area_vars.nonce || '');
+            
+            fetch(mobooking_area_vars.ajax_url, {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    this.showNotification(data.data.message || 'Bulk action completed successfully!', 'success');
+                    setTimeout(() => {
+                        location.reload();
+                    }, 1000);
+                } else {
+                    this.showNotification(data.data || 'Error applying bulk action', 'error');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                this.showNotification('Network error occurred', 'error');
+            })
+            .finally(() => {
+                this.hideLoadingState();
+            });
+        },
+        
+        // Show search status
+        showSearchStatus: function() {
+            const statusDiv = document.getElementById('search-status');
+            if (statusDiv) {
+                statusDiv.style.display = 'block';
+            }
+        },
+        
+        // Hide search status
+        hideSearchStatus: function() {
+            const statusDiv = document.getElementById('search-status');
+            if (statusDiv) {
+                statusDiv.style.display = 'none';
+            }
+        },
+        
+        // Show loading state
+        showLoadingState: function(message) {
+            let overlay = document.getElementById('loading-overlay');
+            if (!overlay) {
+                overlay = document.createElement('div');
+                overlay.id = 'loading-overlay';
+                overlay.className = 'loading-overlay';
+                document.body.appendChild(overlay);
+            }
+            
+            overlay.innerHTML = `
+                <div class="loading-content">
+                    <div class="loading-spinner"></div>
+                    <div class="loading-message">${this.escapeHtml(message)}</div>
                 </div>
-            `);
+            `;
+            overlay.style.display = 'flex';
+        },
+        
+        // Hide loading state
+        hideLoadingState: function() {
+            const overlay = document.getElementById('loading-overlay');
+            if (overlay) {
+                overlay.style.display = 'none';
+            }
+        },
+        
+        // Show notification
+        showNotification: function(message, type = 'info') {
+            // Remove existing notifications of the same type
+            const existingNotifications = document.querySelectorAll(`.notification-${type}`);
+            existingNotifications.forEach(n => n.remove());
             
-            $('body').append(notification);
+            // Create notification element
+            const notification = document.createElement('div');
+            notification.className = `notification notification-${type}`;
+            notification.innerHTML = `
+                <div class="notification-content">
+                    <span class="notification-message">${this.escapeHtml(message)}</span>
+                    <button class="notification-close" type="button">&times;</button>
+                </div>
+            `;
+            
+            // Add to page
+            document.body.appendChild(notification);
+            
+            // Auto-remove after 5 seconds
+            setTimeout(() => {
+                if (notification.parentNode) {
+                    notification.remove();
+                }
+            }, 5000);
             
             // Animate in
-            setTimeout(() => {
-                notification.css({
-                    transform: 'translateX(0)',
-                    opacity: 1
-                });
-            }, 100);
-            
-            // Auto remove
-            setTimeout(() => {
-                notification.css({
-                    transform: 'translateX(100%)',
-                    opacity: 0
-                });
-                setTimeout(() => notification.remove(), 300);
-            }, 5000);
+            requestAnimationFrame(() => {
+                notification.classList.add('notification-show');
+            });
         },
         
+        // Escape HTML
         escapeHtml: function(text) {
-            if (!text) return '';
+            if (typeof text !== 'string') {
+                return '';
+            }
             const div = document.createElement('div');
             div.textContent = text;
             return div.innerHTML;
         }
     };
     
-    // Initialize the enhanced areas manager
-    EnhancedAreasManager.init();
+    // Initialize the areas manager
+    try {
+        EnhancedAreasManager.init();
+    } catch (error) {
+        console.error('Error initializing Enhanced Areas Manager:', error);
+    }
     
-    // Add modal open/close body class management
-    $('body').on('modal-open', function() {
-        $('body').css('overflow', 'hidden');
-    });
-    
-    $('body').on('modal-close', function() {
-        $('body').css('overflow', '');
-    });
+    // Make it globally available for debugging
+    window.EnhancedAreasManager = EnhancedAreasManager;
 });
 </script>
+<style>
+/* Enhanced Areas Styles with Local JSON Support */
+.areas-section {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 20px;
+}
+
+.areas-header {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 30px;
+    border-radius: 12px;
+    margin-bottom: 30px;
+}
+
+.areas-header-content {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 20px;
+}
+
+.areas-title-group h1 {
+    margin: 0 0 5px 0;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.title-icon {
+    width: 28px;
+    height: 28px;
+}
+
+.areas-subtitle {
+    margin: 0;
+    opacity: 0.9;
+    font-size: 16px;
+}
+
+.areas-stats {
+    display: flex;
+    gap: 30px;
+}
+
+.stat-item {
+    text-align: center;
+}
+
+.stat-number {
+    display: block;
+    font-size: 28px;
+    font-weight: bold;
+    line-height: 1;
+}
+
+.stat-label {
+    font-size: 14px;
+    opacity: 0.8;
+}
+
+/* Country Selection */
+.country-selection-card, .first-city-card {
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+    padding: 40px;
+    text-align: center;
+    max-width: 600px;
+    margin: 0 auto;
+}
+
+.selection-icon {
+    width: 60px;
+    height: 60px;
+    background: linear-gradient(135deg, #667eea, #764ba2);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 20px;
+}
+
+.selection-icon svg {
+    width: 30px;
+    height: 30px;
+    color: white;
+}
+
+.selection-header h2 {
+    margin: 0 0 15px 0;
+    color: #333;
+}
+
+.selection-header p {
+    color: #666;
+    line-height: 1.6;
+    margin-bottom: 30px;
+}
+
+/* Data Quality Badges */
+.data-quality-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 16px;
+    border-radius: 20px;
+    font-size: 14px;
+    font-weight: 500;
+    margin-top: 15px;
+}
+
+.data-quality-badge.local-data {
+    background: #e8f5e8;
+    color: #2d5a2d;
+    border: 1px solid #a5d6a5;
+}
+
+.data-quality-badge.api-data {
+    background: #e6f3ff;
+    color: #1f4d73;
+    border: 1px solid #99c9ff;
+}
+
+.badge-icon {
+    font-size: 16px;
+}
+
+/* Data Source Info */
+.data-source-info {
+    margin-top: 20px;
+    text-align: left;
+}
+
+.data-source-info .info-card {
+    padding: 20px;
+    border-radius: 8px;
+    border-left: 4px solid;
+}
+
+.data-source-info.local-data .info-card {
+    background: #f0f9f0;
+    border-left-color: #4caf50;
+}
+
+.data-source-info.api-data .info-card {
+    background: #f0f8ff;
+    border-left-color: #2196f3;
+}
+
+.info-card h4 {
+    margin: 0 0 10px 0;
+    color: #333;
+}
+
+.info-card p {
+    margin: 0;
+    color: #666;
+    line-height: 1.5;
+}
+
+/* Form Elements */
+.form-group {
+    margin-bottom: 25px;
+    text-align: left;
+}
+
+.form-group label {
+    display: block;
+    margin-bottom: 8px;
+    font-weight: 500;
+    color: #333;
+}
+
+.country-dropdown, .city-search-input {
+    width: 100%;
+    padding: 12px 16px;
+    border: 2px solid #e1e5e9;
+    border-radius: 8px;
+    font-size: 16px;
+    transition: border-color 0.3s;
+}
+
+.country-dropdown:focus, .city-search-input:focus {
+    outline: none;
+    border-color: #667eea;
+}
+
+.field-help {
+    margin-top: 8px;
+    font-size: 14px;
+    color: #666;
+}
+
+/* Search Input Group */
+.search-input-group {
+    position: relative;
+}
+
+.search-btn {
+    position: absolute;
+    right: 8px;
+    top: 50%;
+    transform: translateY(-50%);
+    background: #667eea;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    padding: 8px;
+    cursor: pointer;
+    transition: background-color 0.3s;
+}
+
+.search-btn:hover {
+    background: #5a6fd8;
+}
+
+.search-btn svg {
+    width: 16px;
+    height: 16px;
+}
+
+/* Buttons */
+.btn-primary, .btn-secondary, .btn-outline {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 24px;
+    border-radius: 8px;
+    font-weight: 500;
+    text-decoration: none;
+    cursor: pointer;
+    transition: all 0.3s;
+    font-size: 16px;
+    border: 2px solid transparent;
+}
+
+.btn-primary {
+    background: linear-gradient(135deg, #667eea, #764ba2);
+    color: white;
+}
+
+.btn-primary:hover:not(:disabled) {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+}
+
+.btn-primary:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.btn-secondary {
+    background: #f8f9fa;
+    color: #495057;
+    border-color: #dee2e6;
+}
+
+.btn-secondary:hover {
+    background: #e9ecef;
+}
+
+.btn-outline {
+    background: transparent;
+    color: #667eea;
+    border-color: #667eea;
+}
+
+.btn-outline:hover {
+    background: #667eea;
+    color: white;
+}
+
+/* Areas Results */
+.areas-results {
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+    padding: 30px;
+    margin-top: 30px;
+}
+
+.results-header {
+    text-align: center;
+    margin-bottom: 30px;
+}
+
+.results-header h3 {
+    margin: 0 0 10px 0;
+    color: #333;
+}
+
+.results-subtitle {
+    color: #666;
+    margin: 0;
+}
+
+/* Areas Grid */
+.areas-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 20px;
+    margin-bottom: 30px;
+}
+
+.area-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 20px;
+    border: 2px solid #e1e5e9;
+    border-radius: 8px;
+    transition: all 0.3s;
+    cursor: pointer;
+}
+
+.area-item:hover {
+    border-color: #667eea;
+    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.15);
+}
+
+.area-item input[type="checkbox"] {
+    margin-top: 2px;
+}
+
+.area-content {
+    flex: 1;
+}
+
+.area-name {
+    font-weight: 600;
+    color: #333;
+    margin-bottom: 8px;
+}
+
+.area-details {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-bottom: 8px;
+}
+
+.zip-code {
+    background: #e3f2fd;
+    color: #1976d2;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 14px;
+    font-weight: 500;
+}
+
+.area-state {
+    background: #f3e5f5;
+    color: #7b1fa2;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 14px;
+}
+
+.data-source {
+    background: #e8f5e8;
+    color: #388e3c;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 12px;
+}
+
+.area-coordinates {
+    font-size: 12px;
+    color: #666;
+}
+
+/* Selection Actions */
+.selection-actions {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding-top: 20px;
+    border-top: 1px solid #e1e5e9;
+}
+
+.selection-info {
+    font-weight: 500;
+    color: #333;
+}
+
+.action-buttons {
+    display: flex;
+    gap: 12px;
+}
+
+/* Areas Management */
+.management-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 30px;
+    flex-wrap: wrap;
+    gap: 20px;
+}
+
+.header-content h2 {
+    margin: 0 0 5px 0;
+    color: #333;
+}
+
+.data-source-indicator .indicator {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 12px;
+    border-radius: 16px;
+    font-size: 14px;
+    font-weight: 500;
+}
+
+.indicator.local-data {
+    background: #e8f5e8;
+    color: #2d5a2d;
+}
+
+.indicator.api-data {
+    background: #e6f3ff;
+    color: #1f4d73;
+}
+
+.header-actions {
+    display: flex;
+    gap: 12px;
+}
+
+/* Areas Table */
+.areas-table-container {
+    background: white;
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    margin-bottom: 20px;
+}
+
+.areas-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.areas-table th,
+.areas-table td {
+    padding: 16px;
+    text-align: left;
+    border-bottom: 1px solid #e1e5e9;
+}
+
+.areas-table th {
+    background: #f8f9fa;
+    font-weight: 600;
+    color: #495057;
+}
+
+.areas-table tbody tr:hover {
+    background: #f8f9fa;
+}
+
+/* Status Toggle */
+.status-toggle {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+}
+
+.toggle-slider {
+    position: relative;
+    width: 40px;
+    height: 20px;
+    background: #ccc;
+    border-radius: 20px;
+    transition: background-color 0.3s;
+}
+
+.toggle-slider::before {
+    content: '';
+    position: absolute;
+    width: 16px;
+    height: 16px;
+    background: white;
+    border-radius: 50%;
+    top: 2px;
+    left: 2px;
+    transition: transform 0.3s;
+}
+
+.status-toggle input:checked + .toggle-slider {
+    background: #4caf50;
+}
+
+.status-toggle input:checked + .toggle-slider::before {
+    transform: translateX(20px);
+}
+
+.status-toggle input {
+    display: none;
+}
+
+/* Action Buttons */
+.btn-icon {
+    background: none;
+    border: none;
+    padding: 8px;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background-color 0.3s;
+}
+
+.btn-icon:hover {
+    background: #f8f9fa;
+}
+
+.btn-icon svg {
+    width: 16px;
+    height: 16px;
+    color: #666;
+}
+
+.delete-area-btn:hover svg {
+    color: #dc3545;
+}
+
+/* Bulk Actions */
+.bulk-actions {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 16px;
+    background: #f8f9fa;
+    border-radius: 8px;
+}
+
+.bulk-actions-left {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+}
+
+.areas-count {
+    color: #666;
+    font-size: 14px;
+}
+
+/* Search Status */
+.search-status {
+    padding: 20px;
+    text-align: center;
+    background: #f8f9fa;
+    border-radius: 8px;
+    margin-top: 20px;
+}
+
+.status-content {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+}
+
+.status-spinner {
+    width: 20px;
+    height: 20px;
+    border: 2px solid #e1e5e9;
+    border-top-color: #667eea;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+/* Loading Overlay */
+.loading-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0,0,0,0.7);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 9999;
+}
+
+.loading-content {
+    background: white;
+    padding: 40px;
+    border-radius: 12px;
+    text-align: center;
+    max-width: 300px;
+}
+
+.loading-spinner {
+    width: 40px;
+    height: 40px;
+    border: 4px solid #e1e5e9;
+    border-top-color: #667eea;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    margin: 0 auto 20px;
+}
+
+.loading-message {
+    color: #333;
+    font-weight: 500;
+}
+
+/* Notifications */
+.notification {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+    z-index: 10000;
+    transform: translateX(400px);
+    transition: transform 0.3s;
+    min-width: 300px;
+    max-width: 500px;
+}
+
+.notification-show {
+    transform: translateX(0);
+}
+
+.notification-content {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 20px;
+}
+
+.notification-success {
+    border-left: 4px solid #4caf50;
+}
+
+.notification-error {
+    border-left: 4px solid #f44336;
+}
+
+.notification-warning {
+    border-left: 4px solid #ff9800;
+}
+
+.notification-info {
+    border-left: 4px solid #2196f3;
+}
+
+.notification-close {
+    background: none;
+    border: none;
+    font-size: 18px;
+    color: #666;
+    cursor: pointer;
+    padding: 0;
+    margin-left: 12px;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .areas-header-content {
+        flex-direction: column;
+        text-align: center;
+    }
+    
+    .areas-stats {
+        justify-content: center;
+    }
+    
+    .management-header {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    
+    .header-actions {
+        justify-content: center;
+    }
+    
+    .areas-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .selection-actions {
+        flex-direction: column;
+        gap: 16px;
+        align-items: stretch;
+    }
+    
+    .bulk-actions {
+        flex-direction: column;
+        gap: 16px;
+        align-items: stretch;
+    }
+    
+    .areas-table-container {
+        overflow-x: auto;
+    }
+    
+    .notification {
+        right: 10px;
+        left: 10px;
+        max-width: none;
+        transform: translateY(-100px);
+    }
+    
+    .notification-show {
+        transform: translateY(0);
+    }
+}
+</style>

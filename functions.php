@@ -742,3 +742,68 @@ function mobooking_rollback_form_migration() {
     
     error_log('MoBooking: Form migration rolled back');
 }
+
+
+
+
+
+
+
+
+
+
+// Add this function to your theme's functions.php or to the Geography Manager class
+
+/**
+ * Enqueue and localize scripts for Areas Dashboard
+ * Add this to your Geography Manager class constructor or call it from functions.php
+ */
+function mobooking_enqueue_areas_scripts() {
+    // // Only load on areas page
+    // if (!is_admin() || !isset($_GET['page']) || $_GET['page'] !== 'mobooking-areas') {
+    //     return;
+    // }
+    
+    // Enqueue the script (if you have a separate JS file)
+    // wp_enqueue_script('mobooking-areas', get_template_directory_uri() . '/js/areas.js', array('jquery'), '1.0.0', true);
+    
+    // Get current user and country info
+    $user_id = get_current_user_id();
+    $selected_country = get_user_meta($user_id, 'mobooking_service_country', true);
+    
+    // Localize script with necessary data
+    $localize_data = array(
+        'ajax_url' => admin_url('admin-ajax.php'),
+        'nonce' => wp_create_nonce('mobooking-area-nonce'),
+        'booking_nonce' => wp_create_nonce('mobooking-booking-nonce'),
+        'current_country' => $selected_country,
+        'user_id' => $user_id,
+        'strings' => array(
+            'loading' => __('Loading...', 'mobooking'),
+            'error' => __('An error occurred', 'mobooking'),
+            'success' => __('Success!', 'mobooking'),
+            'confirm_delete' => __('Are you sure you want to delete this area?', 'mobooking'),
+            'confirm_reset' => __('Are you sure? This will reset your country selection and remove all current areas.', 'mobooking'),
+            'select_country' => __('Please select a country first.', 'mobooking'),
+            'enter_city' => __('Please enter a city name', 'mobooking'),
+            'network_error' => __('Network error occurred', 'mobooking'),
+            'no_areas_found' => __('No areas found for this city', 'mobooking'),
+            'select_areas' => __('Please select at least one area', 'mobooking'),
+            'country_not_set' => __('Country not set. Please refresh the page.', 'mobooking'),
+        )
+    );
+    
+    // If using inline script (as in your current setup), output the variables
+    ?>
+    <script type="text/javascript">
+        window.mobooking_area_vars = <?php echo json_encode($localize_data); ?>;
+        window.ajax_object = window.mobooking_area_vars; // Backward compatibility
+        
+        // Also set current country globally
+        window.mobooking_current_country = '<?php echo esc_js($selected_country); ?>';
+    </script>
+    <?php
+}
+
+// Hook the function - add this to your Geography Manager constructor
+add_action('admin_enqueue_scripts', 'mobooking_enqueue_areas_scripts');
