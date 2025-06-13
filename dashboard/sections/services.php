@@ -2506,17 +2506,27 @@ document.addEventListener('DOMContentLoaded', function() {
     // --- MODAL HANDLING END --- //
 
     // --- IMAGE UPLOAD START --- //
+    // Element declarations for image upload feature
     const serviceImageUpload = document.getElementById('service-image-upload');
     const btnSelectImageUpload = document.getElementById('btn-select-image-upload');
     const imagePreviewDiv = document.querySelector('.image-section .image-preview');
     const btnReplaceImage = document.getElementById('btn-replace-image');
     const btnDeleteImage = document.getElementById('btn-delete-image');
     const serviceImageUrlInput = document.getElementById('service-image-url');
-    // const serviceForm = document.getElementById('service-form'); // Already declared in the file
-    const saveServiceButton = document.getElementById('save-service-button');
-    const addOptionBtn = document.getElementById('add-option-btn'); // Already declared in the file
+
+    // Note: `serviceForm`, `saveServiceButton`, `addOptionBtn` are assumed to be declared in an outer scope
+    // if they are used by other parts of the script (like modals). If not, they should be obtained here.
+    // For robustness, let's re-fetch saveServiceButton if it's only used in this submission context,
+    // or ensure it's correctly fetched if global.
+    // const saveServiceButton = document.getElementById('save-service-button'); // Re-fetch or use global
 
     function updateImagePreviewUI(imageUrl) {
+        // Ensure imagePreviewDiv exists before trying to manipulate it
+        if (!imagePreviewDiv) {
+            // console.warn('imagePreviewDiv not found for UI update.');
+            return;
+        }
+
         if (imageUrl) {
             imagePreviewDiv.innerHTML = `<img src="${imageUrl}" alt="Service image">`;
             if (btnSelectImageUpload) btnSelectImageUpload.style.display = 'none';
@@ -2538,16 +2548,16 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
-    // Initial state logic
-    if (serviceImageUrlInput && imagePreviewDiv) { // Ensure elements exist
+    // Initial state logic - only if the relevant elements are on the page
+    if (serviceImageUrlInput && imagePreviewDiv) {
         if (serviceImageUrlInput.value) {
             updateImagePreviewUI(serviceImageUrlInput.value);
         } else {
-            updateImagePreviewUI(null);
+            updateImagePreviewUI(null); // Show placeholder
         }
     }
 
-
+    // Event Listeners with null checks
     if (btnSelectImageUpload) {
         btnSelectImageUpload.addEventListener('click', () => {
             if (serviceImageUpload) serviceImageUpload.click();
@@ -2565,27 +2575,26 @@ document.addEventListener('DOMContentLoaded', function() {
             const file = event.target.files[0];
             if (!file) return;
 
-            // Validate file type
             const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
             if (!allowedTypes.includes(file.type)) {
                 alert('Invalid file type. Please select a JPG, PNG, WEBP or GIF image.');
-                this.value = ''; // Clear the input
+                this.value = '';
                 return;
             }
 
-            // Validate file size (max 2MB)
-            const maxSize = 2 * 1024 * 1024; // 2MB in bytes
+            const maxSize = 2 * 1024 * 1024; // 2MB
             if (file.size > maxSize) {
                 alert('File is too large. Maximum size is 2MB.');
-                this.value = ''; // Clear the input
+                this.value = '';
                 return;
             }
 
             const reader = new FileReader();
             reader.onload = function(e) {
-                if(imagePreviewDiv){
+                if (imagePreviewDiv) {
                     imagePreviewDiv.innerHTML = `<img src="${e.target.result}" alt="Service image preview">`;
                 }
+                // Show/hide appropriate buttons
                 if (btnSelectImageUpload) btnSelectImageUpload.style.display = 'none';
                 if (btnReplaceImage) btnReplaceImage.style.display = 'inline-block';
                 if (btnDeleteImage) btnDeleteImage.style.display = 'inline-block';
@@ -2597,59 +2606,63 @@ document.addEventListener('DOMContentLoaded', function() {
     if (btnDeleteImage) {
         btnDeleteImage.addEventListener('click', () => {
             if (serviceImageUrlInput) serviceImageUrlInput.value = '';
-            if (serviceImageUpload) serviceImageUpload.value = ''; // Reset file input
-            updateImagePreviewUI(null);
+            if (serviceImageUpload) serviceImageUpload.value = '';
+            updateImagePreviewUI(null); // Reset to placeholder and correct button visibility
         });
     }
 
-    // Modify form submission logic
-    if (serviceForm && saveServiceButton) { // serviceForm is already defined in the outer scope
+    // Main service form submission logic (assuming 'serviceForm' is available from outer scope or re-fetched)
+    // const serviceForm = document.getElementById('service-form'); // Already declared in outer scope
+    const localSaveServiceButton = document.getElementById('save-service-button'); // Use local var for clarity
+    const localAddOptionBtn = document.getElementById('add-option-btn'); // Use local var for clarity
+
+    if (serviceForm && localSaveServiceButton) {
         serviceForm.addEventListener('submit', function(event) {
             event.preventDefault();
-            if(window.setButtonLoading) window.setButtonLoading(saveServiceButton, true);
+            if (window.setButtonLoading) { // Check if function exists
+                window.setButtonLoading(localSaveServiceButton, true);
+            }
 
             const processSaveService = () => {
-                const formData = new FormData(this); // 'this' refers to the form
-                const serviceId = document.getElementById('service-id').value;
+                const formData = new FormData(this);
+                const serviceIdElement = document.getElementById('service-id');
+                const serviceId = serviceIdElement ? serviceIdElement.value : null;
                 formData.append('action', 'mobooking_save_service');
-                // Nonce is already part of FormData as it's an input field with name 'nonce'
-                // formData.append('nonce', document.querySelector('#nonce').value);
-
+                // Main nonce ('nonce') is already included in formData by virtue of being an input field
 
                 fetch(ajaxurl, { method: 'POST', body: formData })
                 .then(response => response.json())
                 .then(data => {
-                    if(window.setButtonLoading) window.setButtonLoading(saveServiceButton, false);
+                    if (window.setButtonLoading) {
+                        window.setButtonLoading(localSaveServiceButton, false);
+                    }
                     if (data.success) {
                         console.log('Service saved:', data);
                         alert('Service saved successfully!');
-                        if (!serviceId && data.data && data.data.service_id) {
+                        if (!serviceId && data.data && data.data.service_id) { // New service saved
                              const newUrl = new URL(window.location);
                              newUrl.searchParams.set('view', 'edit');
                              newUrl.searchParams.set('service_id', data.data.service_id);
-                             // Preserve active tab if it was part of the response, or keep current
                              const currentActiveTab = new URLSearchParams(window.location.search).get('active_tab') || 'basic-info';
                              newUrl.searchParams.set('active_tab', data.data.active_tab || currentActiveTab);
-                             window.history.replaceState({path:newUrl.href},'',newUrl.href);
+                             window.history.replaceState({path:newUrl.href},'',newUrl.href); // Update URL without reload
 
-                             document.getElementById('service-id').value = data.data.service_id;
+                             if(serviceIdElement) serviceIdElement.value = data.data.service_id; // Update hidden ID
+
                              const optionServiceIdField = document.getElementById('option-service-id');
-                             if(optionServiceIdField) {
-                                 optionServiceIdField.value = data.data.service_id;
+                             if(optionServiceIdField) optionServiceIdField.value = data.data.service_id; // Update option modal's service ID
+
+                             if(localAddOptionBtn) { // Enable 'Add Option' button
+                                localAddOptionBtn.disabled = false;
+                                localAddOptionBtn.title = '';
                              }
-                             if(addOptionBtn) { // addOptionBtn is from outer scope
-                                addOptionBtn.disabled = false;
-                                addOptionBtn.title = ''; // Clear disabled title
-                             }
-                             // Update form title if it was 'New Service'
-                             const formTitle = document.querySelector('.form-title-modern');
+                             const formTitle = document.querySelector('.form-title-modern'); // Update page title
                              if (formTitle && formTitle.textContent.trim() === 'New Service' && data.data.name) {
                                 formTitle.textContent = data.data.name;
                              }
-                        } else if (serviceId && data.data && data.data.name) {
-                            // Update title if name changed during an edit
+                        } else if (serviceId && data.data && data.data.name) { // Existing service updated
                             const formTitle = document.querySelector('.form-title-modern');
-                            if (formTitle && formTitle.textContent.trim() !== data.data.name) {
+                            if (formTitle && formTitle.textContent.trim() !== data.data.name) { // Update title if name changed
                                formTitle.textContent = data.data.name;
                             }
                         }
@@ -2658,29 +2671,34 @@ document.addEventListener('DOMContentLoaded', function() {
                     }
                 })
                 .catch(error => {
-                    if(window.setButtonLoading) window.setButtonLoading(saveServiceButton, false);
+                    if (window.setButtonLoading) {
+                        window.setButtonLoading(localSaveServiceButton, false);
+                    }
                     console.error('Error saving service:', error);
                     alert('An unexpected error occurred while saving the service.');
                 });
             };
 
-            if (serviceImageUpload && serviceImageUpload.files.length > 0) {
+            if (serviceImageUpload && serviceImageUpload.files.length > 0) { // Check if a file is selected
                 const imageFile = serviceImageUpload.files[0];
                 const imageFormData = new FormData();
                 imageFormData.append('action', 'mobooking_upload_service_image');
                 imageFormData.append('service_image', imageFile);
-                // Use the specific nonce for image upload
+
                 const imageNonceField = document.querySelector('#image_upload_nonce_field');
-                if (imageNonceField) {
+                if (imageNonceField && imageNonceField.value) { // Check nonce field and its value
                     imageFormData.append('nonce', imageNonceField.value);
                 } else {
-                    console.error('Image upload nonce field not found.');
+                    console.error('Image upload nonce field not found or empty.');
                     alert('Security token missing for image upload. Please refresh and try again.');
-                    if(window.setButtonLoading) window.setButtonLoading(saveServiceButton, false);
-                    return;
+                    if (window.setButtonLoading && localSaveServiceButton) { // Check local var
+                        window.setButtonLoading(localSaveServiceButton, false);
+                    }
+                    return; // Stop submission
                 }
 
-                const currentServiceId = document.getElementById('service-id').value;
+                const serviceIdElement = document.getElementById('service-id');
+                const currentServiceId = serviceIdElement ? serviceIdElement.value : null;
                 if (currentServiceId) {
                     imageFormData.append('service_id', currentServiceId);
                 }
@@ -2688,21 +2706,27 @@ document.addEventListener('DOMContentLoaded', function() {
                 fetch(ajaxurl, {
                     method: 'POST',
                     body: imageFormData,
+                    //contentType: false, // Not needed for fetch() with FormData
+                    //processData: false, // Not needed for fetch()
                 })
                 .then(response => response.json())
                 .then(uploadData => {
                     if (uploadData.success && uploadData.data && uploadData.data.url) {
-                        if (serviceImageUrlInput) serviceImageUrlInput.value = uploadData.data.url;
-                        if (serviceImageUpload) serviceImageUpload.value = '';
-                        updateImagePreviewUI(uploadData.data.url);
-                        processSaveService();
+                        if (serviceImageUrlInput) serviceImageUrlInput.value = uploadData.data.url; // Set hidden input
+                        if (serviceImageUpload) serviceImageUpload.value = ''; // Clear file input
+                        updateImagePreviewUI(uploadData.data.url); // Update preview with final URL
+                        processSaveService(); // Proceed to save the rest of the service data
                     } else {
-                        if(window.setButtonLoading) window.setButtonLoading(saveServiceButton, false);
+                        if (window.setButtonLoading && localSaveServiceButton) {
+                            window.setButtonLoading(localSaveServiceButton, false);
+                        }
                         alert('Error uploading image: ' + (uploadData.data && uploadData.data.message ? uploadData.data.message : 'Unknown error'));
                     }
                 })
                 .catch(error => {
-                    if(window.setButtonLoading) window.setButtonLoading(saveServiceButton, false);
+                    if (window.setButtonLoading && localSaveServiceButton) {
+                        window.setButtonLoading(localSaveServiceButton, false);
+                    }
                     console.error('Error uploading image:', error);
                     alert('An unexpected error occurred while uploading the image.');
                 });
