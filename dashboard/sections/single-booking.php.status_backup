@@ -91,7 +91,7 @@ if ($booking->status !== 'completed' && $booking->status !== 'cancelled') {
                 <?php _e('Back to Bookings', 'mobooking'); ?>
             </a>
         </div>
-        
+
         <div class="header-content">
             <div class="header-main">
                 <div class="booking-id-section">
@@ -113,11 +113,11 @@ if ($booking->status !== 'completed' && $booking->status !== 'cancelled') {
                         <?php endif; ?>
                     </div>
                 </div>
-                
+
                 <div class="status-section">
                     <div class="current-status">
                         <span class="status-badge status-<?php echo esc_attr($booking->status); ?>">
-                            <?php 
+                            <?php
                             switch ($booking->status) {
                                 case 'pending':
                                     echo '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12,6 12,12 16,14"/></svg>';
@@ -139,7 +139,7 @@ if ($booking->status !== 'completed' && $booking->status !== 'cancelled') {
                             ?>
                         </span>
                     </div>
-                    
+
                     <?php if ($urgency_text) : ?>
                         <div class="urgency-badge <?php echo $urgency_class; ?>">
                             <?php echo $urgency_text; ?>
@@ -147,18 +147,36 @@ if ($booking->status !== 'completed' && $booking->status !== 'cancelled') {
                     <?php endif; ?>
                 </div>
             </div>
-            
+
             <!-- Quick Actions -->
             <div class="header-actions">
-                <div class="status-update-dropdown" style="margin-right: 0.75rem;">
-                    <label for="booking-status-changer" class="sr-only"><?php _e('Change Booking Status', 'mobooking'); ?></label>
-                    <select id="booking-status-changer" class="form-control" data-booking-id="<?php echo esc_attr($booking->id); ?>" data-current-status="<?php echo esc_attr($booking->status); ?>" style="padding: 0.75rem 1.25rem; border: 1px solid hsl(var(--border)); border-radius: 8px; font-size: 0.875rem; font-weight: 500; cursor: pointer;">
-                        <option value="pending" <?php selected($booking->status, 'pending'); ?>><?php _e('Pending Review', 'mobooking'); ?></option>
-                        <option value="confirmed" <?php selected($booking->status, 'confirmed'); ?>><?php _e('Confirmed', 'mobooking'); ?></option>
-                        <option value="completed" <?php selected($booking->status, 'completed'); ?>><?php _e('Completed', 'mobooking'); ?></option>
-                        <option value="cancelled" <?php selected($booking->status, 'cancelled'); ?>><?php _e('Cancelled', 'mobooking'); ?></option>
-                    </select>
-                </div>
+                <?php if ($booking->status === 'pending') : ?>
+                    <button type="button" class="btn-action btn-confirm" data-booking-id="<?php echo $booking->id; ?>">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+                            <polyline points="22,4 12,14.01 9,11.01"/>
+                        </svg>
+                        <?php _e('Confirm Booking', 'mobooking'); ?>
+                    </button>
+                <?php elseif ($booking->status === 'confirmed') : ?>
+                    <button type="button" class="btn-action btn-complete" data-booking-id="<?php echo $booking->id; ?>">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2ZM8 12l2 2 4-4"/>
+                        </svg>
+                        <?php _e('Mark Complete', 'mobooking'); ?>
+                    </button>
+                <?php endif; ?>
+
+                <?php if (in_array($booking->status, ['pending', 'confirmed'])) : ?>
+                    <button type="button" class="btn-action btn-cancel" data-booking-id="<?php echo $booking->id; ?>">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <circle cx="12" cy="12" r="10"/>
+                            <path d="M15 9l-6 6M9 9l6 6"/>
+                        </svg>
+                        <?php _e('Cancel Booking', 'mobooking'); ?>
+                    </button>
+                <?php endif; ?>
+
                 <button type="button" class="btn-secondary" onclick="window.print()">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <polyline points="6,9 6,2 18,2 18,9"/>
@@ -170,7 +188,7 @@ if ($booking->status !== 'completed' && $booking->status !== 'cancelled') {
             </div>
         </div>
     </div>
-    
+
     <!-- Main Content -->
     <div class="single-booking-content">
         <div class="booking-details-grid">
@@ -217,7 +235,7 @@ if ($booking->status !== 'completed' && $booking->status !== 'cancelled') {
                     </div>
                 </div>
             </div>
-            
+
             <!-- Service Date & Time -->
             <div class="detail-card datetime-card">
                 <div class="card-header">
@@ -248,12 +266,12 @@ if ($booking->status !== 'completed' && $booking->status !== 'cancelled') {
                             </div>
                         </div>
                     </div>
-                    
+
                     <?php if ($is_future) : ?>
                         <div class="countdown">
                             <div class="countdown-label"><?php _e('Time until service:', 'mobooking'); ?></div>
                             <div class="countdown-value">
-                                <?php 
+                                <?php
                                 if ($days_until > 0) {
                                     printf(_n('%d day', '%d days', $days_until, 'mobooking'), $days_until);
                                     if ($interval->h > 0) {
@@ -273,7 +291,7 @@ if ($booking->status !== 'completed' && $booking->status !== 'cancelled') {
                     <?php endif; ?>
                 </div>
             </div>
-            
+
             <!-- Service Address -->
             <div class="detail-card address-card">
                 <div class="card-header">
@@ -295,9 +313,9 @@ if ($booking->status !== 'completed' && $booking->status !== 'cancelled') {
                             <span class="zip-value"><?php echo esc_html($booking->zip_code); ?></span>
                         </div>
                     </div>
-                    
+
                     <div class="address-actions">
-                        <a href="https://maps.google.com/?q=<?php echo urlencode($booking->customer_address . ', ' . $booking->zip_code); ?>" 
+                        <a href="https://maps.google.com/?q=<?php echo urlencode($booking->customer_address . ', ' . $booking->zip_code); ?>"
                            target="_blank" rel="noopener" class="map-link">
                             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                 <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/>
@@ -305,8 +323,8 @@ if ($booking->status !== 'completed' && $booking->status !== 'cancelled') {
                             </svg>
                             <?php _e('View on Map', 'mobooking'); ?>
                         </a>
-                        
-                        <a href="https://www.google.com/maps/dir/Current+Location/<?php echo urlencode($booking->customer_address . ', ' . $booking->zip_code); ?>" 
+
+                        <a href="https://www.google.com/maps/dir/Current+Location/<?php echo urlencode($booking->customer_address . ', ' . $booking->zip_code); ?>"
                            target="_blank" rel="noopener" class="directions-link">
                             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                 <polygon points="3 11 22 2 13 21 11 13 3 11"/>
@@ -316,7 +334,7 @@ if ($booking->status !== 'completed' && $booking->status !== 'cancelled') {
                     </div>
                 </div>
             </div>
-            
+
             <!-- Services & Pricing -->
             <div class="detail-card services-card">
                 <div class="card-header">
@@ -353,7 +371,7 @@ if ($booking->status !== 'completed' && $booking->status !== 'cancelled') {
                                         <?php echo function_exists('wc_price') ? wc_price($service->price) : number_format($service->price, 2); ?>
                                     </div>
                                 </div>
-                                
+
                                 <?php if (!empty($service_options_data[$service->id])) : ?>
                                     <div class="service-options">
                                         <h5 class="options-title"><?php _e('Selected Options:', 'mobooking'); ?></h5>
@@ -363,7 +381,7 @@ if ($booking->status !== 'completed' && $booking->status !== 'cancelled') {
                                                 // Get option details (you might want to create a method to get option by ID)
                                                 $option_name   = sprintf(__('Option %d', 'mobooking'), $option_id);
                                                 $display_value = $option_value;
-                                                
+
                                                 // Format display value based on option type
                                                 if ($option_value === '1') {
                                                     $display_value = __('Yes', 'mobooking');
@@ -384,19 +402,19 @@ if ($booking->status !== 'completed' && $booking->status !== 'cancelled') {
                             </div>
                         <?php endif; ?>
                     </div>
-                    
+
                     <!-- Pricing Summary -->
                     <div class="pricing-summary">
                         <div class="pricing-line">
                             <span class="label"><?php _e('Subtotal:', 'mobooking'); ?></span>
                             <span class="amount">
-                                <?php 
+                                <?php
                                 $subtotal = $booking->total_price + $booking->discount_amount;
-                                echo function_exists('wc_price') ? wc_price($subtotal) : number_format($subtotal, 2); 
+                                echo function_exists('wc_price') ? wc_price($subtotal) : number_format($subtotal, 2);
                                 ?>
                             </span>
                         </div>
-                        
+
                         <?php if ($booking->discount_amount > 0) : ?>
                             <div class="pricing-line discount">
                                 <span class="label">
@@ -413,7 +431,7 @@ if ($booking->status !== 'completed' && $booking->status !== 'cancelled') {
                                 </span>
                             </div>
                         <?php endif; ?>
-                        
+
                         <div class="pricing-line total">
                             <span class="label"><?php _e('Total:', 'mobooking'); ?></span>
                             <span class="amount total-amount">
@@ -423,7 +441,7 @@ if ($booking->status !== 'completed' && $booking->status !== 'cancelled') {
                     </div>
                 </div>
             </div>
-            
+
             <!-- Special Instructions -->
             <?php if (!empty($booking->notes)) : ?>
                 <div class="detail-card notes-card">
@@ -446,7 +464,7 @@ if ($booking->status !== 'completed' && $booking->status !== 'cancelled') {
                     </div>
                 </div>
             <?php endif; ?>
-            
+
             <!-- Booking Timeline -->
             <div class="detail-card timeline-card">
                 <div class="card-header">
@@ -472,7 +490,7 @@ if ($booking->status !== 'completed' && $booking->status !== 'cancelled') {
                                 <div class="timeline-description"><?php _e('Customer submitted booking request', 'mobooking'); ?></div>
                             </div>
                         </div>
-                        
+
                         <div class="timeline-item <?php echo in_array($booking->status, ['confirmed', 'completed']) ? 'completed' : 'pending'; ?>">
                             <div class="timeline-marker">
                                 <?php if (in_array($booking->status, ['confirmed', 'completed'])) : ?>
@@ -488,7 +506,7 @@ if ($booking->status !== 'completed' && $booking->status !== 'cancelled') {
                             </div>
                             <div class="timeline-content">
                                 <div class="timeline-title">
-                                    <?php echo $booking->status === 'confirmed' || $booking->status === 'completed' ? 
+                                    <?php echo $booking->status === 'confirmed' || $booking->status === 'completed' ?
                                         __('Booking Confirmed', 'mobooking') : __('Awaiting Confirmation', 'mobooking'); ?>
                                 </div>
                                 <?php if ($booking->status === 'confirmed' || $booking->status === 'completed') : ?>
@@ -499,7 +517,7 @@ if ($booking->status !== 'completed' && $booking->status !== 'cancelled') {
                                 <?php endif; ?>
                             </div>
                         </div>
-                        
+
                         <div class="timeline-item <?php echo $booking->status === 'completed' ? 'completed' : 'future'; ?>">
                             <div class="timeline-marker">
                                 <?php if ($booking->status === 'completed') : ?>
@@ -514,18 +532,18 @@ if ($booking->status !== 'completed' && $booking->status !== 'cancelled') {
                             </div>
                             <div class="timeline-content">
                                 <div class="timeline-title">
-                                    <?php echo $booking->status === 'completed' ? 
+                                    <?php echo $booking->status === 'completed' ?
                                         __('Service Completed', 'mobooking') : __('Service Scheduled', 'mobooking'); ?>
                                 </div>
                                 <div class="timeline-time"><?php echo $service_date->format('M j, Y \a\t g:i A'); ?></div>
                                 <div class="timeline-description">
-                                    <?php echo $booking->status === 'completed' ? 
-                                        __('Service has been completed successfully', 'mobooking') : 
+                                    <?php echo $booking->status === 'completed' ?
+                                        __('Service has been completed successfully', 'mobooking') :
                                         __('Scheduled service date and time', 'mobooking'); ?>
                                 </div>
                             </div>
                         </div>
-                        
+
                         <?php if ($booking->status === 'cancelled') : ?>
                             <div class="timeline-item cancelled">
                                 <div class="timeline-marker">
@@ -550,31 +568,26 @@ if ($booking->status !== 'completed' && $booking->status !== 'cancelled') {
 
 <script>
 jQuery(document).ready(function($) {
-    // New handler for status dropdown change
-    $('#booking-status-changer').on('change', function() {
-        const $dropdown = $(this);
-        const bookingId = $dropdown.data('booking-id');
-        const newStatus = $dropdown.val();
-        const currentStatus = $dropdown.data('current-status'); // Store initial status to revert
+    // Status update handlers
+    $('.btn-confirm, .btn-complete, .btn-cancel').on('click', function() {
+        const $button   = $(this);
+        const bookingId = $button.data('booking-id');
+        let   status    = '';
+        let   confirmMessage = '';
 
-        if (newStatus === currentStatus) {
-            return; // No change
+        if ($button.hasClass('btn-confirm')) {
+            status         = 'confirmed';
+            confirmMessage = '<?php _e('Confirm this booking?', 'mobooking'); ?>';
+        } else if ($button.hasClass('btn-complete')) {
+            status         = 'completed';
+            confirmMessage = '<?php _e('Mark this booking as completed?', 'mobooking'); ?>';
+        } else if ($button.hasClass('btn-cancel')) {
+            status         = 'cancelled';
+            confirmMessage = '<?php _e('Cancel this booking? This action cannot be undone.', 'mobooking'); ?>';
         }
 
-        let confirmMessage = '<?php echo esc_js(__('Are you sure you want to change the booking status to ', 'mobooking')); ?>' + newStatus.charAt(0).toUpperCase() + newStatus.slice(1) + '?';
-
-        if (newStatus === 'cancelled') {
-            confirmMessage = '<?php echo esc_js(__('Cancel this booking? This action cannot be undone.', 'mobooking')); ?>';
-        } else if (newStatus === 'completed' && currentStatus !== 'completed') {
-            confirmMessage = '<?php echo esc_js(__('Mark this booking as completed?', 'mobooking')); ?>';
-        } else if (newStatus === 'confirmed' && currentStatus === 'pending') {
-            confirmMessage = '<?php echo esc_js(__('Confirm this booking?', 'mobooking')); ?>';
-        }
-        
-        // Use a general confirmation, or only for specific transitions like 'cancelled'
-        if (confirm(confirmMessage)) {
-            // Add a visual loading state if possible
-            $dropdown.prop('disabled', true).css('opacity', 0.7);
+        if (status && confirm(confirmMessage)) {
+            $button.prop('disabled', true).addClass('loading');
 
             $.ajax({
                 url: '<?php echo admin_url('admin-ajax.php'); ?>',
@@ -582,33 +595,24 @@ jQuery(document).ready(function($) {
                 data: {
                     action: 'mobooking_update_booking_status',
                     booking_id: bookingId,
-                    status: newStatus,
-                    nonce: '<?php echo wp_create_nonce('mobooking-booking-nonce'); // Confirm this nonce is appropriate for the AJAX handler ?>'
+                    status: status,
+                    nonce: '<?php echo wp_create_nonce('mobooking-booking-nonce'); ?>'
                 },
                 success: function(response) {
                     if (response.success) {
-                        // Update current status data attribute and reload for full consistency
-                        $dropdown.data('current-status', newStatus);
                         location.reload();
                     } else {
-                        alert(response.data.message || response.data || '<?php echo esc_js(__('Error updating booking status', 'mobooking')); ?>');
-                        $dropdown.prop('disabled', false).css('opacity', 1);
-                        $dropdown.val(currentStatus); // Revert to original status on failure
+                        alert(response.data || '<?php _e('Error updating booking status', 'mobooking'); ?>');
+                        $button.prop('disabled', false).removeClass('loading');
                     }
                 },
-                error: function(jqXHR, textStatus, errorThrown) {
-                    alert('<?php echo esc_js(__('AJAX error updating booking status:', 'mobooking')); ?> ' + textStatus + ' - ' + errorThrown);
-                    $dropdown.prop('disabled', false).css('opacity', 1);
-                    $dropdown.val(currentStatus); // Revert to original status on failure
+                error: function() {
+                    alert('<?php _e('Error updating booking status', 'mobooking'); ?>');
+                    $button.prop('disabled', false).removeClass('loading');
                 }
             });
-        } else {
-            $dropdown.val(currentStatus); // Revert if confirmation is cancelled
         }
     });
-
-    // Old button handlers are removed by replacing the HTML for header-actions.
-    // If any other JS depends on them, that might need adjustment, but assumed not for now.
 });
 </script>
 
@@ -1348,18 +1352,18 @@ jQuery(document).ready(function($) {
     .booking-details-grid {
         grid-template-columns: 1fr;
     }
-    
+
     .header-content {
         flex-direction: column;
         align-items: stretch;
         gap: 1.5rem;
     }
-    
+
     .header-main {
         flex-direction: column;
         gap: 1rem;
     }
-    
+
     .status-section {
         align-items: flex-start;
     }
@@ -1369,44 +1373,44 @@ jQuery(document).ready(function($) {
     .single-booking-page {
         padding: 0 0.5rem;
     }
-    
+
     .header-content {
         padding: 1.5rem;
     }
-    
+
     .booking-title {
         font-size: 1.5rem;
     }
-    
+
     .header-actions {
         flex-direction: column;
     }
-    
+
     .btn-action {
         justify-content: center;
         width: 100%;
     }
-    
+
     .datetime-display {
         flex-direction: column;
         gap: 1rem;
         text-align: center;
     }
-    
+
     .service-item {
         flex-direction: column;
         gap: 1rem;
         align-items: stretch;
     }
-    
+
     .service-price {
         text-align: right;
     }
-    
+
     .address-actions {
         flex-direction: column;
     }
-    
+
     .map-link,
     .directions-link {
         justify-content: center;
@@ -1417,26 +1421,26 @@ jQuery(document).ready(function($) {
     .detail-card {
         border-radius: 8px;
     }
-    
+
     .card-header,
     .card-content {
         padding: 1rem;
     }
-    
+
     .customer-profile {
         flex-direction: column;
         text-align: center;
         gap: 1rem;
     }
-    
+
     .contact-details {
         align-items: center;
     }
-    
+
     .timeline::before {
         left: 0.75rem;
     }
-    
+
     .timeline-marker {
         width: 1.5rem;
         height: 1.5rem;
@@ -1450,22 +1454,22 @@ jQuery(document).ready(function($) {
     .back-link {
         display: none;
     }
-    
+
     .single-booking-page {
         max-width: none;
     }
-    
+
     .booking-details-grid {
         grid-template-columns: 1fr;
         gap: 1rem;
     }
-    
+
     .detail-card {
         break-inside: avoid;
         border: 2px solid #333;
         margin-bottom: 1rem;
     }
-    
+
     .header-content {
         border: 2px solid #333;
     }
@@ -1476,11 +1480,11 @@ jQuery(document).ready(function($) {
     .detail-card {
         border-width: 2px;
     }
-    
+
     .timeline-marker {
         border-width: 3px;
     }
-    
+
     .status-badge {
         border-width: 2px;
     }
