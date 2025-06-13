@@ -303,6 +303,7 @@ $available_icons = array(
             <form id="service-form" method="post" class="service-form-compact">
                 <input type="hidden" id="service-id" name="id" value="<?php echo $service_data ? esc_attr($service_data->id) : ''; ?>">
                 <?php wp_nonce_field('mobooking-service-nonce', 'nonce'); ?>
+                <?php wp_nonce_field('mobooking-image-upload-nonce', 'image_upload_nonce_field'); ?>
                 
                 <!-- Basic Info Tab -->
                 <div id="basic-info" class="tab-content <?php echo $active_tab === 'basic-info' ? 'active' : ''; ?>">
@@ -398,7 +399,7 @@ $available_icons = array(
                             </div>
                             
                             <div class="image-section">
-                                <label for="service-image" class="field-label">Custom Image</label>
+                                <label for="service-image-upload" class="field-label">Custom Image</label>
                                 <div class="image-upload-compact">
                                     <div class="image-preview">
                                         <?php if ($service_data && !empty($service_data->image_url)) : ?>
@@ -416,12 +417,11 @@ $available_icons = array(
                                     </div>
                                     
                                     <div class="image-controls">
-                                        <input type="url" id="service-image" name="image_url" class="form-input" 
-                                               value="<?php echo $service_data ? esc_attr($service_data->image_url) : ''; ?>" 
-                                               placeholder="Image URL">
-                                        <button type="button" class="btn-select-image">
-                                            Select
-                                        </button>
+                                        <input type="file" id="service-image-upload" name="service_image_upload" accept="image/*" style="display: none;">
+                                        <button type="button" id="btn-select-image-upload" class="btn-select-image">Select Image</button>
+                                        <button type="button" id="btn-replace-image" class="btn-replace-image" style="display: none;">Replace</button>
+                                        <button type="button" id="btn-delete-image" class="btn-delete-image" style="display: none;">Delete</button>
+                                        <input type="hidden" id="service-image-url" name="image_url" value="<?php echo $service_data ? esc_attr($service_data->image_url) : ''; ?>">
                                     </div>
                                 </div>
                             </div>
@@ -1838,6 +1838,223 @@ $available_icons = array(
         transform: none;
     }
 }
+
+/* ===== Custom Styles for Image Upload and Options - START ===== */
+
+/* Styling for .choices-list in Options tab */
+.choices-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem; /* Space between choice items */
+    padding: 0.75rem;
+    border: 1px solid hsl(var(--border));
+    border-radius: 6px;
+    background-color: hsl(var(--muted) / 0.2);
+}
+
+.choice-item { /* Assuming this is a child of .choices-list */
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem;
+    background-color: hsl(var(--background));
+    border: 1px solid hsl(var(--border));
+    border-radius: 4px;
+}
+
+.choice-item input[type="text"],
+.choice-item input[type="number"] {
+    flex-grow: 1;
+    padding: 0.5rem;
+    border: 1px solid hsl(var(--border));
+    border-radius: 4px;
+    font-size: 0.875rem;
+}
+
+.choice-item .remove-choice-btn { /* If there are remove buttons for choices */
+    padding: 0.25rem 0.5rem;
+    background-color: hsl(var(--destructive) / 0.1);
+    color: hsl(var(--destructive));
+    border: 1px solid hsl(var(--destructive) / 0.3);
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.75rem; /* Smaller font for compact button */
+}
+.choice-item .remove-choice-btn:hover {
+    background-color: hsl(var(--destructive) / 0.2);
+}
+
+/* Image Upload Specific Button Styling (ensuring consistency) */
+.image-section .image-controls {
+    display: flex;
+    flex-direction: column; /* Stack buttons vertically */
+    gap: 0.75rem; /* Space between buttons */
+    align-items: center; /* Center buttons */
+    width: 100%; /* Ensure controls take available width */
+    max-width: 250px; /* Match preview max-width if desired or adjust as needed */
+    margin: 0 auto; /* Center the controls block if it's narrower than section */
+}
+
+#btn-select-image-upload,
+#btn-replace-image,
+#btn-delete-image {
+    padding: 0.625rem 1rem;
+    border-radius: 6px;
+    font-size: 0.875rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    text-align: center;
+    width: 100%; /* Make buttons take full width of their container */
+}
+
+#btn-select-image-upload,
+#btn-replace-image {
+    background: hsl(var(--secondary));
+    color: hsl(var(--secondary-foreground));
+    border: 1px solid hsl(var(--border));
+}
+#btn-select-image-upload:hover,
+#btn-replace-image:hover {
+    background: hsl(var(--accent));
+}
+
+#btn-delete-image {
+    background: hsl(var(--destructive));
+    color: hsl(var(--destructive-foreground));
+    border: 1px solid hsl(var(--destructive)); /* Matching border color */
+}
+#btn-delete-image:hover {
+    background: hsl(var(--destructive) / 0.9);
+}
+
+/* Ensure file input is hidden but accessible */
+#service-image-upload {
+    display: none;
+}
+
+/* Adjust image preview */
+.image-preview {
+    width: 100%; /* Make preview responsive */
+    max-width: 250px; /* Max width for preview */
+    height: auto; /* Adjust height automatically */
+    aspect-ratio: 16 / 9; /* Maintain aspect ratio */
+    margin-bottom: 1rem; /* Space below preview */
+    border: none; /* Remove default border as placeholder has its own */
+    background: transparent; /* Remove default background */
+}
+.image-preview img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    border-radius: 6px; /* Match border radius of other elements */
+    border: 1px solid hsl(var(--border)); /* Add a subtle border to the image itself */
+}
+.image-placeholder {
+     display: flex;
+     flex-direction: column;
+     align-items: center;
+     justify-content: center;
+     width: 100%;
+     height: 100%;
+     border: 2px dashed hsl(var(--border));
+     border-radius: 6px;
+     color: hsl(var(--muted-foreground));
+     background-color: hsl(var(--muted) / 0.1);
+}
+.image-placeholder svg {
+    width: 2rem;
+    height: 2rem;
+    margin-bottom: 0.5rem;
+}
+
+/* General UI Consistency */
+.form-section-compact .appearance-grid,
+.form-section-compact .options-header-compact,
+.form-section-compact .options-container-compact {
+    margin-bottom: 1.5rem; /* Add some bottom margin to sections */
+}
+
+/* Ensure field labels are consistent */
+.field-label {
+    display: block; /* Ensure labels take full width if needed */
+    margin-bottom: 0.375rem; /* Consistent spacing below labels */
+    font-weight: 600; /* Slightly bolder labels */
+    color: hsl(var(--foreground)); /* Ensure consistent color */
+}
+
+/* Options tab button styling (Add Option) */
+#add-option-btn {
+    padding: 0.625rem 1rem; /* Standardized padding */
+    font-weight: 500; /* Consistent font weight */
+}
+
+/* Style for option cards if they exist within .options-container-compact */
+.option-card-compact { /* Assuming a class for individual option items */
+    padding: 1rem;
+    background: hsl(var(--background));
+    border: 1px solid hsl(var(--border));
+    border-radius: 8px;
+    box-shadow: 0 1px 3px hsl(var(--shadow) / 0.05);
+    transition: box-shadow 0.2s ease;
+}
+.option-card-compact:hover {
+    box-shadow: 0 4px 12px hsl(var(--shadow) / 0.1);
+}
+
+.option-card-compact + .option-card-compact {
+    margin-top: 1rem; /* Space between option cards */
+}
+.option-card-header { /* If option cards have headers */
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.75rem;
+    padding-bottom: 0.75rem;
+    border-bottom: 1px solid hsl(var(--border));
+}
+.option-card-header h4 {
+    margin: 0;
+    font-size: 1rem;
+    font-weight: 600;
+    color: hsl(var(--foreground));
+}
+.option-card-actions button,
+.option-card-actions .btn-icon { /* Assuming .btn-icon for icon-only buttons */
+    margin-left: 0.5rem;
+    padding: 0.375rem 0.75rem; /* Standard padding for text buttons */
+    font-size: 0.8125rem;
+}
+
+/* Icon only button styling for option card actions */
+.btn-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2rem; /* Fixed width */
+    height: 2rem; /* Fixed height */
+    padding: 0; /* Remove padding if fixed size */
+    border: 1px solid hsl(var(--border));
+    background: hsl(var(--background));
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+.btn-icon:hover {
+    background: hsl(var(--accent));
+    border-color: hsl(var(--primary) / 0.3);
+}
+.btn-icon svg {
+    width: 0.875rem;
+    height: 0.875rem;
+}
+.btn-icon.delete:hover {
+    background: hsl(var(--destructive) / 0.1);
+    border-color: hsl(var(--destructive) / 0.3);
+    color: hsl(var(--destructive));
+}
+/* ===== Custom Styles for Image Upload and Options - END ===== */
+
 </style>
 
 <script>
@@ -2287,6 +2504,214 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
     // --- MODAL HANDLING END --- //
+
+    // --- IMAGE UPLOAD START --- //
+    const serviceImageUpload = document.getElementById('service-image-upload');
+    const btnSelectImageUpload = document.getElementById('btn-select-image-upload');
+    const imagePreviewDiv = document.querySelector('.image-section .image-preview');
+    const btnReplaceImage = document.getElementById('btn-replace-image');
+    const btnDeleteImage = document.getElementById('btn-delete-image');
+    const serviceImageUrlInput = document.getElementById('service-image-url');
+    // const serviceForm = document.getElementById('service-form'); // Already declared in the file
+    const saveServiceButton = document.getElementById('save-service-button');
+    const addOptionBtn = document.getElementById('add-option-btn'); // Already declared in the file
+
+    function updateImagePreviewUI(imageUrl) {
+        if (imageUrl) {
+            imagePreviewDiv.innerHTML = `<img src="${imageUrl}" alt="Service image">`;
+            if (btnSelectImageUpload) btnSelectImageUpload.style.display = 'none';
+            if (btnReplaceImage) btnReplaceImage.style.display = 'inline-block';
+            if (btnDeleteImage) btnDeleteImage.style.display = 'inline-block';
+        } else {
+            imagePreviewDiv.innerHTML = `
+                <div class="image-placeholder">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <rect width="18" height="18" x="3" y="3" rx="2" ry="2"/>
+                        <circle cx="9" cy="9" r="2"/>
+                        <path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/>
+                    </svg>
+                    <span>No image</span>
+                </div>`;
+            if (btnSelectImageUpload) btnSelectImageUpload.style.display = 'inline-block';
+            if (btnReplaceImage) btnReplaceImage.style.display = 'none';
+            if (btnDeleteImage) btnDeleteImage.style.display = 'none';
+        }
+    }
+
+    // Initial state logic
+    if (serviceImageUrlInput && imagePreviewDiv) { // Ensure elements exist
+        if (serviceImageUrlInput.value) {
+            updateImagePreviewUI(serviceImageUrlInput.value);
+        } else {
+            updateImagePreviewUI(null);
+        }
+    }
+
+
+    if (btnSelectImageUpload) {
+        btnSelectImageUpload.addEventListener('click', () => {
+            if (serviceImageUpload) serviceImageUpload.click();
+        });
+    }
+
+    if (btnReplaceImage) {
+        btnReplaceImage.addEventListener('click', () => {
+            if (serviceImageUpload) serviceImageUpload.click();
+        });
+    }
+
+    if (serviceImageUpload) {
+        serviceImageUpload.addEventListener('change', function(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            // Validate file type
+            const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+            if (!allowedTypes.includes(file.type)) {
+                alert('Invalid file type. Please select a JPG, PNG, WEBP or GIF image.');
+                this.value = ''; // Clear the input
+                return;
+            }
+
+            // Validate file size (max 2MB)
+            const maxSize = 2 * 1024 * 1024; // 2MB in bytes
+            if (file.size > maxSize) {
+                alert('File is too large. Maximum size is 2MB.');
+                this.value = ''; // Clear the input
+                return;
+            }
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                if(imagePreviewDiv){
+                    imagePreviewDiv.innerHTML = `<img src="${e.target.result}" alt="Service image preview">`;
+                }
+                if (btnSelectImageUpload) btnSelectImageUpload.style.display = 'none';
+                if (btnReplaceImage) btnReplaceImage.style.display = 'inline-block';
+                if (btnDeleteImage) btnDeleteImage.style.display = 'inline-block';
+            }
+            reader.readAsDataURL(file);
+        });
+    }
+
+    if (btnDeleteImage) {
+        btnDeleteImage.addEventListener('click', () => {
+            if (serviceImageUrlInput) serviceImageUrlInput.value = '';
+            if (serviceImageUpload) serviceImageUpload.value = ''; // Reset file input
+            updateImagePreviewUI(null);
+        });
+    }
+
+    // Modify form submission logic
+    if (serviceForm && saveServiceButton) { // serviceForm is already defined in the outer scope
+        serviceForm.addEventListener('submit', function(event) {
+            event.preventDefault();
+            if(window.setButtonLoading) window.setButtonLoading(saveServiceButton, true);
+
+            const processSaveService = () => {
+                const formData = new FormData(this); // 'this' refers to the form
+                const serviceId = document.getElementById('service-id').value;
+                formData.append('action', 'mobooking_save_service');
+                // Nonce is already part of FormData as it's an input field with name 'nonce'
+                // formData.append('nonce', document.querySelector('#nonce').value);
+
+
+                fetch(ajaxurl, { method: 'POST', body: formData })
+                .then(response => response.json())
+                .then(data => {
+                    if(window.setButtonLoading) window.setButtonLoading(saveServiceButton, false);
+                    if (data.success) {
+                        console.log('Service saved:', data);
+                        alert('Service saved successfully!');
+                        if (!serviceId && data.data && data.data.service_id) {
+                             const newUrl = new URL(window.location);
+                             newUrl.searchParams.set('view', 'edit');
+                             newUrl.searchParams.set('service_id', data.data.service_id);
+                             // Preserve active tab if it was part of the response, or keep current
+                             const currentActiveTab = new URLSearchParams(window.location.search).get('active_tab') || 'basic-info';
+                             newUrl.searchParams.set('active_tab', data.data.active_tab || currentActiveTab);
+                             window.history.replaceState({path:newUrl.href},'',newUrl.href);
+
+                             document.getElementById('service-id').value = data.data.service_id;
+                             const optionServiceIdField = document.getElementById('option-service-id');
+                             if(optionServiceIdField) {
+                                 optionServiceIdField.value = data.data.service_id;
+                             }
+                             if(addOptionBtn) { // addOptionBtn is from outer scope
+                                addOptionBtn.disabled = false;
+                                addOptionBtn.title = ''; // Clear disabled title
+                             }
+                             // Update form title if it was 'New Service'
+                             const formTitle = document.querySelector('.form-title-modern');
+                             if (formTitle && formTitle.textContent.trim() === 'New Service' && data.data.name) {
+                                formTitle.textContent = data.data.name;
+                             }
+                        } else if (serviceId && data.data && data.data.name) {
+                            // Update title if name changed during an edit
+                            const formTitle = document.querySelector('.form-title-modern');
+                            if (formTitle && formTitle.textContent.trim() !== data.data.name) {
+                               formTitle.textContent = data.data.name;
+                            }
+                        }
+                    } else {
+                        alert('Error saving service: ' + (data.data && data.data.message ? data.data.message : 'Unknown error'));
+                    }
+                })
+                .catch(error => {
+                    if(window.setButtonLoading) window.setButtonLoading(saveServiceButton, false);
+                    console.error('Error saving service:', error);
+                    alert('An unexpected error occurred while saving the service.');
+                });
+            };
+
+            if (serviceImageUpload && serviceImageUpload.files.length > 0) {
+                const imageFile = serviceImageUpload.files[0];
+                const imageFormData = new FormData();
+                imageFormData.append('action', 'mobooking_upload_service_image');
+                imageFormData.append('service_image', imageFile);
+                // Use the specific nonce for image upload
+                const imageNonceField = document.querySelector('#image_upload_nonce_field');
+                if (imageNonceField) {
+                    imageFormData.append('nonce', imageNonceField.value);
+                } else {
+                    console.error('Image upload nonce field not found.');
+                    alert('Security token missing for image upload. Please refresh and try again.');
+                    if(window.setButtonLoading) window.setButtonLoading(saveServiceButton, false);
+                    return;
+                }
+
+                const currentServiceId = document.getElementById('service-id').value;
+                if (currentServiceId) {
+                    imageFormData.append('service_id', currentServiceId);
+                }
+
+                fetch(ajaxurl, {
+                    method: 'POST',
+                    body: imageFormData,
+                })
+                .then(response => response.json())
+                .then(uploadData => {
+                    if (uploadData.success && uploadData.data && uploadData.data.url) {
+                        if (serviceImageUrlInput) serviceImageUrlInput.value = uploadData.data.url;
+                        if (serviceImageUpload) serviceImageUpload.value = '';
+                        updateImagePreviewUI(uploadData.data.url);
+                        processSaveService();
+                    } else {
+                        if(window.setButtonLoading) window.setButtonLoading(saveServiceButton, false);
+                        alert('Error uploading image: ' + (uploadData.data && uploadData.data.message ? uploadData.data.message : 'Unknown error'));
+                    }
+                })
+                .catch(error => {
+                    if(window.setButtonLoading) window.setButtonLoading(saveServiceButton, false);
+                    console.error('Error uploading image:', error);
+                    alert('An unexpected error occurred while uploading the image.');
+                });
+            } else {
+                processSaveService(); // No new image, just save service data
+            }
+        });
+    }
+    // --- IMAGE UPLOAD END --- //
 });
 
 // CSS animation for fade in

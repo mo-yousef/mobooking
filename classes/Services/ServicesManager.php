@@ -21,6 +21,7 @@ class ServicesManager {
         add_action('wp_ajax_mobooking_get_service_options', array($this, 'ajax_get_options'));
         add_action('wp_ajax_mobooking_get_service_option', array($this, 'ajax_get_option'));
         add_action('wp_ajax_mobooking_update_options_order', array($this, 'ajax_update_options_order'));
+        add_action('wp_ajax_mobooking_upload_service_image', array($this, 'ajax_upload_service_image'));
     }
     
     // ===========================================
@@ -388,6 +389,78 @@ class ServicesManager {
         wp_send_json_success(array(
             'services' => $services
         ));
+    }
+
+    /**
+     * AJAX handler to upload service image
+     */
+    public function ajax_upload_service_image() {
+        // 1. Verify AJAX request (use the new nonce)
+        if (!isset($_POST['nonce']) || !wp_verify_nonce($_POST['nonce'], 'mobooking-image-upload-nonce')) {
+            wp_send_json_error(__('Security verification failed.', 'mobooking'), 403);
+            return;
+        }
+
+        // 2. Check user permissions
+        if (!current_user_can('mobooking_business_owner') && !current_user_can('administrator')) {
+            wp_send_json_error(__('You do not have permission to upload images.', 'mobooking'), 403);
+            return;
+        }
+
+        // 3. Check if file was uploaded
+        if (!isset($_FILES['service_image']) || $_FILES['service_image']['error'] !== UPLOAD_ERR_OK) {
+            wp_send_json_error(__('No image file was uploaded or an error occurred.', 'mobooking'), 400);
+            return;
+        }
+
+        $file = $_FILES['service_image'];
+
+        // 4. Validate file type and size
+        $allowed_mime_types = array('image/jpeg', 'image/png', 'image/gif', 'image/webp');
+        if (!in_array($file['type'], $allowed_mime_types)) {
+            wp_send_json_error(__('Invalid file type. Only JPG, PNG, GIF, and WEBP are allowed.', 'mobooking'), 400);
+            return;
+        }
+
+        $max_file_size = 2 * 1024 * 1024; // 2MB
+        if ($file['size'] > $max_file_size) {
+            wp_send_json_error(__('File is too large. Maximum size is 2MB.', 'mobooking'), 400);
+            return;
+        }
+
+        // 5. Handle the upload using WordPress functions
+        if (!function_exists('wp_handle_upload')) {
+            require_once(ABSPATH . 'wp-admin/includes/file.php');
+        }
+
+        $upload_overrides = array('test_form' => false);
+
+        // Sanitize filename before creating the processed_file array
+        $file_name = sanitize_file_name($file['name']);
+
+        // Create a new file array with the sanitized name for wp_handle_upload
+        $processed_file = array(
+            'name'     => $file_name,
+            'type'     => $file['type'],
+            'tmp_name' => $file['tmp_name'],
+            'error'    => $file['error'],
+            'size'     => $file['size']
+        );
+
+        $movefile = wp_handle_upload($processed_file, $upload_overrides);
+
+        if ($movefile && !isset($movefile['error'])) {
+            wp_send_json_success(array(
+                'url' => $movefile['url'],
+                'file' => $movefile['file'],
+                'message' => __('Image uploaded successfully.', 'mobooking')
+            ));
+        } else {
+            wp_send_json_error(
+                isset($movefile['error']) ? $movefile['error'] : __('Image upload failed due to a server error.', 'mobooking'),
+                500
+            );
+        }
     }
     
     // ===========================================
