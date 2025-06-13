@@ -113,7 +113,48 @@ class Manager {
         );
         
         // Output the JavaScript variables
-        wp_add_inline_script('jquery', 'window.mobooking_area_vars = ' . json_encode($localize_data) . '; window.ajax_object = window.mobooking_area_vars; window.mobooking_current_country = "' . esc_js($selected_country) . '";', 'before');
+        // wp_add_inline_script('jquery', 'window.mobooking_area_vars = ' . json_encode($localize_data) . '; window.mobooking_current_country = "' . esc_js($selected_country) . '";', 'before');
+    }
+
+    public function get_areas_script_data() {
+        $user_id = get_current_user_id();
+        $selected_country = get_user_meta($user_id, 'mobooking_service_country', true);
+
+        $localize_data = array(
+            'ajax_url' => admin_url('admin-ajax.php'),
+            'nonce' => wp_create_nonce('mobooking-area-nonce'),
+            'booking_nonce' => wp_create_nonce('mobooking-booking-nonce'),
+            'current_country' => $selected_country,
+            'user_id' => $user_id,
+            'is_nordic' => $this->is_nordic_country($selected_country),
+            'strings' => array(
+                'loading' => __('Loading...', 'mobooking'),
+                'error' => __('An error occurred', 'mobooking'),
+                'success' => __('Success!', 'mobooking'),
+                'confirm_delete' => __('Are you sure you want to delete this area?', 'mobooking'),
+                'confirm_reset' => __('Are you sure? This will reset your country selection and remove all current areas.', 'mobooking'),
+                'select_country' => __('Please select a country first.', 'mobooking'),
+                'enter_city' => __('Please enter a city name', 'mobooking'),
+                'network_error' => __('Network error occurred', 'mobooking'),
+                'no_areas_found' => __('No areas found for this city', 'mobooking'),
+                'select_areas' => __('Please select at least one area', 'mobooking'),
+                'country_not_set' => __('Country not set. Please refresh the page.', 'mobooking'),
+                'from_local_db' => __('From local database', 'mobooking'),
+                'from_external_apis' => __('From external APIs', 'mobooking'),
+                'high_quality_local' => __('High-Quality Local Data', 'mobooking'),
+                'external_api_data' => __('External API Data', 'mobooking'),
+                'local_data_desc' => __('This country uses our comprehensive local database with accurate ZIP codes and area information. Data is stored locally for fast access and high reliability.', 'mobooking'),
+                'api_data_desc' => __('This country uses data from external APIs including Zippopotam and GeoNames. Data quality is good but depends on external service availability.', 'mobooking'),
+                'deselect_all' => __('Deselect All', 'mobooking'),
+                'select_all' => __('Select All', 'mobooking'),
+                'active' => __('Active', 'mobooking'),
+                'inactive' => __('Inactive', 'mobooking'),
+                'areas_selected' => __('areas selected', 'mobooking'),
+                'areas' => __('areas', 'mobooking'),
+                'are_you_sure' => __('Are you sure you want to', 'mobooking'),
+            )
+        );
+        return $localize_data;
     }
     /**
      * Get supported countries (updated to prioritize Nordic countries)
