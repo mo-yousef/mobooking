@@ -167,6 +167,14 @@ if ($booking->status !== 'completed' && $booking->status !== 'cancelled') {
                     </svg>
                     <?php _e('Print', 'mobooking'); ?>
                 </button>
+                <a href="download-booking-pdf.php?booking_id=<?php echo $booking->id; ?>" class="btn-secondary">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                        <polyline points="7 10 12 15 17 10"/>
+                        <line x1="12" y1="15" x2="12" y2="3"/>
+                    </svg>
+                    <?php _e('Download PDF', 'mobooking'); ?>
+                </a>
             </div>
         </div>
     </div>
