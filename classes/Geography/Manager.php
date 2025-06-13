@@ -204,62 +204,98 @@ class Manager {
         if (!is_array($entry)) {
             return null;
         }
-        
-        $parsed = array();
-        $country_code = '';
-        $zip_code = '';
-        $area_name = '';
-        $region = '';
-        $latitude = '';
-        $longitude = '';
-        
-        foreach ($entry as $key => $value) {
-            // Skip empty values
-            if (empty($value) || trim($value) === '') {
+
+        $potential_values = array_values($entry);
+        // Filter out empty strings and known non-data values like "4", "05" etc. if they are consistent.
+        // For now, let's focus on identifying based on format.
+        $potential_values = array_filter(array_map('trim', $potential_values), function($val) {
+            return $val !== '' && !in_array($val, ['4', '05']); // Example: filter out known noise
+        });
+        // Remove duplicate values to simplify processing, as keys are noisy
+        $potential_values = array_values(array_unique($potential_values));
+
+
+        $parsed = [
+            'country_code' => '',
+            'zip_code' => '',
+            'area_name' => '', // City
+            'state' => '',     // Region
+            'latitude' => '',
+            'longitude' => ''
+        ];
+
+        $alpha_candidates = [];
+        $numeric_coords = [];
+
+        foreach ($potential_values as $value) {
+            // Country code
+            if (in_array($value, ['SE', 'NO', 'DK', 'FI']) && empty($parsed['country_code'])) {
+                $parsed['country_code'] = $value;
                 continue;
             }
-            
-            // Country code (SE, NO, DK, FI)
-            if (in_array($value, array('SE', 'NO', 'DK', 'FI')) && strlen($key) <= 3) {
-                $country_code = $value;
+
+            // ZIP code
+            if (preg_match('/^\d+[\s\-]?\d*\s?\d*$/', $value) && strlen($value) >= 3 && empty($parsed['zip_code'])) {
+                // Normalize ZIP: remove spaces for consistency if needed, though original format might be preferred for display
+                $parsed['zip_code'] = str_replace(' ', '', $value); // Example normalization
+                continue;
             }
-            // ZIP code pattern (contains numbers and possibly spaces/dashes)
-            elseif (preg_match('/^\d+[\s\-]?\d*$/', $value) && strlen($value) >= 3) {
-                $zip_code = $value;
-            }
-            // Coordinates
-            elseif (is_numeric($value) && (strpos($value, '.') !== false)) {
+
+            // Coordinates (latitude and longitude)
+            if (is_numeric($value) && strpos($value, '.') !== false) {
                 $coord = floatval($value);
-                if ($coord >= -90 && $coord <= 90 && empty($latitude)) {
-                    $latitude = $coord;
-                } elseif ($coord >= -180 && $coord <= 180 && empty($longitude)) {
-                    $longitude = $coord;
+                if ($coord >= -90 && $coord <= 90 && empty($parsed['latitude'])) {
+                    $parsed['latitude'] = $coord;
+                } elseif ($coord >= -180 && $coord <= 180 && empty($parsed['longitude'])) {
+                    $parsed['longitude'] = $coord;
                 }
+                continue;
             }
-            // Area name (alphabetic with possible spaces and special chars)
-            elseif (preg_match('/^[a-zA-ZÀ-ÿ\s\-\.]+$/', $value) && strlen($value) > 1) {
-                if (empty($area_name)) {
-                    $area_name = $value;
-                } elseif (empty($region) && $value !== $area_name) {
-                    $region = $value;
+
+            // Collect all other non-numeric, non-country-code strings as potential city/region
+            if (preg_match('/^[a-zA-ZÀ-ÿ\s\-\.\(\)]+$/u', $value) && !in_array($value, ['SE', 'NO', 'DK', 'FI'])) {
+                 if (strlen($value) > 1) { // Avoid single characters unless specifically needed
+                    $alpha_candidates[] = $value;
                 }
             }
         }
         
+        // Post-process alpha candidates for area_name and state
+        // This is heuristic. Given the JSON, it's hard to be certain.
+        // Assumption: Longer strings are more likely to be unique names.
+        // Or, if there are two, the first is city, second is region.
+        // The original JSON structure is problematic because "Fårö" and "Gotland" are values of keys that are *also* "Fårö" and "Gotland" in the first record.
+        // We need to rely on the values themselves.
+
+        $unique_alpha = array_values(array_unique($alpha_candidates));
+        if (count($unique_alpha) > 0) {
+            $parsed['area_name'] = $unique_alpha[0]; // Assign the first unique alpha string as area_name (city)
+            if (count($unique_alpha) > 1) {
+                $parsed['state'] = $unique_alpha[1]; // Assign the second unique alpha string as state (region)
+            } else {
+                // If only one alpha candidate, it might be a city that is also a region, or just a city.
+                // Depending on requirements, you might leave 'state' empty or assign area_name to it.
+                // For now, leave state empty if only one candidate.
+            }
+        }
+
+
         // Validate required fields
-        if (empty($country_code) || empty($zip_code) || empty($area_name)) {
+        if (empty($parsed['country_code']) || empty($parsed['zip_code']) || empty($parsed['area_name'])) {
+            // Log problematic entry for review if possible
+            // error_log("Failed to parse entry: " . print_r($entry, true) . " -- Parsed: " . print_r($parsed, true));
             return null;
         }
-        
-        return array(
-            'area_name' => $area_name,
-            'zip_code' => $zip_code,
-            'state' => $region,
-            'country' => $country_code,
+
+        return [
+            'area_name' => $parsed['area_name'],
+            'zip_code' => $parsed['zip_code'], // Use the normalized zip
+            'state' => $parsed['state'],
+            'country' => $parsed['country_code'],
             'source' => 'Local JSON',
-            'latitude' => floatval($latitude),
-            'longitude' => floatval($longitude)
-        );
+            'latitude' => $parsed['latitude'] ? floatval($parsed['latitude']) : 0,
+            'longitude' => $parsed['longitude'] ? floatval($parsed['longitude']) : 0
+        ];
     }
     
     /**
@@ -268,45 +304,71 @@ class Manager {
     private function fetch_from_local_json($city_name, $country_code, $state = '') {
         $areas = array();
         $local_data = $this->load_local_data();
-        
+
         if (empty($local_data)) {
             return $areas;
         }
-        
+
         $city_name_lower = strtolower(trim($city_name));
-        $found_areas = array();
-        
-        foreach ($local_data as $entry) {
-            $parsed = $this->parse_json_entry($entry);
-            
-            if (!$parsed || $parsed['country'] !== $country_code) {
+        $country_code_upper = strtoupper(trim($country_code)); // Ensure consistent casing for country code
+
+        $found_areas_map = array(); // Use a map to avoid duplicates based on a unique key
+
+        foreach ($local_data as $entry_index => $raw_entry) {
+            $parsed_area = $this->parse_json_entry($raw_entry);
+
+            if (!$parsed_area) {
+                // Optionally log parsing failures for this entry
+                // error_log("Skipping unparsable entry at index {$entry_index}: " . print_r($raw_entry, true));
+                continue;
+            }
+
+            // 1. Filter by country code (exact match)
+            if (strtoupper($parsed_area['country']) !== $country_code_upper) {
+                continue;
+            }
+
+            // 2. Filter by city name (case-insensitive, partial match on area_name or state)
+            $area_name_lower = strtolower($parsed_area['area_name']);
+            $state_name_lower = !empty($parsed_area['state']) ? strtolower($parsed_area['state']) : '';
+
+            $city_match = false;
+            if (strpos($area_name_lower, $city_name_lower) !== false) {
+                $city_match = true;
+            } elseif (!empty($state_name_lower) && strpos($state_name_lower, $city_name_lower) !== false) {
+                $city_match = true;
+            }
+            // Optional: consider matching if the search term is part of the area name too
+            // e.g., search "Fårö" matches area "Fårö"
+            elseif (strpos($city_name_lower, $area_name_lower) !== false) {
+                 $city_match = true;
+            }
+
+
+            if (!$city_match) {
                 continue;
             }
             
-            // Match city name (case-insensitive, partial match)
-            $area_name_lower = strtolower($parsed['area_name']);
-            $region_lower = strtolower($parsed['state']);
+            // Ensure source is correctly set
+            $parsed_area['source'] = 'Local JSON';
+
+            // Create a unique key for the area to prevent duplicates if multiple raw entries resolve to the same area.
+            // For example, if area name and zip code define uniqueness.
+            $unique_key = $parsed_area['area_name'] . '|' . $parsed_area['zip_code'] . '|' . $parsed_area['country'];
             
-            if (strpos($area_name_lower, $city_name_lower) !== false ||
-                strpos($city_name_lower, $area_name_lower) !== false ||
-                (!empty($region_lower) && (strpos($region_lower, $city_name_lower) !== false || 
-                 strpos($city_name_lower, $region_lower) !== false))) {
-                
-                // Create unique key to avoid duplicates
-                $key = $parsed['area_name'] . '|' . $parsed['zip_code'];
-                if (!isset($found_areas[$key])) {
-                    $found_areas[$key] = $parsed;
-                }
+            if (!isset($found_areas_map[$unique_key])) {
+                $found_areas_map[$unique_key] = $parsed_area;
             }
         }
-        
-        $areas = array_values($found_areas);
-        
-        // Limit results and sort by area name
+
+        $areas = array_values($found_areas_map);
+
+        // Sort by area name alphabetically
         usort($areas, function($a, $b) {
             return strcmp($a['area_name'], $b['area_name']);
         });
-        
+
+        // Limit results
         return array_slice($areas, 0, 50);
     }
     
