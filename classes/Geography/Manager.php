@@ -617,22 +617,21 @@ class Manager {
     public function check_zip_coverage($zip_code, $user_id) {
         global $wpdb;
         
-        $table_name = $wpdb->prefix . 'mobooking_service_areas';
+        $table_name = $wpdb->prefix . 'mobooking_areas';
         
         // Check direct ZIP match first
         $direct_match = $wpdb->get_row($wpdb->prepare(
             "SELECT * FROM {$table_name} 
              WHERE user_id = %d AND active = 1 
-             AND (zip_codes LIKE %s OR zip_codes = %s)",
+             AND zip_code = %s",
             $user_id,
-            '%' . $zip_code . '%',
             $zip_code
         ));
         
         if ($direct_match) {
             return array(
                 'covered' => true,
-                'area_name' => $direct_match->area_name,
+                'label' => $direct_match->label,
                 'area_id' => $direct_match->id,
                 'match_type' => 'direct'
             );
@@ -1006,22 +1005,17 @@ class Manager {
     private function save_area($user_id, $area_data) {
         global $wpdb;
         
-        $table_name = $wpdb->prefix . 'mobooking_service_areas';
+        $table_name = $wpdb->prefix . 'mobooking_areas';
         
         return $wpdb->insert(
             $table_name,
             array(
                 'user_id' => $user_id,
-                'area_name' => $area_data['area_name'],
-                'zip_codes' => $area_data['zip_code'],
-                'state' => $area_data['state'] ?? '',
-                'country' => $area_data['country'] ?? '',
-                'latitude' => floatval($area_data['latitude'] ?? 0),
-                'longitude' => floatval($area_data['longitude'] ?? 0),
-                'active' => 1,
-                'created_at' => current_time('mysql')
+                'label' => $area_data['area_name'], // area_name from data becomes label
+                'zip_code' => $area_data['zip_code'], // zip_code from data becomes zip_code
+                'active' => 1
             ),
-            array('%d', '%s', '%s', '%s', '%s', '%f', '%f', '%d', '%s')
+            array('%d', '%s', '%s', '%d') // Corrected format array
         );
     }
     
@@ -1031,10 +1025,10 @@ class Manager {
     public function get_user_areas($user_id) {
         global $wpdb;
         
-        $table_name = $wpdb->prefix . 'mobooking_service_areas';
+        $table_name = $wpdb->prefix . 'mobooking_areas';
         
         $results = $wpdb->get_results($wpdb->prepare(
-            "SELECT * FROM {$table_name} WHERE user_id = %d ORDER BY area_name ASC",
+            "SELECT * FROM {$table_name} WHERE user_id = %d ORDER BY label ASC",
             $user_id
         ));
         
@@ -1137,7 +1131,7 @@ class Manager {
             }
             
             global $wpdb;
-            $table_name = $wpdb->prefix . 'mobooking_service_areas';
+            $table_name = $wpdb->prefix . 'mobooking_areas';
             
             $result = $wpdb->delete(
                 $table_name,
@@ -1182,7 +1176,7 @@ class Manager {
             }
             
             global $wpdb;
-            $table_name = $wpdb->prefix . 'mobooking_service_areas';
+            $table_name = $wpdb->prefix . 'mobooking_areas';
             
             // Get current status
             $current_status = $wpdb->get_var($wpdb->prepare(
@@ -1247,50 +1241,6 @@ class Manager {
     }
     
     /**
-     * Initialize/upgrade database tables
-     */
-    public function maybe_upgrade_database() {
-        $version = get_option('mobooking_geography_db_version', '0');
-        
-        if (version_compare($version, '3.0', '<')) {
-            $this->create_database_tables();
-            update_option('mobooking_geography_db_version', '3.0');
-        }
-    }
-    
-    /**
-     * Create database tables
-     */
-    private function create_database_tables() {
-        global $wpdb;
-        
-        $table_name = $wpdb->prefix . 'mobooking_service_areas';
-        
-        $charset_collate = $wpdb->get_charset_collate();
-        
-        $sql = "CREATE TABLE $table_name (
-            id int(11) NOT NULL AUTO_INCREMENT,
-            user_id int(11) NOT NULL,
-            area_name varchar(255) NOT NULL,
-            zip_codes text,
-            state varchar(100),
-            country varchar(10),
-            latitude decimal(10,8),
-            longitude decimal(11,8),
-            active tinyint(1) DEFAULT 1,
-            created_at datetime DEFAULT CURRENT_TIMESTAMP,
-            updated_at datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-            PRIMARY KEY (id),
-            KEY user_id (user_id),
-            KEY active (active),
-            KEY country (country)
-        ) $charset_collate;";
-        
-        require_once(ABSPATH . 'wp-admin/includes/upgrade.php');
-        dbDelta($sql);
-    }
-    
-    /**
      * Area list shortcode
      */
     public function area_list_shortcode($atts) {
@@ -1314,9 +1264,9 @@ class Manager {
         $output = '<div class="mobooking-area-list">';
         foreach ($areas as $area) {
             $output .= '<div class="area-item">';
-            $output .= '<strong>' . esc_html($area->area_name) . '</strong>';
-            if (!empty($area->zip_codes)) {
-                $output .= '<span class="zip-codes"> (' . esc_html($area->zip_codes) . ')</span>';
+            $output .= '<strong>' . esc_html($area->label) . '</strong>';
+            if (!empty($area->zip_code)) {
+                $output .= '<span class="zip-codes"> (' . esc_html($area->zip_code) . ')</span>';
             }
             $output .= '</div>';
         }
