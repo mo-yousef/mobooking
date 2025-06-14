@@ -105,6 +105,7 @@ $settings = (object) array(
             
             // Load the appropriate section
             $section_loaded = false;
+            $error_during_section_load = false; // New flag
             $allowed_sections = array('overview', 'services', 'bookings', 'booking-form', 'discounts', 'areas', 'settings');
             
             if (in_array($current_section, $allowed_sections)) {
@@ -114,32 +115,40 @@ $settings = (object) array(
                     try {
                         include $section_file;
                         $section_loaded = true;
-                    } catch (Exception $e) {
+                    } catch (Throwable $e) { // Changed to Throwable
+                        $error_during_section_load = true; // Set flag
                         if (defined('WP_DEBUG') && WP_DEBUG) {
                             error_log('MoBooking: Error loading section ' . $current_section . ': ' . $e->getMessage());
                         }
-                        echo '<div class="error-message">
-                            <h3>' . __('Section temporarily unavailable', 'mobooking') . '</h3>
-                            <p>' . __('Please try again later.', 'mobooking') . '</p>
-                        </div>';
+                        // Updated error message
+                        echo '<div class="mobooking-error-message">
+       <h3>' . __('Section Temporarily Unavailable', 'mobooking') . '</h3>
+       <p>' . __('An unexpected error occurred while trying to load this section. Please try again later or contact support if the issue persists.', 'mobooking') . '</p>';
+                        if (defined('WP_DEBUG') && WP_DEBUG) {
+                            echo '<pre>' . esc_html($e->getMessage()) . '</pre>';
+                        }
+                        echo '</div>';
+                    }
+                } else {
+                    // File doesn't exist, section_loaded remains false
+                     if (defined('WP_DEBUG') && WP_DEBUG) {
+                        error_log('MoBooking: Section file not found: ' . $section_file);
                     }
                 }
             }
             
-            // Fallback if section couldn't be loaded
-            if (!$section_loaded) {
-                echo '<div class="fallback-content">
-                    <h2>' . __('Dashboard', 'mobooking') . '</h2>
-                    <p>' . __('Welcome to your MoBooking dashboard.', 'mobooking') . '</p>
-                    <div class="quick-links">
-                        <a href="' . esc_url(add_query_arg('section', 'services')) . '" class="btn-primary">
-                            ' . __('Manage Services', 'mobooking') . '
-                        </a>
-                        <a href="' . esc_url(add_query_arg('section', 'bookings')) . '" class="btn-secondary">
-                            ' . __('View Bookings', 'mobooking') . '
-                        </a>
-                    </div>
-                </div>';
+            // Fallback if section couldn't be loaded and no error occurred during an attempted load
+            if (!$section_loaded && !$error_during_section_load) {
+                // Updated fallback content
+                echo '<div class="mobooking-fallback-content">
+       <h2>' . __('Dashboard Section Not Found', 'mobooking') . '</h2>
+       <p>' . sprintf(__('The requested dashboard section "%s" is not valid or could not be loaded. Please select a valid section from the menu.', 'mobooking'), esc_html($current_section)) . '</p>
+       <div class="mobooking-quick-links">
+           <a href="' . esc_url(remove_query_arg('section')) . '" class="mobooking-btn-primary">
+               ' . __('Go to Main Dashboard', 'mobooking') . '
+           </a>
+       </div>
+   </div>';
             }
             ?>
         </div>

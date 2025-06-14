@@ -10,7 +10,7 @@ try {
     $bookings_manager = new \MoBooking\Bookings\Manager();
     $services_manager = new \MoBooking\Services\ServicesManager();
     $geography_manager = new \MoBooking\Geography\Manager();
-} catch (Exception $e) {
+} catch (Throwable $e) { // Changed Exception to Throwable
     if (defined('WP_DEBUG') && WP_DEBUG) {
         error_log('MoBooking: Failed to initialize managers in overview: ' . $e->getMessage());
     }

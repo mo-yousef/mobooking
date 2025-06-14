@@ -61,16 +61,27 @@ function mobooking_get_user_subscription_status($user_id = null) {
     $subscription_expiry = get_user_meta($user_id, 'mobooking_subscription_expiry', true);
 
     $is_expired = false;
-    if (!$has_subscription && !empty($subscription_expiry)) {
+    if (!empty($subscription_expiry)) {
+        // If there's an expiry date, check it.
         $is_expired = strtotime($subscription_expiry) < time();
+    } else {
+        // No expiry date is set.
+        // If there's also no 'has_subscription' flag, then it's not an active subscription.
+        // If 'has_subscription' is true and no expiry date, it's a non-expiring subscription.
+        if (!$has_subscription) {
+            $is_expired = true;
+        }
+        // if $has_subscription is true and no expiry, $is_expired remains false (non-expiring active sub)
     }
+
+    $is_active = (bool) $has_subscription && !$is_expired;
 
     return array(
         'has_subscription' => (bool) $has_subscription,
         'type' => $subscription_type ?: 'free',
         'expiry' => $subscription_expiry ?: '',
         'is_expired' => $is_expired,
-        'is_active' => (bool) $has_subscription && !$is_expired
+        'is_active' => $is_active
     );
 }
 

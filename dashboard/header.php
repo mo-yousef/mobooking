@@ -38,12 +38,15 @@ $subscription_info = mobooking_get_user_subscription_status($user_id);
 // Check for any pending notifications
 $pending_bookings_count = 0;
 try {
-    if (class_exists('\MoBooking\Bookings\Manager')) {
-        $bookings_manager = new \MoBooking\Bookings\Manager();
-        $pending_bookings_count = $bookings_manager->count_user_bookings($user_id, 'pending');
+    // Attempt to load and use Bookings Manager
+    $bookings_manager = new \MoBooking\Bookings\Manager();
+    $pending_bookings_count = $bookings_manager->count_user_bookings($user_id, 'pending');
+} catch (Throwable $e) { // Catching Throwable is better for broader errors including ParseError
+    // Silently fail or log the error if WP_DEBUG is on
+    if (defined('WP_DEBUG') && WP_DEBUG) {
+        error_log('MoBooking Error in dashboard/header.php (BookingsManager): ' . $e->getMessage());
     }
-} catch (Exception $e) {
-    // Silently fail
+    // $pending_bookings_count remains 0
 }
 
 // Determine greeting based on time
