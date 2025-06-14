@@ -10,7 +10,7 @@ class Manager {
      */
     public function __construct() {
         // Register hooks
-        add_action('init', array($this, 'register_custom_role'));
+        add_action('init', array($this, 'register_custom_role'), 99);
         add_action('wp_ajax_nopriv_mobooking_login', array($this, 'handle_login'));
         add_action('wp_ajax_nopriv_mobooking_register', array($this, 'handle_registration'));
         add_action('wp_ajax_mobooking_logout', array($this, 'handle_logout'));
