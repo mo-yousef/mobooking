@@ -31,6 +31,9 @@ if (!in_array('mobooking_business_owner', $current_user->roles) && !in_array('ad
     exit;
 }
 
+
+
+
 // Get current section - lightweight
 $current_section = get_query_var('section', 'overview');
 
