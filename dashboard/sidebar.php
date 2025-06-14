@@ -73,7 +73,7 @@ $subscription_info = mobooking_get_user_subscription_status($user_id);
         <ul>
             <?php foreach ($menu_items as $slug => $item) : ?>
                 <li class="<?php echo $current_section === $slug ? 'active' : ''; ?>">
-                    <a href="<?php echo esc_url(home_url('/dashboard/' . ($slug === 'overview' ? '' : $slug . '/'))); ?>">
+                    <a href="<?php echo esc_url($slug === 'overview' ? home_url('/dashboard/') : add_query_arg('section', $slug, home_url('/dashboard/'))); ?>">
                         <?php echo $item['icon']; ?>
                         <span class="menu-title"><?php echo esc_html($item['title']); ?></span>
                     </a>
