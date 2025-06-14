@@ -22,7 +22,11 @@ spl_autoload_register(function ($class) {
     $relative_class = str_replace('MoBooking\\', '', $class);
     
     // Convert namespace separators to directory separators
-    $file = MOBOOKING_PATH . '/classes/' . str_replace('\\', '/', $relative_class) . '.php';
+    if ($relative_class === 'Core\Loader') {
+        $file = MOBOOKING_PATH . '/classes/core/Loader.php';
+    } else {
+        $file = MOBOOKING_PATH . '/classes/' . str_replace('\\', '/', $relative_class) . '.php';
+    }
 
     // Load the file if it exists
     if (file_exists($file)) {
@@ -45,7 +49,7 @@ spl_autoload_register(function ($class) {
  */
 function mobooking_load_critical_files() {
     $critical_files = array(
-        '/classes/Core/Loader.php',
+        '/classes/core/Loader.php',
         '/classes/Database/Manager.php',
     );
     
