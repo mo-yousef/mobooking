@@ -100,7 +100,7 @@ class Manager {
             unit varchar(50) NULL,
             min_length int(11) NULL,
             max_length int(11) NULL,
-            rows int(11) NULL,
+            option_rows int(11) NULL,
             display_order int(11) DEFAULT 0,
             created_at datetime DEFAULT CURRENT_TIMESTAMP,
             updated_at datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
