@@ -10,7 +10,7 @@ if (!defined('ABSPATH')) {
 }
 
 // Define theme constants
-define('MOBOOKING_VERSION', '1.0.0');
+define('MOBOOKING_VERSION', '1.0.1');
 define('MOBOOKING_PATH', get_template_directory());
 define('MOBOOKING_URL', get_template_directory_uri());
 

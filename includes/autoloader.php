@@ -23,7 +23,7 @@ spl_autoload_register(function ($class) {
     
     // Convert namespace separators to directory separators
     if ($relative_class === 'Core\Loader') {
-        $file = MOBOOKING_PATH . '/classes/core/Loader.php';
+        $file = MOBOOKING_PATH . '/classes/Core/Loader.php';
     } else {
         $file = MOBOOKING_PATH . '/classes/' . str_replace('\\', '/', $relative_class) . '.php';
     }
@@ -49,7 +49,7 @@ spl_autoload_register(function ($class) {
  */
 function mobooking_load_critical_files() {
     $critical_files = array(
-        '/classes/core/Loader.php',
+        '/classes/Core/Loader.php',
         '/classes/Database/Manager.php',
     );
     
