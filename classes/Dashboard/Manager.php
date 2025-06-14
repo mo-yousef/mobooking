@@ -138,23 +138,25 @@ class Manager {
         
         // Get most popular service using normalized structure
         $most_popular_service = $wpdb->get_row($wpdb->prepare(
-            "SELECT s.id, s.name, s.price, s.duration, COUNT(bs.service_id) as booking_count
+            "SELECT s.id, s.name, s.price, s.duration, s.icon, s.description, COUNT(bs.service_id) as booking_count
              FROM {$wpdb->prefix}mobooking_services s
              JOIN {$wpdb->prefix}mobooking_booking_services bs ON s.id = bs.service_id
              JOIN {$wpdb->prefix}mobooking_bookings b ON bs.booking_id = b.id
              WHERE s.user_id = %d AND b.status IN ('confirmed', 'completed')
-             GROUP BY s.id, s.name, s.price, s.duration
+             GROUP BY s.id, s.name, s.price, s.duration, s.icon, s.description
              ORDER BY booking_count DESC
              LIMIT 1",
             $user_id
         ));
         
         if ($most_popular_service) {
-            $stats['most_popular_service'] = array(
+            $stats['most_popular_service'] = (object) array(
                 'id' => $most_popular_service->id,
                 'name' => $most_popular_service->name,
                 'price' => $most_popular_service->price,
                 'duration' => $most_popular_service->duration,
+                'icon' => $most_popular_service->icon, // Now selected from DB
+                'description' => $most_popular_service->description, // Now selected from DB
                 'booking_count' => $most_popular_service->booking_count
             );
         } else {

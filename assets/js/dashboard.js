@@ -25,6 +25,22 @@
 
     // Initialize
     init: function () {
+      // Critical dependency check
+      if (typeof mobookingDashboard === 'undefined' || !mobookingDashboard) {
+        console.error('MoBooking Critical Error: mobookingDashboard object is missing. Dashboard cannot initialize.');
+        // Optionally, display a message to the user on the page itself
+        // $('body').prepend('<div style="color: red; background: white; padding: 10px; border: 1px solid red;">Critical Error: Dashboard configuration is missing.</div>');
+        return; // Stop initialization
+      }
+      if (!mobookingDashboard.ajaxUrl) {
+        console.error('MoBooking Critical Error: ajaxUrl is missing in mobookingDashboard. Dashboard cannot initialize.');
+        return; // Stop initialization
+      }
+      if (!mobookingDashboard.nonces || typeof mobookingDashboard.nonces !== 'object') {
+        console.error('MoBooking Critical Error: nonces object is missing or invalid in mobookingDashboard. Dashboard cannot initialize.');
+        return; // Stop initialization
+      }
+
       console.log("🚀 MoBooking Dashboard initializing...");
       this.cacheElements();
       this.attachEventListeners();
@@ -1097,8 +1113,14 @@
 
   // Initialize when document is ready
   $(document).ready(function () {
-    if ($(".services-section").length > 0) {
-      MoBookingDashboard.init();
+    try {
+      if ($(".services-section").length > 0) { // Ensure we are on a page that needs this dashboard
+        MoBookingDashboard.init();
+      }
+    } catch (e) {
+      console.error("MoBooking Error: Failed to initialize dashboard.", e);
+      // Optionally, display a user-facing error message on the page
+      // $('body').prepend('<div style="color: red; background: white; padding: 10px; border: 1px solid red;">Error: Could not load dashboard scripts. Please contact support.</div>');
     }
   });
 
