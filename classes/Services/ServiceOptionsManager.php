@@ -81,7 +81,7 @@ class ServiceOptionsManager {
             'unit' => isset($data['unit']) ? sanitize_text_field($data['unit']) : '',
             'min_length' => isset($data['min_length']) && $data['min_length'] !== '' ? absint($data['min_length']) : null,
             'max_length' => isset($data['max_length']) && $data['max_length'] !== '' ? absint($data['max_length']) : null,
-            'rows' => isset($data['rows']) ? absint($data['rows']) : 3,
+            'option_rows' => isset($data['rows']) ? absint($data['rows']) : 3,
             'display_order' => isset($data['display_order']) ? absint($data['display_order']) : $this->get_next_display_order($data['service_id'])
         );
         
@@ -482,7 +482,7 @@ class ServiceOptionsManager {
                 'unit' => isset($_POST['unit']) ? trim($_POST['unit']) : '',
                 'min_length' => isset($_POST['min_length']) && $_POST['min_length'] !== '' ? absint($_POST['min_length']) : null,
                 'max_length' => isset($_POST['max_length']) && $_POST['max_length'] !== '' ? absint($_POST['max_length']) : null,
-                'rows' => isset($_POST['rows']) ? absint($_POST['rows']) : 3,
+                'option_rows' => isset($_POST['rows']) ? absint($_POST['rows']) : 3,
                 'options' => isset($_POST['options']) ? trim($_POST['options']) : '',
                 'option_label' => isset($_POST['option_label']) ? trim($_POST['option_label']) : ''
             );
