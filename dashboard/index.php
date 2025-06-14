@@ -6,6 +6,7 @@
 // ---- End of temporary error reporting
 
 /**
+ * Template Name: Dashboard
  * Dashboard Main Template - Simple Layout Shift Fix
  */
 // Prevent direct access
