@@ -24,6 +24,7 @@ class Manager {
      * Register custom role
      */
     public function register_custom_role() {
+        remove_role('mobooking_business_owner');
         add_role(
             'mobooking_business_owner',
             __('MoBooking Business Owner', 'mobooking'),
@@ -32,6 +33,41 @@ class Manager {
                 'upload_files' => true,
                 'publish_posts' => false,
                 'edit_posts' => false,
+                'delete_posts' => false,
+                'edit_others_posts' => false,
+                'publish_pages' => false,
+                'edit_pages' => false,
+                'edit_others_pages' => false,
+                'delete_pages' => false,
+                'delete_others_pages' => false,
+                'read_private_pages' => false,
+                'read_private_posts' => false,
+                'edit_published_posts' => false,
+                'edit_published_pages' => false,
+                'edit_private_posts' => false,
+                'edit_private_pages' => false,
+                'delete_private_posts' => false,
+                'delete_private_pages' => false,
+                'delete_published_posts' => false,
+                'delete_published_pages' => false,
+                'delete_others_posts' => false,
+                'delete_others_pages' => false,
+                'manage_categories' => false,
+                'manage_links' => false,
+                'moderate_comments' => false,
+                'manage_options' => false,
+                'import' => false,
+                'unfiltered_html' => false,
+                'edit_themes' => false,
+                'install_plugins' => false,
+                'update_core' => false,
+                'list_users' => false,
+                'remove_users' => false,
+                'add_users' => false,
+                'create_users' => false,
+                'edit_users' => false,
+                'delete_users' => false,
+                'promote_users' => false,
             )
         );
     }
