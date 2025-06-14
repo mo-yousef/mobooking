@@ -359,40 +359,42 @@ class Manager {
         // This is mainly for documentation and future database migrations
         
         $constraints = array(
-            // Service options -> Services
-            "ALTER TABLE {$wpdb->prefix}mobooking_service_options 
-             ADD CONSTRAINT fk_service_options_service_id 
-             FOREIGN KEY (service_id) REFERENCES {$wpdb->prefix}mobooking_services(id) 
-             ON DELETE CASCADE ON UPDATE CASCADE",
+            "fk_service_options_service_id" => "ALTER TABLE {$wpdb->prefix}mobooking_service_options
+                ADD CONSTRAINT fk_service_options_service_id
+                FOREIGN KEY (service_id) REFERENCES {$wpdb->prefix}mobooking_services(id)
+                ON DELETE CASCADE ON UPDATE CASCADE",
             
-            // Booking services -> Bookings
-            "ALTER TABLE {$wpdb->prefix}mobooking_booking_services 
-             ADD CONSTRAINT fk_booking_services_booking_id 
-             FOREIGN KEY (booking_id) REFERENCES {$wpdb->prefix}mobooking_bookings(id) 
-             ON DELETE CASCADE ON UPDATE CASCADE",
+            "fk_booking_services_booking_id" => "ALTER TABLE {$wpdb->prefix}mobooking_booking_services
+                ADD CONSTRAINT fk_booking_services_booking_id
+                FOREIGN KEY (booking_id) REFERENCES {$wpdb->prefix}mobooking_bookings(id)
+                ON DELETE CASCADE ON UPDATE CASCADE",
             
-            // Booking services -> Services  
-            "ALTER TABLE {$wpdb->prefix}mobooking_booking_services 
-             ADD CONSTRAINT fk_booking_services_service_id 
-             FOREIGN KEY (service_id) REFERENCES {$wpdb->prefix}mobooking_services(id) 
-             ON DELETE CASCADE ON UPDATE CASCADE",
+            "fk_booking_services_service_id" => "ALTER TABLE {$wpdb->prefix}mobooking_booking_services
+                ADD CONSTRAINT fk_booking_services_service_id
+                FOREIGN KEY (service_id) REFERENCES {$wpdb->prefix}mobooking_services(id)
+                ON DELETE CASCADE ON UPDATE CASCADE",
             
-            // Booking service options -> Bookings
-            "ALTER TABLE {$wpdb->prefix}mobooking_booking_service_options 
-             ADD CONSTRAINT fk_booking_options_booking_id 
-             FOREIGN KEY (booking_id) REFERENCES {$wpdb->prefix}mobooking_bookings(id) 
-             ON DELETE CASCADE ON UPDATE CASCADE",
+            "fk_booking_options_booking_id" => "ALTER TABLE {$wpdb->prefix}mobooking_booking_service_options
+                ADD CONSTRAINT fk_booking_options_booking_id
+                FOREIGN KEY (booking_id) REFERENCES {$wpdb->prefix}mobooking_bookings(id)
+                ON DELETE CASCADE ON UPDATE CASCADE",
             
-            // Booking service options -> Service options
-            "ALTER TABLE {$wpdb->prefix}mobooking_booking_service_options 
-             ADD CONSTRAINT fk_booking_options_service_option_id 
-             FOREIGN KEY (service_option_id) REFERENCES {$wpdb->prefix}mobooking_service_options(id) 
-             ON DELETE CASCADE ON UPDATE CASCADE"
+            "fk_booking_options_service_option_id" => "ALTER TABLE {$wpdb->prefix}mobooking_booking_service_options
+                ADD CONSTRAINT fk_booking_options_service_option_id
+                FOREIGN KEY (service_option_id) REFERENCES {$wpdb->prefix}mobooking_service_options(id)
+                ON DELETE CASCADE ON UPDATE CASCADE"
         );
         
-        foreach ($constraints as $constraint) {
+        foreach ($constraints as $constraint_name => $constraint_sql) {
             // Check if constraint already exists before adding
-            $wpdb->query($constraint);
+            $constraint_exists = $wpdb->get_var($wpdb->prepare(
+                "SELECT CONSTRAINT_NAME FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS WHERE CONSTRAINT_SCHEMA = %s AND CONSTRAINT_NAME = %s",
+                DB_NAME, $constraint_name
+            ));
+
+            if (!$constraint_exists) {
+                $wpdb->query($constraint_sql);
+            }
         }
     }
 
