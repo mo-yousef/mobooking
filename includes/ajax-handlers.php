@@ -1560,326 +1560,6 @@ function mobooking_ajax_save_settings() {
 }
 
 /**
- * UPDATED: Validate Discount Handler with transaction support
- */
-function mobooking_ajax_validate_discount() {
-    global $wpdb;
-    
-    try {
-        // Check nonce
-        if (!isset($_POST['nonce']) || !wp_verify_nonce($_POST['nonce'], 'mobooking-booking-nonce')) {
-            wp_send_json_error(array('message' => __('Security verification failed.', 'mobooking')));
-            return;
-        }
-        
-        // Check required fields
-        if (!isset($_POST['code']) || !isset($_POST['user_id']) || !isset($_POST['total'])) {
-            wp_send_json_error(array('message' => __('Missing required information.', 'mobooking')));
-            return;
-        }
-        
-        $code = sanitize_text_field($_POST['code']);
-        $user_id = absint($_POST['user_id']);
-        $total = floatval($_POST['total']);
-        
-        // Validate discount code with proper database query
-        $discount = $wpdb->get_row($wpdb->prepare(
-            "SELECT * FROM {$wpdb->prefix}mobooking_discounts 
-             WHERE code = %s AND user_id = %d AND active = 1 
-             AND (expiry_date IS NULL OR expiry_date >= CURDATE())",
-            $code, $user_id
-        ));
-        
-        if (!$discount) {
-            wp_send_json_error(array(
-                'message' => __('Invalid or expired discount code.', 'mobooking')
-            ));
-            return;
-        }
-        
-        // Check usage limit
-        if ($discount->usage_limit > 0 && $discount->usage_count >= $discount->usage_limit) {
-            wp_send_json_error(array(
-                'message' => __('This discount code has reached its usage limit.', 'mobooking')
-            ));
-            return;
-        }
-        
-        // Calculate discount amount
-        $discount_amount = 0;
-        if ($discount->type === 'percentage') {
-            $discount_amount = ($total * $discount->amount) / 100;
-        } else {
-            $discount_amount = min($discount->amount, $total);
-        }
-        
-        wp_send_json_success(array(
-            'discount_amount' => $discount_amount,
-            'discount_type' => $discount->type,
-            'discount_value' => $discount->amount,
-            'message' => sprintf(__('Discount applied! You save %s', 'mobooking'), 
-                function_exists('wc_price') ? wc_price($discount_amount) : number_format($discount_amount, 2))
-        ));
-        
-    } catch (Exception $e) {
-        if (defined('WP_DEBUG') && WP_DEBUG) {
-            error_log('MoBooking Discount Validation Exception: ' . $e->getMessage());
-        }
-        
-        wp_send_json_error(array(
-            'message' => __('Error processing discount code.', 'mobooking')
-        ));
-    }
-}
-
-/**
- * Upload Image Handler - UPDATED with transaction support for metadata
- */
-function mobooking_ajax_upload_image() {
-    global $wpdb;
-    
-    try {
-        // Check nonce and permissions
-        if (!isset($_POST['nonce']) || !wp_verify_nonce($_POST['nonce'], 'mobooking-service-nonce')) {
-            wp_send_json_error(__('Security verification failed.', 'mobooking'));
-            return;
-        }
-        
-        if (!current_user_can('upload_files')) {
-            wp_send_json_error(__('You do not have permission to upload files.', 'mobooking'));
-            return;
-        }
-        
-        // Check if file was uploaded
-        if (!isset($_FILES['image']) || $_FILES['image']['error'] !== UPLOAD_ERR_OK) {
-            wp_send_json_error(__('No file uploaded or upload error occurred.', 'mobooking'));
-            return;
-        }
-        
-        // Validate file type
-        $allowed_types = array('image/jpeg', 'image/png', 'image/gif', 'image/webp');
-        if (!in_array($_FILES['image']['type'], $allowed_types)) {
-            wp_send_json_error(__('Invalid file type. Please upload an image.', 'mobooking'));
-            return;
-        }
-        
-        // Validate file size (max 5MB)
-        if ($_FILES['image']['size'] > 5 * 1024 * 1024) {
-            wp_send_json_error(__('File too large. Maximum size is 5MB.', 'mobooking'));
-            return;
-        }
-        
-        // Handle the upload
-        require_once(ABSPATH . 'wp-admin/includes/image.php');
-        require_once(ABSPATH . 'wp-admin/includes/file.php');
-        require_once(ABSPATH . 'wp-admin/includes/media.php');
-        
-        $attachment_id = media_handle_upload('image', 0);
-        
-        if (is_wp_error($attachment_id)) {
-            wp_send_json_error($attachment_id->get_error_message());
-            return;
-        }
-        
-        $image_url = wp_get_attachment_url($attachment_id);
-        $image_data = wp_get_attachment_image_src($attachment_id, 'medium');
-        
-        wp_send_json_success(array(
-            'attachment_id' => $attachment_id,
-            'url' => $image_url,
-            'thumb_url' => $image_data ? $image_data[0] : $image_url,
-            'message' => __('Image uploaded successfully.', 'mobooking')
-        ));
-        
-    } catch (Exception $e) {
-        if (defined('WP_DEBUG') && WP_DEBUG) {
-            error_log('MoBooking Upload Image Exception: ' . $e->getMessage());
-        }
-        wp_send_json_error(__('Error uploading image.', 'mobooking'));
-    }
-}
-
-/**
- * UPDATED: Get Dashboard Stats with normalized data
- */
-function mobooking_ajax_get_dashboard_stats() {
-    try {
-        // Check nonce and permissions
-        if (!isset($_POST['nonce']) || !wp_verify_nonce($_POST['nonce'], 'mobooking-service-nonce')) {
-            wp_send_json_error(__('Security verification failed.', 'mobooking'));
-            return;
-        }
-        
-        if (!current_user_can('mobooking_business_owner') && !current_user_can('administrator')) {
-            wp_send_json_error(__('You do not have permission to do this.', 'mobooking'));
-            return;
-        }
-        
-        $user_id = get_current_user_id();
-        global $wpdb;
-        
-        // Calculate stats using normalized database structure
-        $stats = array(
-            'total_bookings' => intval($wpdb->get_var($wpdb->prepare(
-                "SELECT COUNT(*) FROM {$wpdb->prefix}mobooking_bookings WHERE user_id = %d",
-                $user_id
-            ))),
-            'pending_bookings' => intval($wpdb->get_var($wpdb->prepare(
-                "SELECT COUNT(*) FROM {$wpdb->prefix}mobooking_bookings WHERE user_id = %d AND status = 'pending'",
-                $user_id
-            ))),
-            'confirmed_bookings' => intval($wpdb->get_var($wpdb->prepare(
-                "SELECT COUNT(*) FROM {$wpdb->prefix}mobooking_bookings WHERE user_id = %d AND status = 'confirmed'",
-                $user_id
-            ))),
-            'completed_bookings' => intval($wpdb->get_var($wpdb->prepare(
-                "SELECT COUNT(*) FROM {$wpdb->prefix}mobooking_bookings WHERE user_id = %d AND status = 'completed'",
-                $user_id
-            ))),
-            'cancelled_bookings' => intval($wpdb->get_var($wpdb->prepare(
-                "SELECT COUNT(*) FROM {$wpdb->prefix}mobooking_bookings WHERE user_id = %d AND status = 'cancelled'",
-                $user_id
-            ))),
-            'total_revenue' => floatval($wpdb->get_var($wpdb->prepare(
-                "SELECT SUM(total_price) FROM {$wpdb->prefix}mobooking_bookings 
-                 WHERE user_id = %d AND status IN ('confirmed', 'completed')",
-                $user_id
-            )) ?: 0),
-            'today_revenue' => floatval($wpdb->get_var($wpdb->prepare(
-                "SELECT SUM(total_price) FROM {$wpdb->prefix}mobooking_bookings 
-                 WHERE user_id = %d AND status IN ('confirmed', 'completed') 
-                 AND DATE(created_at) = CURDATE()",
-                $user_id
-            )) ?: 0),
-            'this_week_revenue' => floatval($wpdb->get_var($wpdb->prepare(
-                "SELECT SUM(total_price) FROM {$wpdb->prefix}mobooking_bookings 
-                 WHERE user_id = %d AND status IN ('confirmed', 'completed') 
-                 AND YEARWEEK(created_at) = YEARWEEK(NOW())",
-                $user_id
-            )) ?: 0),
-            'this_month_revenue' => floatval($wpdb->get_var($wpdb->prepare(
-                "SELECT SUM(total_price) FROM {$wpdb->prefix}mobooking_bookings 
-                 WHERE user_id = %d AND status IN ('confirmed', 'completed') 
-                 AND YEAR(created_at) = YEAR(NOW()) AND MONTH(created_at) = MONTH(NOW())",
-                $user_id
-            )) ?: 0),
-            'most_popular_service' => null
-        );
-        
-        // Get most popular service using normalized structure
-        $most_popular_service = $wpdb->get_row($wpdb->prepare(
-            "SELECT s.*, COUNT(bs.service_id) as booking_count 
-             FROM {$wpdb->prefix}mobooking_services s
-             JOIN {$wpdb->prefix}mobooking_booking_services bs ON s.id = bs.service_id
-             JOIN {$wpdb->prefix}mobooking_bookings b ON bs.booking_id = b.id
-             WHERE s.user_id = %d 
-             GROUP BY s.id 
-             ORDER BY booking_count DESC 
-             LIMIT 1",
-            $user_id
-        ));
-        
-        if ($most_popular_service) {
-            $stats['most_popular_service'] = array(
-                'id' => $most_popular_service->id,
-                'name' => $most_popular_service->name,
-                'price' => $most_popular_service->price,
-                'duration' => $most_popular_service->duration,
-                'booking_count' => $most_popular_service->booking_count
-            );
-        }
-        
-        wp_send_json_success(array('stats' => $stats));
-        
-    } catch (Exception $e) {
-        if (defined('WP_DEBUG') && WP_DEBUG) {
-            error_log('MoBooking Dashboard Stats Exception: ' . $e->getMessage());
-        }
-        wp_send_json_error(__('Error loading dashboard statistics.', 'mobooking'));
-    }
-}
-
-/**
- * Generic service save handler - delegate to Services Manager
- */
-function mobooking_ajax_save_service() {
-    try {
-        if (class_exists('\MoBooking\Services\ServicesManager')) {
-            $services_manager = new \MoBooking\Services\ServicesManager();
-            return $services_manager->ajax_save_service();
-        } else {
-            wp_send_json_error(__('Services manager not available.', 'mobooking'));
-        }
-    } catch (Exception $e) {
-        wp_send_json_error(__('Error saving service.', 'mobooking'));
-    }
-}
-
-/**
- * Generic service delete handler - delegate to Services Manager
- */
-function mobooking_ajax_delete_service() {
-    try {
-        if (class_exists('\MoBooking\Services\ServicesManager')) {
-            $services_manager = new \MoBooking\Services\ServicesManager();
-            return $services_manager->ajax_delete_service();
-        } else {
-            wp_send_json_error(__('Services manager not available.', 'mobooking'));
-        }
-    } catch (Exception $e) {
-        wp_send_json_error(__('Error deleting service.', 'mobooking'));
-    }
-}
-
-/**
- * Generic service option save handler - delegate to ServiceOptionsManager
- */
-function mobooking_ajax_save_service_option() {
-    try {
-        if (class_exists('\MoBooking\Services\ServiceOptionsManager')) {
-            $options_manager = new \MoBooking\Services\ServiceOptionsManager();
-            return $options_manager->ajax_save_option();
-        } else {
-            wp_send_json_error(__('Service options manager not available.', 'mobooking'));
-        }
-    } catch (Exception $e) {
-        wp_send_json_error(__('Error saving service option.', 'mobooking'));
-    }
-}
-
-/**
- * Generic service option delete handler - delegate to ServiceOptionsManager
- */
-function mobooking_ajax_delete_service_option() {
-    try {
-        if (class_exists('\MoBooking\Services\ServiceOptionsManager')) {
-            $options_manager = new \MoBooking\Services\ServiceOptionsManager();
-            return $options_manager->ajax_delete_option();
-        } else {
-            wp_send_json_error(__('Service options manager not available.', 'mobooking'));
-        }
-    } catch (Exception $e) {
-        wp_send_json_error(__('Error deleting service option.', 'mobooking'));
-    }
-}
-
-/**
- * Update options order handler - delegate to ServiceOptionsManager
- */
-function mobooking_ajax_update_options_order() {
-    try {
-        if (class_exists('\MoBooking\Services\ServiceOptionsManager')) {
-            $options_manager = new \MoBooking\Services\ServiceOptionsManager();
-            return $options_manager->ajax_update_options_order();
-        } else {
-            wp_send_json_error(__('Service options manager not available.', 'mobooking'));
-        }
-    } catch (Exception $e) {
-        wp_send_json_error(__('Error updating options order.', 'mobooking'));
-    }
-}
-
-/**
  * Send test email handler - delegate to Settings Manager
  */
 function mobooking_ajax_send_test_email() {
@@ -2079,3 +1759,82 @@ function mobooking_ajax_logout() {
         wp_send_json_error(__('Error processing logout.', 'mobooking'));
     }
 }
+
+// Update the main AJAX handler to handle the new logo upload
+add_action('wp_ajax_mobooking_upload_logo', function() {
+    try {
+        // Check nonce
+        if (!isset($_POST['nonce']) || !wp_verify_nonce($_POST['nonce'], 'mobooking-booking-form-nonce')) {
+            wp_send_json_error(__('Security verification failed.', 'mobooking'));
+        }
+
+        // Check permissions
+        if (!current_user_can('mobooking_business_owner') && !current_user_can('administrator')) {
+            wp_send_json_error(__('You do not have permission to do this.', 'mobooking'));
+        }
+
+        // Check if file was uploaded
+        if (!isset($_FILES['logo_file']) || $_FILES['logo_file']['error'] !== UPLOAD_ERR_OK) {
+            wp_send_json_error(__('No file uploaded or upload error occurred.', 'mobooking'));
+        }
+
+        $file = $_FILES['logo_file'];
+
+        // Validate file type
+        $allowed_types = ['image/jpeg', 'image/jpg', 'image/png', 'image/svg+xml'];
+        $file_type = wp_check_filetype($file['name']);
+
+        if (!in_array($file_type['type'], $allowed_types)) {
+            wp_send_json_error(__('Invalid file type. Please upload JPG, PNG, or SVG files only.', 'mobooking'));
+        }
+
+        // Validate file size (5MB limit)
+        if ($file['size'] > 5 * 1024 * 1024) {
+            wp_send_json_error(__('File size too large. Maximum size is 5MB.', 'mobooking'));
+        }
+
+        // Handle the upload using WordPress functions
+        if (!function_exists('wp_handle_upload')) {
+            require_once(ABSPATH . 'wp-admin/includes/file.php');
+        }
+
+        // Set upload directory to a custom subfolder
+        add_filter('upload_dir', function($upload) {
+            $upload['subdir'] = '/mobooking/logos';
+            $upload['path'] = $upload['basedir'] . $upload['subdir'];
+            $upload['url'] = $upload['baseurl'] . $upload['subdir'];
+            return $upload;
+        });
+
+        $upload_overrides = array(
+            'test_form' => false,
+            'unique_filename_callback' => function($dir, $name, $ext) {
+                // Generate unique filename with timestamp
+                $user_id = get_current_user_id();
+                $timestamp = time();
+                return "logo-{$user_id}-{$timestamp}{$ext}";
+            }
+        );
+
+        $movefile = wp_handle_upload($file, $upload_overrides);
+
+        // Remove the upload_dir filter
+        remove_all_filters('upload_dir');
+
+        if ($movefile && !isset($movefile['error'])) {
+            wp_send_json_success(array(
+                'url' => $movefile['url'],
+                'file' => $movefile['file'],
+                'message' => __('Logo uploaded successfully!', 'mobooking')
+            ));
+        } else {
+            wp_send_json_error($movefile['error'] ?? __('Upload failed.', 'mobooking'));
+        }
+
+    } catch (Exception $e) {
+        error_log('MoBooking - Exception in logo upload: ' . $e->getMessage());
+        wp_send_json_error(__('An error occurred during upload.', 'mobooking'));
+    }
+});
+
+?>

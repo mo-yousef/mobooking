@@ -5,7 +5,7 @@ namespace MoBooking\Dashboard;
  * Dashboard Manager class - UPDATED for normalized database structure
  * Provides comprehensive analytics and dashboard functionality
  */
-class Manager {
+class DashboardManager {
     /**
      * Constructor
      */

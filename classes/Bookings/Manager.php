@@ -2,8 +2,8 @@
 namespace MoBooking\Bookings;
 
 /**
- * Enhanced Bookings Manager - FULLY NORMALIZED DATABASE STRUCTURE
- * NO MORE JSON STORAGE - Uses proper junction tables with full transaction support
+ * Enhanced Bookings Manager with Auto-Progression Support
+ * Properly handles service options and auto-step advancement
  */
 class Manager {
     /**
@@ -11,7 +11,8 @@ class Manager {
      */
     public function __construct() {
         // Register hooks
-        add_action('init', array($this, 'register_booking_endpoints'));
+
+                add_action('init', array($this, 'register_booking_endpoints'));
         add_filter('query_vars', array($this, 'add_booking_query_vars'));
         
         // Register AJAX handlers with enhanced error handling
@@ -21,6 +22,7 @@ class Manager {
         add_action('wp_ajax_mobooking_check_zip_coverage', array($this, 'ajax_check_zip_coverage'));
         add_action('wp_ajax_nopriv_mobooking_check_zip_coverage', array($this, 'ajax_check_zip_coverage'));
         
+        // FIXED: Add proper service options AJAX handler
         add_action('wp_ajax_mobooking_get_service_options', array($this, 'ajax_get_service_options'));
         add_action('wp_ajax_nopriv_mobooking_get_service_options', array($this, 'ajax_get_service_options'));
         
@@ -35,776 +37,65 @@ class Manager {
         
         // Debug logging
         if (defined('WP_DEBUG') && WP_DEBUG) {
-            error_log('MoBooking\Bookings\Manager: Enhanced constructor with normalized database support');
+            error_log('MoBooking\Bookings\Manager: Enhanced constructor with auto-progression support');
         }
     }
 
-    /**
-     * FIXED: Save booking using normalized database structure with full transaction support
-     */
-    public function save_booking($data) {
-        global $wpdb;
-        
-        // Start transaction for data integrity
-        $wpdb->query('START TRANSACTION');
-        
-        try {
-            // Validate required data
-            $this->validate_booking_data($data);
-            
-            // Calculate pricing from normalized structure
-            $pricing = $this->calculate_booking_pricing($data);
-            
-            // Prepare main booking data (NO MORE JSON!)
-            $booking_data = array(
-                'user_id' => absint($data['user_id']),
-                'customer_name' => sanitize_text_field($data['customer_name']),
-                'customer_email' => sanitize_email($data['customer_email']),
-                'customer_phone' => sanitize_text_field($data['customer_phone']),
-                'customer_address' => sanitize_textarea_field($data['customer_address']),
-                'zip_code' => sanitize_text_field($data['zip_code']),
-                'service_date' => sanitize_text_field($data['service_date']),
-                'subtotal' => $pricing['subtotal'],
-                'total_price' => $pricing['total'],
-                'discount_code' => isset($data['discount_code']) ? sanitize_text_field($data['discount_code']) : '',
-                'discount_amount' => isset($data['discount_amount']) ? floatval($data['discount_amount']) : 0,
-                'status' => 'pending',
-                'notes' => isset($data['booking_notes']) ? sanitize_textarea_field($data['booking_notes']) : ''
-            );
-            
-            // Insert main booking record
-            $result = $wpdb->insert(
-                $wpdb->prefix . 'mobooking_bookings',
-                $booking_data,
-                array('%d', '%s', '%s', '%s', '%s', '%s', '%s', '%f', '%f', '%s', '%f', '%s', '%s')
-            );
-            
-            if ($result === false) {
-                throw new Exception('Failed to create booking record: ' . $wpdb->last_error);
-            }
-            
-            $booking_id = $wpdb->insert_id;
-            
-            // Insert booking services (normalized!)
-            $this->save_booking_services($booking_id, $data['selected_services']);
-            
-            // Insert booking service options (normalized!)
-            if (!empty($data['service_options_data'])) {
-                $this->save_booking_service_options($booking_id, $data['service_options_data']);
-            }
-            
-            // Update discount usage if applicable
-            if (!empty($data['discount_code'])) {
-                $this->update_discount_usage($data['discount_code'], $data['user_id']);
-            }
-            
-            $wpdb->query('COMMIT');
-            
-            // Send confirmation email
-            $this->send_booking_confirmation($booking_id);
-            
-            if (defined('WP_DEBUG') && WP_DEBUG) {
-                error_log("MoBooking: Successfully created booking {$booking_id} with normalized structure");
-            }
-            
-            return $booking_id;
-            
-        } catch (Exception $e) {
-            $wpdb->query('ROLLBACK');
-            
-            if (defined('WP_DEBUG') && WP_DEBUG) {
-                error_log('MoBooking: Booking save failed: ' . $e->getMessage());
-            }
-            
-            return false;
-        }
+public function ajax_get_service_options() {
+    // Simple nonce check - accept any valid mobooking nonce
+    $nonce_valid = false;
+    if (isset($_POST['nonce'])) {
+        $nonce_valid = wp_verify_nonce($_POST['nonce'], 'mobooking-booking-nonce') ||
+                      wp_verify_nonce($_POST['nonce'], 'mobooking-service-nonce');
     }
-    
-    /**
-     * NEW: Save booking services to junction table
-     */
-    private function save_booking_services($booking_id, $selected_services) {
-        global $wpdb;
-        
-        if (empty($selected_services) || !is_array($selected_services)) {
-            throw new Exception('No services selected');
-        }
-        
-        foreach ($selected_services as $service_id) {
-            $service_id = absint($service_id);
-            
-            if ($service_id <= 0) {
-                continue;
-            }
-            
-            // Get service details
-            $service = $wpdb->get_row($wpdb->prepare(
-                "SELECT id, name, price FROM {$wpdb->prefix}mobooking_services WHERE id = %d",
-                $service_id
-            ));
-            
-            if (!$service) {
-                throw new Exception("Service {$service_id} not found");
-            }
-            
-            // Insert into junction table
-            $result = $wpdb->insert(
-                $wpdb->prefix . 'mobooking_booking_services',
-                array(
-                    'booking_id' => $booking_id,
-                    'service_id' => $service_id,
-                    'quantity' => 1,
-                    'unit_price' => $service->price,
-                    'total_price' => $service->price
-                ),
-                array('%d', '%d', '%d', '%f', '%f')
-            );
-            
-            if ($result === false) {
-                throw new Exception("Failed to save service {$service_id}: " . $wpdb->last_error);
-            }
-        }
+
+    if (!$nonce_valid) {
+        wp_send_json_error(array('message' => 'Security verification failed'));
+        return;
     }
-    
-    /**
-     * NEW: Save booking service options to junction table
-     */
-    private function save_booking_service_options($booking_id, $options_data) {
-        global $wpdb;
-        
-        // Parse options data
-        if (is_string($options_data)) {
-            $options_data = json_decode($options_data, true);
-        }
-        
-        if (!is_array($options_data)) {
-            return; // No options to save
-        }
-        
-        foreach ($options_data as $option_id => $option_value) {
-            $option_id = absint($option_id);
-            
-            if ($option_id <= 0) {
-                continue;
-            }
-            
-            // Get option details
-            $option = $wpdb->get_row($wpdb->prepare(
-                "SELECT id, name, price_impact, price_type FROM {$wpdb->prefix}mobooking_service_options WHERE id = %d",
-                $option_id
-            ));
-            
-            if (!$option) {
-                continue; // Skip invalid options
-            }
-            
-            // Calculate price impact
-            $price_impact = $this->calculate_option_price_impact($option, $option_value);
-            
-            // Insert into junction table
-            $result = $wpdb->insert(
-                $wpdb->prefix . 'mobooking_booking_service_options',
-                array(
-                    'booking_id' => $booking_id,
-                    'service_option_id' => $option_id,
-                    'option_value' => is_array($option_value) ? json_encode($option_value) : (string)$option_value,
-                    'price_impact' => $price_impact
-                ),
-                array('%d', '%d', '%s', '%f')
-            );
-            
-            if ($result === false) {
-                throw new Exception("Failed to save option {$option_id}: " . $wpdb->last_error);
-            }
-        }
+
+    $service_id = isset($_POST['service_id']) ? absint($_POST['service_id']) : 0;
+    if (!$service_id) {
+        wp_send_json_error(array('message' => 'Service ID required'));
+        return;
     }
-    
-    /**
-     * NEW: Calculate booking pricing from normalized data
-     */
-    private function calculate_booking_pricing($data) {
-        global $wpdb;
-        
-        $subtotal = 0;
-        $services_total = 0;
-        $options_total = 0;
-        
-        // Calculate services total
-        if (!empty($data['selected_services']) && is_array($data['selected_services'])) {
-            $service_ids = array_map('absint', $data['selected_services']);
-            $service_ids = array_filter($service_ids);
-            
-            if (!empty($service_ids)) {
-                $placeholders = implode(',', array_fill(0, count($service_ids), '%d'));
-                $services_total = $wpdb->get_var($wpdb->prepare(
-                    "SELECT SUM(price) FROM {$wpdb->prefix}mobooking_services WHERE id IN ($placeholders)",
-                    ...$service_ids
-                ));
-                $services_total = floatval($services_total);
-            }
-        }
-        
-        // Calculate options total
-        if (!empty($data['service_options_data'])) {
-            $options_data = is_string($data['service_options_data']) 
-                ? json_decode($data['service_options_data'], true) 
-                : $data['service_options_data'];
-            
-            if (is_array($options_data)) {
-                foreach ($options_data as $option_id => $option_value) {
-                    $option_id = absint($option_id);
-                    
-                    if ($option_id <= 0) {
-                        continue;
-                    }
-                    
-                    $option = $wpdb->get_row($wpdb->prepare(
-                        "SELECT price_impact, price_type FROM {$wpdb->prefix}mobooking_service_options WHERE id = %d",
-                        $option_id
-                    ));
-                    
-                    if ($option) {
-                        $options_total += $this->calculate_option_price_impact($option, $option_value);
-                    }
-                }
-            }
-        }
-        
-        $subtotal = $services_total + $options_total;
-        $discount_amount = isset($data['discount_amount']) ? floatval($data['discount_amount']) : 0;
-        $total = max(0, $subtotal - $discount_amount);
-        
-        return array(
-            'services_total' => $services_total,
-            'options_total' => $options_total,
-            'subtotal' => $subtotal,
-            'discount_amount' => $discount_amount,
-            'total' => $total
+
+    // Get options directly from database
+    global $wpdb;
+    $table_name = $wpdb->prefix . 'mobooking_service_options';
+
+    $options = $wpdb->get_results($wpdb->prepare(
+        "SELECT * FROM $table_name WHERE service_id = %d ORDER BY display_order ASC",
+        $service_id
+    ));
+
+    // Format options for frontend
+    $formatted_options = array();
+    foreach ($options as $option) {
+        $formatted_options[] = array(
+            'id' => intval($option->id),
+            'service_id' => intval($option->service_id),
+            'name' => $option->name,
+            'description' => $option->description,
+            'type' => $option->type,
+            'is_required' => intval($option->is_required),
+            'price_impact' => floatval($option->price_impact),
+            'price_type' => $option->price_type,
+            'options' => $option->options,
+            'default_value' => $option->default_value,
+            'placeholder' => $option->placeholder,
+            'min_value' => $option->min_value,
+            'max_value' => $option->max_value,
+            'step' => $option->step,
+            'unit' => $option->unit,
+            'rows' => intval($option->rows)
         );
     }
-    
-    /**
-     * Calculate option price impact
-     */
-    private function calculate_option_price_impact($option, $option_value) {
-        if ($option->price_type === 'none' || $option->price_impact == 0) {
-            return 0;
-        }
-        
-        switch ($option->price_type) {
-            case 'fixed':
-                return floatval($option->price_impact);
-                
-            case 'percentage':
-                // Note: For percentage, we return the base percentage
-                // The actual percentage calculation should be done against the service price
-                return floatval($option->price_impact);
-                
-            case 'multiply':
-                if (is_numeric($option_value)) {
-                    return floatval($option->price_impact) * floatval($option_value);
-                }
-                return 0;
-                
-            case 'choice':
-                // For choice-based pricing, try to extract price from the value
-                if (is_string($option_value) && strpos($option_value, ':') !== false) {
-                    $parts = explode(':', $option_value);
-                    if (isset($parts[1]) && is_numeric($parts[1])) {
-                        return floatval($parts[1]);
-                    }
-                }
-                return 0;
-                
-            default:
-                return 0;
-        }
-    }
-    
-    /**
-     * FIXED: Get booking by ID with normalized data
-     */
-    public function get_booking($booking_id, $user_id = null) {
-        global $wpdb;
-        
-        // Get main booking data
-        if ($user_id) {
-            $booking = $wpdb->get_row($wpdb->prepare(
-                "SELECT * FROM {$wpdb->prefix}mobooking_bookings WHERE id = %d AND user_id = %d",
-                $booking_id, $user_id
-            ));
-        } else {
-            $booking = $wpdb->get_row($wpdb->prepare(
-                "SELECT * FROM {$wpdb->prefix}mobooking_bookings WHERE id = %d",
-                $booking_id
-            ));
-        }
-        
-        if (!$booking) {
-            return null;
-        }
-        
-        // Get booking services
-        $booking->services = $wpdb->get_results($wpdb->prepare(
-            "SELECT bs.*, s.name as service_name, s.description as service_description
-             FROM {$wpdb->prefix}mobooking_booking_services bs
-             JOIN {$wpdb->prefix}mobooking_services s ON bs.service_id = s.id
-             WHERE bs.booking_id = %d",
-            $booking_id
-        ));
-        
-        // Get booking service options
-        $booking->service_options = $wpdb->get_results($wpdb->prepare(
-            "SELECT bso.*, so.name as option_name, so.type as option_type
-             FROM {$wpdb->prefix}mobooking_booking_service_options bso
-             JOIN {$wpdb->prefix}mobooking_service_options so ON bso.service_option_id = so.id
-             WHERE bso.booking_id = %d",
-            $booking_id
-        ));
-        
-        return $booking;
-    }
-    
-    /**
-     * FIXED: Get user bookings with normalized data
-     */
-    public function get_user_bookings($user_id, $args = array()) {
-        global $wpdb;
-        
-        $defaults = array(
-            'limit' => -1,
-            'offset' => 0,
-            'orderby' => 'created_at',
-            'order' => 'DESC',
-            'status' => '',
-            'date_from' => '',
-            'date_to' => '',
-        );
-        
-        $args = wp_parse_args($args, $defaults);
-        
-        $sql = "SELECT * FROM {$wpdb->prefix}mobooking_bookings WHERE user_id = %d";
-        $params = array($user_id);
-        
-        if (!empty($args['status'])) {
-            $sql .= " AND status = %s";
-            $params[] = $args['status'];
-        }
-        
-        if (!empty($args['date_from'])) {
-            $sql .= " AND service_date >= %s";
-            $params[] = $args['date_from'];
-        }
-        
-        if (!empty($args['date_to'])) {
-            $sql .= " AND service_date <= %s";
-            $params[] = $args['date_to'];
-        }
-        
-        $sql .= " ORDER BY {$args['orderby']} {$args['order']}";
-        
-        if ($args['limit'] > 0) {
-            $sql .= " LIMIT %d";
-            $params[] = $args['limit'];
-            
-            if ($args['offset'] > 0) {
-                $sql .= " OFFSET %d";
-                $params[] = $args['offset'];
-            }
-        }
-        
-        $bookings = $wpdb->get_results($wpdb->prepare($sql, $params));
-        
-        // Enhance each booking with services and options data
-        foreach ($bookings as $booking) {
-            $booking->services = $wpdb->get_results($wpdb->prepare(
-                "SELECT bs.*, s.name as service_name
-                 FROM {$wpdb->prefix}mobooking_booking_services bs
-                 JOIN {$wpdb->prefix}mobooking_services s ON bs.service_id = s.id
-                 WHERE bs.booking_id = %d",
-                $booking->id
-            ));
-            
-            $booking->service_options = $wpdb->get_results($wpdb->prepare(
-                "SELECT bso.*, so.name as option_name
-                 FROM {$wpdb->prefix}mobooking_booking_service_options bso
-                 JOIN {$wpdb->prefix}mobooking_service_options so ON bso.service_option_id = so.id
-                 WHERE bso.booking_id = %d",
-                $booking->id
-            ));
-        }
-        
-        return $bookings;
-    }
-    
-    /**
-     * FIXED: Count user bookings
-     */
-    public function count_user_bookings($user_id, $status = '') {
-        global $wpdb;
-        
-        if (!empty($status)) {
-            return $wpdb->get_var($wpdb->prepare(
-                "SELECT COUNT(*) FROM {$wpdb->prefix}mobooking_bookings WHERE user_id = %d AND status = %s",
-                $user_id, $status
-            ));
-        }
-        
-        return $wpdb->get_var($wpdb->prepare(
-            "SELECT COUNT(*) FROM {$wpdb->prefix}mobooking_bookings WHERE user_id = %d",
-            $user_id
-        ));
-    }
-    
-    /**
-     * FIXED: Calculate user revenue
-     */
-    public function calculate_user_revenue($user_id, $period = 'all') {
-        global $wpdb;
-        
-        $sql = "SELECT SUM(total_price) FROM {$wpdb->prefix}mobooking_bookings WHERE user_id = %d AND status IN ('confirmed', 'completed')";
-        $params = array($user_id);
-        
-        switch ($period) {
-            case 'today':
-                $sql .= " AND DATE(created_at) = CURDATE()";
-                break;
-            case 'this_week':
-                $sql .= " AND YEARWEEK(created_at) = YEARWEEK(NOW())";
-                break;
-            case 'this_month':
-                $sql .= " AND YEAR(created_at) = YEAR(NOW()) AND MONTH(created_at) = MONTH(NOW())";
-                break;
-        }
-        
-        $result = $wpdb->get_var($wpdb->prepare($sql, $params));
-        return $result ? floatval($result) : 0;
-    }
-    
-    /**
-     * FIXED: Get most popular service using normalized data
-     */
-    public function get_most_popular_service($user_id) {
-        global $wpdb;
-        
-        $sql = "SELECT s.*, COUNT(bs.service_id) as booking_count 
-                FROM {$wpdb->prefix}mobooking_services s
-                JOIN {$wpdb->prefix}mobooking_booking_services bs ON s.id = bs.service_id
-                JOIN {$wpdb->prefix}mobooking_bookings b ON bs.booking_id = b.id
-                WHERE s.user_id = %d 
-                GROUP BY s.id 
-                ORDER BY booking_count DESC 
-                LIMIT 1";
-        
-        return $wpdb->get_row($wpdb->prepare($sql, $user_id));
-    }
-    
-    /**
-     * Update booking status with transaction support
-     */
-    public function update_booking_status($booking_id, $status, $user_id = null) {
-        global $wpdb;
-        
-        $wpdb->query('START TRANSACTION');
-        
-        try {
-            $where = array('id' => $booking_id);
-            $where_format = array('%d');
-            
-            if ($user_id) {
-                $where['user_id'] = $user_id;
-                $where_format[] = '%d';
-            }
-            
-            $result = $wpdb->update(
-                $wpdb->prefix . 'mobooking_bookings',
-                array('status' => $status),
-                $where,
-                array('%s'),
-                $where_format
-            );
-            
-            if ($result === false) {
-                throw new Exception('Failed to update booking status: ' . $wpdb->last_error);
-            }
-            
-            $wpdb->query('COMMIT');
-            return true;
-            
-        } catch (Exception $e) {
-            $wpdb->query('ROLLBACK');
-            
-            if (defined('WP_DEBUG') && WP_DEBUG) {
-                error_log('MoBooking: Update booking status failed: ' . $e->getMessage());
-            }
-            
-            return false;
-        }
-    }
-    
-    /**
-     * Delete booking with cascading deletes (transaction protected)
-     */
-    public function delete_booking($booking_id, $user_id = null) {
-        global $wpdb;
-        
-        $wpdb->query('START TRANSACTION');
-        
-        try {
-            // Verify ownership if user_id provided
-            if ($user_id) {
-                $booking = $wpdb->get_var($wpdb->prepare(
-                    "SELECT id FROM {$wpdb->prefix}mobooking_bookings WHERE id = %d AND user_id = %d",
-                    $booking_id, $user_id
-                ));
-                
-                if (!$booking) {
-                    throw new Exception('Booking not found or access denied');
-                }
-            }
-            
-            // Delete booking services (cascade)
-            $wpdb->delete(
-                $wpdb->prefix . 'mobooking_booking_services',
-                array('booking_id' => $booking_id),
-                array('%d')
-            );
-            
-            // Delete booking service options (cascade)
-            $wpdb->delete(
-                $wpdb->prefix . 'mobooking_booking_service_options',
-                array('booking_id' => $booking_id),
-                array('%d')
-            );
-            
-            // Delete main booking record
-            $result = $wpdb->delete(
-                $wpdb->prefix . 'mobooking_bookings',
-                array('id' => $booking_id),
-                array('%d')
-            );
-            
-            if ($result === false) {
-                throw new Exception('Failed to delete booking: ' . $wpdb->last_error);
-            }
-            
-            $wpdb->query('COMMIT');
-            return true;
-            
-        } catch (Exception $e) {
-            $wpdb->query('ROLLBACK');
-            
-            if (defined('WP_DEBUG') && WP_DEBUG) {
-                error_log('MoBooking: Delete booking failed: ' . $e->getMessage());
-            }
-            
-            return false;
-        }
-    }
-    
-    /**
-     * Validate booking data
-     */
-    private function validate_booking_data($data) {
-        $required_fields = array('user_id', 'customer_name', 'customer_email', 'customer_address', 'zip_code', 'service_date', 'selected_services');
-        
-        foreach ($required_fields as $field) {
-            if (empty($data[$field])) {
-                throw new Exception("Missing required field: {$field}");
-            }
-        }
-        
-        if (!is_email($data['customer_email'])) {
-            throw new Exception('Invalid email address');
-        }
-        
-        if (empty($data['selected_services']) || !is_array($data['selected_services'])) {
-            throw new Exception('No services selected');
-        }
-        
-        // Validate service date
-        $service_date = strtotime($data['service_date']);
-        if ($service_date === false || $service_date < time()) {
-            throw new Exception('Invalid service date');
-        }
-        
-        // Validate user exists and has correct role
-        $user = get_userdata($data['user_id']);
-        if (!$user || (!in_array('mobooking_business_owner', $user->roles) && !in_array('administrator', $user->roles))) {
-            throw new Exception('Invalid business owner');
-        }
-    }
-    
-    /**
-     * Update discount usage
-     */
-    private function update_discount_usage($discount_code, $user_id) {
-        global $wpdb;
-        
-        $result = $wpdb->query($wpdb->prepare(
-            "UPDATE {$wpdb->prefix}mobooking_discounts 
-             SET usage_count = usage_count + 1 
-             WHERE code = %s AND user_id = %d",
-            $discount_code, $user_id
-        ));
-        
-        if ($result === false) {
-            throw new Exception('Failed to update discount usage: ' . $wpdb->last_error);
-        }
-    }
-    
-    /**
-     * Send booking confirmation email
-     */
-    private function send_booking_confirmation($booking_id) {
-        $booking = $this->get_booking($booking_id);
-        if (!$booking) {
-            return false;
-        }
-        
-        // Get business owner settings
-        $settings_manager = new \MoBooking\Database\SettingsManager();
-        $settings = $settings_manager->get_settings($booking->user_id);
-        
-        // Prepare email content
-        $subject = sprintf(__('Booking Confirmation - %s', 'mobooking'), $settings->company_name);
-        
-        $message = $settings->email_header;
-        $message .= '<h2>' . __('Booking Confirmation', 'mobooking') . '</h2>';
-        $message .= '<p>' . sprintf(__('Dear %s,', 'mobooking'), $booking->customer_name) . '</p>';
-        $message .= '<p>' . $settings->booking_confirmation_message . '</p>';
-        
-        $message .= '<h3>' . __('Booking Details', 'mobooking') . '</h3>';
-        $message .= '<p><strong>' . __('Booking ID:', 'mobooking') . '</strong> #' . $booking->id . '</p>';
-        $message .= '<p><strong>' . __('Service Date:', 'mobooking') . '</strong> ' . date_i18n(get_option('date_format') . ' ' . get_option('time_format'), strtotime($booking->service_date)) . '</p>';
-        $message .= '<p><strong>' . __('Address:', 'mobooking') . '</strong> ' . $booking->customer_address . '</p>';
-        
-        // Add services details
-        if (!empty($booking->services)) {
-            $message .= '<h4>' . __('Services:', 'mobooking') . '</h4>';
-            $message .= '<ul>';
-            foreach ($booking->services as $service) {
-                $message .= '<li>' . $service->service_name . ' - ' . wc_price($service->unit_price) . '</li>';
-            }
-            $message .= '</ul>';
-        }
-        
-        // Add options details
-        if (!empty($booking->service_options)) {
-            $message .= '<h4>' . __('Additional Options:', 'mobooking') . '</h4>';
-            $message .= '<ul>';
-            foreach ($booking->service_options as $option) {
-                $message .= '<li>' . $option->option_name . ': ' . $option->option_value;
-                if ($option->price_impact > 0) {
-                    $message .= ' (+' . wc_price($option->price_impact) . ')';
-                }
-                $message .= '</li>';
-            }
-            $message .= '</ul>';
-        }
-        
-        $message .= '<p><strong>' . __('Total Amount:', 'mobooking') . '</strong> ' . wc_price($booking->total_price) . '</p>';
-        
-        if (!empty($booking->notes)) {
-            $message .= '<p><strong>' . __('Special Instructions:', 'mobooking') . '</strong> ' . $booking->notes . '</p>';
-        }
-        
-        $message .= $settings->email_footer;
-        
-        // Send email
-        $headers = array('Content-Type: text/html; charset=UTF-8');
-        wp_mail($booking->customer_email, $subject, $message, $headers);
-        
-        // Also notify business owner
-        $business_user = get_userdata($booking->user_id);
-        if ($business_user) {
-            $business_subject = sprintf(__('New Booking Received - #%d', 'mobooking'), $booking->id);
-            $business_message = sprintf(__('You have received a new booking from %s for %s.', 'mobooking'), 
-                $booking->customer_name, 
-                date_i18n(get_option('date_format'), strtotime($booking->service_date))
-            );
-            wp_mail($business_user->user_email, $business_subject, $business_message);
-        }
-        
-        return true;
-    }
-    
-    /**
-     * AJAX handler to save booking - UPDATED for normalized structure
-     */
-    public function ajax_save_booking() {
-        try {
-            // Check nonce
-            if (!isset($_POST['nonce']) || !wp_verify_nonce($_POST['nonce'], 'mobooking-booking-nonce')) {
-                wp_send_json_error(__('Security verification failed.', 'mobooking'));
-                return;
-            }
-            
-            // Validate required fields
-            $required_fields = array('customer_name', 'customer_email', 'customer_address', 'zip_code', 'service_date', 'selected_services', 'total_price', 'user_id');
-            
-            foreach ($required_fields as $field) {
-                if (empty($_POST[$field])) {
-                    wp_send_json_error(sprintf(__('Field %s is required.', 'mobooking'), $field));
-                    return;
-                }
-            }
-            
-            // Validate email
-            if (!is_email($_POST['customer_email'])) {
-                wp_send_json_error(__('Invalid email address.', 'mobooking'));
-                return;
-            }
-            
-            // Process selected services
-            $selected_services = array();
-            if (isset($_POST['selected_services']) && is_array($_POST['selected_services'])) {
-                $selected_services = array_map('absint', $_POST['selected_services']);
-            }
-            
-            if (empty($selected_services)) {
-                wp_send_json_error(__('Please select at least one service.', 'mobooking'));
-                return;
-            }
-            
-            // Prepare booking data
-            $booking_data = array(
-                'user_id' => absint($_POST['user_id']),
-                'customer_name' => $_POST['customer_name'],
-                'customer_email' => $_POST['customer_email'],
-                'customer_phone' => isset($_POST['customer_phone']) ? $_POST['customer_phone'] : '',
-                'customer_address' => $_POST['customer_address'],
-                'zip_code' => $_POST['zip_code'],
-                'service_date' => $_POST['service_date'],
-                'selected_services' => $selected_services,
-                'service_options_data' => isset($_POST['service_options_data']) ? $_POST['service_options_data'] : '',
-                'total_price' => $_POST['total_price'],
-                'discount_code' => isset($_POST['discount_code']) ? $_POST['discount_code'] : '',
-                'discount_amount' => isset($_POST['discount_amount']) ? $_POST['discount_amount'] : 0,
-                'booking_notes' => isset($_POST['booking_notes']) ? $_POST['booking_notes'] : ''
-            );
-            
-            // Save booking
-            $booking_id = $this->save_booking($booking_data);
-            
-            if ($booking_id) {
-                wp_send_json_success(array(
-                    'id' => $booking_id,
-                    'message' => __('Booking confirmed successfully!', 'mobooking'),
-                    'auto_advance' => true
-                ));
-            } else {
-                wp_send_json_error(__('Failed to save booking. Please try again.', 'mobooking'));
-            }
-            
-        } catch (Exception $e) {
-            if (defined('WP_DEBUG') && WP_DEBUG) {
-                error_log('MoBooking Save Booking Exception: ' . $e->getMessage());
-            }
-            wp_send_json_error(__('An error occurred while saving your booking.', 'mobooking'));
-        }
-    }
-    
+
+    wp_send_json_success(array('options' => $formatted_options));
+}
+
+
     /**
      * AJAX handler to check ZIP coverage - ENHANCED for auto-progression
      */
@@ -899,62 +190,81 @@ class Manager {
             ));
         }
     }
-
+    
     /**
-     * AJAX handler to get service options
+     * AJAX handler to save booking - ENHANCED for auto-progression
      */
-    public function ajax_get_service_options() {
-        // Simple nonce check - accept any valid mobooking nonce
-        $nonce_valid = false;
-        if (isset($_POST['nonce'])) {
-            $nonce_valid = wp_verify_nonce($_POST['nonce'], 'mobooking-booking-nonce') || 
-                          wp_verify_nonce($_POST['nonce'], 'mobooking-service-nonce');
-        }
+    public function ajax_save_booking() {
+        try {
+            // Check nonce
+            if (!isset($_POST['nonce']) || !wp_verify_nonce($_POST['nonce'], 'mobooking-booking-nonce')) {
+                wp_send_json_error(__('Security verification failed.', 'mobooking'));
+                return;
+            }
 
-        if (!$nonce_valid) {
-            wp_send_json_error(array('message' => 'Security verification failed'));
-            return;
-        }
+            // Validate required fields
+            $required_fields = array('customer_name', 'customer_email', 'customer_address', 'zip_code', 'service_date', 'selected_services', 'total_price', 'user_id');
+            
+            foreach ($required_fields as $field) {
+                if (empty($_POST[$field])) {
+                    wp_send_json_error(sprintf(__('Field %s is required.', 'mobooking'), $field));
+                    return;
+                }
+            }
+            
+            // Validate email
+            if (!is_email($_POST['customer_email'])) {
+                wp_send_json_error(__('Invalid email address.', 'mobooking'));
+                return;
+            }
+            
+            // Process selected services
+            $selected_services = array();
+            if (isset($_POST['selected_services']) && is_array($_POST['selected_services'])) {
+                $selected_services = array_map('absint', $_POST['selected_services']);
+            }
+            
+            if (empty($selected_services)) {
+                wp_send_json_error(__('Please select at least one service.', 'mobooking'));
+                return;
+            }
 
-        $service_id = isset($_POST['service_id']) ? absint($_POST['service_id']) : 0;
-        if (!$service_id) {
-            wp_send_json_error(array('message' => 'Service ID required'));
-            return;
-        }
-
-        // Get options directly from database
-        global $wpdb;
-        $table_name = $wpdb->prefix . 'mobooking_service_options';
-        
-        $options = $wpdb->get_results($wpdb->prepare(
-            "SELECT * FROM $table_name WHERE service_id = %d ORDER BY display_order ASC",
-            $service_id
-        ));
-
-        // Format options for frontend
-        $formatted_options = array();
-        foreach ($options as $option) {
-            $formatted_options[] = array(
-                'id' => intval($option->id),
-                'service_id' => intval($option->service_id),
-                'name' => $option->name,
-                'description' => $option->description,
-                'type' => $option->type,
-                'is_required' => intval($option->is_required),
-                'price_impact' => floatval($option->price_impact),
-                'price_type' => $option->price_type,
-                'options' => $option->options,
-                'default_value' => $option->default_value,
-                'placeholder' => $option->placeholder,
-                'min_value' => $option->min_value,
-                'max_value' => $option->max_value,
-                'step' => $option->step,
-                'unit' => $option->unit,
-                'rows' => intval($option->rows)
+            // Prepare booking data
+            $booking_data = array(
+                'user_id' => absint($_POST['user_id']),
+                'customer_name' => $_POST['customer_name'],
+                'customer_email' => $_POST['customer_email'],
+                'customer_phone' => isset($_POST['customer_phone']) ? $_POST['customer_phone'] : '',
+                'customer_address' => $_POST['customer_address'],
+                'zip_code' => $_POST['zip_code'],
+                'service_date' => $_POST['service_date'],
+                'selected_services' => $selected_services,
+                'service_options_data' => isset($_POST['service_options_data']) ? $_POST['service_options_data'] : '',
+                'total_price' => $_POST['total_price'],
+                'discount_code' => isset($_POST['discount_code']) ? $_POST['discount_code'] : '',
+                'discount_amount' => isset($_POST['discount_amount']) ? $_POST['discount_amount'] : 0,
+                'booking_notes' => isset($_POST['booking_notes']) ? $_POST['booking_notes'] : ''
             );
-        }
+            
+            // Save booking
+            $booking_id = $this->save_booking($booking_data);
 
-        wp_send_json_success(array('options' => $formatted_options));
+            if ($booking_id) {
+                wp_send_json_success(array(
+                    'id' => $booking_id,
+                    'message' => __('Booking confirmed successfully!', 'mobooking'),
+                    'auto_advance' => true // Enable auto-advance to success step
+                ));
+            } else {
+                wp_send_json_error(__('Failed to save booking. Please try again.', 'mobooking'));
+            }
+
+        } catch (Exception $e) {
+            if (defined('WP_DEBUG') && WP_DEBUG) {
+                error_log('MoBooking Save Booking Exception: ' . $e->getMessage());
+            }
+            wp_send_json_error(__('An error occurred while saving your booking.', 'mobooking'));
+        }
     }
     
     /**
@@ -1002,7 +312,7 @@ class Manager {
                 ));
                 return;
             }
-            
+
             // Calculate discount amount
             $discount_amount = 0;
             if ($discount->type === 'percentage') {
@@ -1010,21 +320,285 @@ class Manager {
             } else {
                 $discount_amount = min($discount->amount, $total);
             }
-            
+
             wp_send_json_success(array(
                 'discount_amount' => $discount_amount,
                 'message' => sprintf(__('Discount applied! You save %s', 'mobooking'), wc_price($discount_amount))
             ));
-            
+
         } catch (Exception $e) {
             if (defined('WP_DEBUG') && WP_DEBUG) {
                 error_log('MoBooking Discount Validation Exception: ' . $e->getMessage());
             }
-            
+
             wp_send_json_error(array(
                 'message' => __('Error processing discount code.', 'mobooking')
             ));
         }
+    }
+    
+    /**
+     * Save booking - ENHANCED with better service options handling
+     */
+    public function save_booking($data) {
+        global $wpdb;
+        $table_name = $wpdb->prefix . 'mobooking_bookings';
+        
+        // Process service options data
+        $service_options_json = '';
+        if (!empty($data['service_options_data'])) {
+            if (is_string($data['service_options_data'])) {
+                $service_options_json = $data['service_options_data'];
+            } else {
+                $service_options_json = wp_json_encode($data['service_options_data']);
+            }
+        }
+        
+        // Sanitize data
+        $booking_data = array(
+            'user_id' => absint($data['user_id']),
+            'customer_name' => sanitize_text_field($data['customer_name']),
+            'customer_email' => sanitize_email($data['customer_email']),
+            'customer_phone' => sanitize_text_field($data['customer_phone']),
+            'customer_address' => sanitize_textarea_field($data['customer_address']),
+            'zip_code' => sanitize_text_field($data['zip_code']),
+            'service_date' => sanitize_text_field($data['service_date']),
+            'services' => wp_json_encode($data['selected_services']),
+            'service_options' => $service_options_json,
+            'total_price' => floatval($data['total_price']),
+            'discount_code' => isset($data['discount_code']) ? sanitize_text_field($data['discount_code']) : '',
+            'discount_amount' => isset($data['discount_amount']) ? floatval($data['discount_amount']) : 0,
+            'status' => 'pending',
+            'notes' => isset($data['booking_notes']) ? sanitize_textarea_field($data['booking_notes']) : ''
+        );
+        
+        // Insert booking
+        $result = $wpdb->insert(
+            $table_name,
+            $booking_data,
+            array('%d', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%f', '%s', '%f', '%s', '%s')
+        );
+
+        if ($result) {
+            $booking_id = $wpdb->insert_id;
+
+            // Send confirmation email
+            $this->send_booking_confirmation($booking_id);
+
+            return $booking_id;
+        }
+
+        return false;
+    }
+    
+    /**
+     * Send booking confirmation email
+     */
+    private function send_booking_confirmation($booking_id) {
+        $booking = $this->get_booking($booking_id);
+        if (!$booking) return false;
+
+        // Get business owner settings
+        $settings_manager = new \MoBooking\Database\SettingsManager();
+        $settings = $settings_manager->get_settings($booking->user_id);
+
+        // Prepare email content
+        $subject = sprintf(__('Booking Confirmation - %s', 'mobooking'), $settings->company_name);
+
+        $message = $settings->email_header;
+        $message .= '<h2>' . __('Booking Confirmation', 'mobooking') . '</h2>';
+        $message .= '<p>' . sprintf(__('Dear %s,', 'mobooking'), $booking->customer_name) . '</p>';
+        $message .= '<p>' . $settings->booking_confirmation_message . '</p>';
+
+        $message .= '<h3>' . __('Booking Details', 'mobooking') . '</h3>';
+        $message .= '<p><strong>' . __('Booking ID:', 'mobooking') . '</strong> #' . $booking->id . '</p>';
+        $message .= '<p><strong>' . __('Service Date:', 'mobooking') . '</strong> ' . date_i18n(get_option('date_format') . ' ' . get_option('time_format'), strtotime($booking->service_date)) . '</p>';
+        $message .= '<p><strong>' . __('Address:', 'mobooking') . '</strong> ' . $booking->customer_address . '</p>';
+        $message .= '<p><strong>' . __('Total Amount:', 'mobooking') . '</strong> ' . wc_price($booking->total_price) . '</p>';
+
+        if (!empty($booking->notes)) {
+            $message .= '<p><strong>' . __('Special Instructions:', 'mobooking') . '</strong> ' . $booking->notes . '</p>';
+        }
+        
+        $message .= $settings->email_footer;
+
+        // Send email
+        $headers = array('Content-Type: text/html; charset=UTF-8');
+        wp_mail($booking->customer_email, $subject, $message, $headers);
+
+        // Also notify business owner
+        $business_user = get_userdata($booking->user_id);
+        if ($business_user) {
+            $business_subject = sprintf(__('New Booking Received - #%d', 'mobooking'), $booking->id);
+            $business_message = sprintf(__('You have received a new booking from %s for %s.', 'mobooking'),
+                $booking->customer_name,
+                date_i18n(get_option('date_format'), strtotime($booking->service_date))
+            );
+            wp_mail($business_user->user_email, $business_subject, $business_message);
+        }
+
+        return true;
+    }
+    
+    /**
+     * Get booking by ID
+     */
+    public function get_booking($booking_id, $user_id = null) {
+        global $wpdb;
+        $table_name = $wpdb->prefix . 'mobooking_bookings';
+        
+        if ($user_id) {
+            return $wpdb->get_row($wpdb->prepare(
+                "SELECT * FROM $table_name WHERE id = %d AND user_id = %d",
+                $booking_id, $user_id
+            ));
+        }
+        
+        return $wpdb->get_row($wpdb->prepare(
+            "SELECT * FROM $table_name WHERE id = %d",
+            $booking_id
+        ));
+    }
+    
+    /**
+     * Get user bookings with enhanced filtering
+     */
+    public function get_user_bookings($user_id, $args = array()) {
+        global $wpdb;
+        $table_name = $wpdb->prefix . 'mobooking_bookings';
+        
+        $defaults = array(
+            'limit' => -1,
+            'offset' => 0,
+            'orderby' => 'created_at',
+            'order' => 'DESC',
+            'status' => '',
+            'date_from' => '',
+            'date_to' => '',
+        );
+        
+        $args = wp_parse_args($args, $defaults);
+        
+        $sql = "SELECT * FROM $table_name WHERE user_id = %d";
+        $params = array($user_id);
+        
+        if (!empty($args['status'])) {
+            $sql .= " AND status = %s";
+            $params[] = $args['status'];
+        }
+        
+        if (!empty($args['date_from'])) {
+            $sql .= " AND service_date >= %s";
+            $params[] = $args['date_from'];
+        }
+        
+        if (!empty($args['date_to'])) {
+            $sql .= " AND service_date <= %s";
+            $params[] = $args['date_to'];
+        }
+        
+        $sql .= " ORDER BY {$args['orderby']} {$args['order']}";
+        
+        if ($args['limit'] > 0) {
+            $sql .= " LIMIT %d";
+            $params[] = $args['limit'];
+            
+            if ($args['offset'] > 0) {
+                $sql .= " OFFSET %d";
+                $params[] = $args['offset'];
+            }
+        }
+        
+        return $wpdb->get_results($wpdb->prepare($sql, $params));
+    }
+    
+    /**
+     * Count user bookings
+     */
+    public function count_user_bookings($user_id, $status = '') {
+        global $wpdb;
+        $table_name = $wpdb->prefix . 'mobooking_bookings';
+        
+        if (!empty($status)) {
+            return $wpdb->get_var($wpdb->prepare(
+                "SELECT COUNT(*) FROM $table_name WHERE user_id = %d AND status = %s",
+                $user_id, $status
+            ));
+        }
+        
+        return $wpdb->get_var($wpdb->prepare(
+            "SELECT COUNT(*) FROM $table_name WHERE user_id = %d",
+            $user_id
+        ));
+    }
+    
+    /**
+     * Calculate user revenue
+     */
+    public function calculate_user_revenue($user_id, $period = 'all') {
+        global $wpdb;
+        $table_name = $wpdb->prefix . 'mobooking_bookings';
+        
+        $sql = "SELECT SUM(total_price) FROM $table_name WHERE user_id = %d AND status IN ('confirmed', 'completed')";
+        $params = array($user_id);
+        
+        switch ($period) {
+            case 'today':
+                $sql .= " AND DATE(created_at) = CURDATE()";
+                break;
+            case 'this_week':
+                $sql .= " AND YEARWEEK(created_at) = YEARWEEK(NOW())";
+                break;
+            case 'this_month':
+                $sql .= " AND YEAR(created_at) = YEAR(NOW()) AND MONTH(created_at) = MONTH(NOW())";
+                break;
+        }
+        
+        $result = $wpdb->get_var($wpdb->prepare($sql, $params));
+        return $result ? floatval($result) : 0;
+    }
+    
+    /**
+     * Update booking status
+     */
+    public function update_booking_status($booking_id, $status, $user_id = null) {
+        global $wpdb;
+        $table_name = $wpdb->prefix . 'mobooking_bookings';
+        
+        $where = array('id' => $booking_id);
+        $where_format = array('%d');
+        
+        if ($user_id) {
+            $where['user_id'] = $user_id;
+            $where_format[] = '%d';
+        }
+        
+        return $wpdb->update(
+            $table_name,
+            array('status' => $status),
+            $where,
+            array('%s'),
+            $where_format
+        );
+    }
+    
+    /**
+     * Get most popular service
+     */
+    public function get_most_popular_service($user_id) {
+        global $wpdb;
+        $bookings_table = $wpdb->prefix . 'mobooking_bookings';
+        $services_table = $wpdb->prefix . 'mobooking_services';
+        
+        $sql = "SELECT s.*, COUNT(b.id) as booking_count
+                FROM $services_table s
+                LEFT JOIN $bookings_table b ON FIND_IN_SET(s.id, REPLACE(REPLACE(b.services, '[', ''), ']', ''))
+                WHERE s.user_id = %d
+                GROUP BY s.id
+                ORDER BY booking_count DESC
+                LIMIT 1";
+        
+        return $wpdb->get_row($wpdb->prepare($sql, $user_id));
     }
     
     /**
@@ -1229,145 +803,603 @@ class Manager {
             $options_manager = new \MoBooking\Services\ServiceOptionsManager();
             
             ob_start();
-            include MOBOOKING_PATH . '/templates/booking-form-template.php';
-            return ob_get_clean();
+            ?>
+            <div class="mobooking-booking-form-container">
+                <!-- Enhanced Progress Indicator -->
+                <div class="booking-progress">
+                    <div class="progress-bar">
+                        <div class="progress-fill" style="width: 16.66%;"></div>
+                    </div>
+                    <div class="progress-steps">
+                        <div class="step active">
+                            <div class="step-number">1</div>
+                            <div class="step-label"><?php _e('Location', 'mobooking'); ?></div>
+                        </div>
+                        <div class="step">
+                            <div class="step-number">2</div>
+                            <div class="step-label"><?php _e('Services', 'mobooking'); ?></div>
+                        </div>
+                        <div class="step">
+                            <div class="step-number">3</div>
+                            <div class="step-label"><?php _e('Options', 'mobooking'); ?></div>
+                        </div>
+                        <div class="step">
+                            <div class="step-number">4</div>
+                            <div class="step-label"><?php _e('Details', 'mobooking'); ?></div>
+                        </div>
+                        <div class="step">
+                            <div class="step-number">5</div>
+                            <div class="step-label"><?php _e('Review', 'mobooking'); ?></div>
+                        </div>
+                        <div class="step">
+                            <div class="step-number">6</div>
+                            <div class="step-label"><?php _e('Complete', 'mobooking'); ?></div>
+                        </div>
+                    </div>
+                </div>
+
+                <form id="mobooking-booking-form" class="booking-form">
+                    <!-- Hidden fields -->
+                    <input type="hidden" name="user_id" value="<?php echo esc_attr($user_id); ?>">
+                    <input type="hidden" name="total_price" id="total_price" value="0">
+                    <input type="hidden" name="discount_amount" id="discount_amount" value="0">
+                    <input type="hidden" name="service_options_data" id="service_options_data" value="">
+                    <?php wp_nonce_field('mobooking-booking-nonce', 'nonce'); ?>
+
+                    <!-- Step 1: ZIP Code -->
+                    <div class="booking-step step-1 active">
+                        <div class="step-header">
+                            <h2><?php _e('Check Service Availability', 'mobooking'); ?></h2>
+                            <p><?php _e('Enter your ZIP code to see if we service your area', 'mobooking'); ?></p>
+                        </div>
+
+                        <div class="zip-input-group">
+                            <label for="customer_zip_code"><?php _e('ZIP Code', 'mobooking'); ?></label>
+                            <div class="zip-input-wrapper">
+                                <input type="text" id="customer_zip_code" name="zip_code" class="zip-input"
+                                       placeholder="<?php _e('Enter ZIP code', 'mobooking'); ?>" required
+                                       pattern="[0-9]{5}(-[0-9]{4})?"
+                                       title="<?php _e('Please enter a valid ZIP code (e.g., 12345 or 12345-6789)', 'mobooking'); ?>">
+                                <div class="zip-validation-icon"></div>
+
+                            </div>
+                            <p class="zip-help"><?php _e('Enter your ZIP code to check service availability', 'mobooking'); ?></p>
+                        </div>
+
+                        <div class="zip-result"></div>
+
+                        <div class="step-actions">
+                            <button type="button" class="btn-primary next-step" disabled>
+                                <?php _e('Enter ZIP Code', 'mobooking'); ?>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Step 2: Services -->
+                    <div class="booking-step step-2">
+                        <div class="step-header">
+                            <h2><?php _e('Select Services', 'mobooking'); ?></h2>
+                            <p><?php _e('Choose the services you need', 'mobooking'); ?></p>
+                        </div>
+
+                        <div class="services-grid services-container">
+                            <?php foreach ($services as $service) :
+                                $service_options = $options_manager->get_service_options($service->id);
+                                $has_options = !empty($service_options);
+                            ?>
+                                <div class="service-card" data-service-id="<?php echo esc_attr($service->id); ?>" data-service-price="<?php echo esc_attr($service->price); ?>">
+                                    <div class="service-header">
+                                        <div class="service-visual">
+                                            <?php if (!empty($service->image_url)) : ?>
+                                                <div class="service-image">
+                                                    <img src="<?php echo esc_url($service->image_url); ?>" alt="<?php echo esc_attr($service->name); ?>">
+                                                </div>
+                                            <?php elseif (!empty($service->icon)) : ?>
+                                                <div class="service-icon">
+                                                    <span class="dashicons <?php echo esc_attr($service->icon); ?>"></span>
+                                                </div>
+                                            <?php else : ?>
+                                                <div class="service-icon service-icon-default">
+                                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                                        <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/>
+                                                    </svg>
+                                                </div>
+                                            <?php endif; ?>
+
+                                            <div class="service-content">
+                                                <h3><?php echo esc_html($service->name); ?></h3>
+                                                <?php if (!empty($service->description)) : ?>
+                                                    <p class="service-description"><?php echo esc_html($service->description); ?></p>
+                                                <?php endif; ?>
+                                            </div>
+                                        </div>
+
+                                        <div class="service-selector">
+                                            <input type="checkbox" name="selected_services[]" value="<?php echo esc_attr($service->id); ?>"
+                                                   id="service_<?php echo esc_attr($service->id); ?>"
+                                                   data-has-options="<?php echo $has_options ? 1 : 0; ?>">
+                                            <div class="service-checkbox"></div>
+                                        </div>
+                                    </div>
+
+                                    <div class="service-meta">
+                                        <div class="service-price"><?php echo wc_price($service->price); ?></div>
+                                        <div class="service-duration">
+                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                                <circle cx="12" cy="12" r="10"></circle>
+                                                <polyline points="12,6 12,12 16,14"></polyline>
+                                            </svg>
+                                            <?php echo sprintf(_n('%d min', '%d mins', $service->duration, 'mobooking'), $service->duration); ?>
+                                        </div>
+                                    </div>
+
+                                    <?php if ($has_options) : ?>
+                                        <div class="service-options-indicator">
+                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                                <circle cx="12" cy="12" r="3"/>
+                                                <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+                                            </svg>
+                                            <?php _e('Customizable options available', 'mobooking'); ?>
+                                        </div>
+                                    <?php endif; ?>
+                                </div>
+                            <?php endforeach; ?>
+                        </div>
+
+                        <div class="step-actions">
+                            <button type="button" class="btn-secondary prev-step"><?php _e('Back', 'mobooking'); ?></button>
+                            <button type="button" class="btn-primary next-step" disabled><?php _e('Select Services', 'mobooking'); ?></button>
+                        </div>
+                    </div>
+
+                    <!-- Step 3: Service Options -->
+                    <div class="booking-step step-3">
+                        <div class="step-header">
+                            <h2><?php _e('Customize Your Services', 'mobooking'); ?></h2>
+                            <p><?php _e('Configure your selected services', 'mobooking'); ?></p>
+                        </div>
+
+                        <div class="service-options-container">
+                            <!-- Service options will be loaded dynamically -->
+                        </div>
+
+                        <div class="no-options-message" style="display: none;">
+                            <div class="auto-advance-notice">
+                                <div class="notice-icon">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <path d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2ZM8 12l2 2 4-4"/>
+                                    </svg>
+                                </div>
+                                <p><?php _e('No additional options needed. Moving to next step...', 'mobooking'); ?></p>
+                            </div>
+                        </div>
+
+                        <div class="step-actions">
+                            <button type="button" class="btn-secondary prev-step"><?php _e('Back', 'mobooking'); ?></button>
+                            <button type="button" class="btn-primary next-step"><?php _e('Continue', 'mobooking'); ?></button>
+                        </div>
+                    </div>
+
+                    <!-- Step 4: Customer Information -->
+                    <div class="booking-step step-4">
+                        <div class="step-header">
+                            <h2><?php _e('Your Information', 'mobooking'); ?></h2>
+                            <p><?php _e('Please provide your contact details', 'mobooking'); ?></p>
+                        </div>
+
+                        <div class="form-grid">
+                            <div class="form-group">
+                                <label for="customer_name"><?php _e('Full Name', 'mobooking'); ?> *</label>
+                                <input type="text" id="customer_name" name="customer_name" required>
+                            </div>
+
+                            <div class="form-group">
+                                <label for="customer_email"><?php _e('Email Address', 'mobooking'); ?> *</label>
+                                <input type="email" id="customer_email" name="customer_email" required>
+                            </div>
+
+                            <div class="form-group">
+                                <label for="customer_phone"><?php _e('Phone Number', 'mobooking'); ?></label>
+                                <input type="tel" id="customer_phone" name="customer_phone">
+                            </div>
+
+                            <div class="form-group">
+                                <label for="service_date"><?php _e('Preferred Date & Time', 'mobooking'); ?> *</label>
+                                <input type="datetime-local" id="service_date" name="service_date" required>
+                            </div>
+
+                            <div class="form-group full-width">
+                                <label for="customer_address"><?php _e('Service Address', 'mobooking'); ?> *</label>
+                                <textarea id="customer_address" name="customer_address" rows="3" required
+                                          placeholder="<?php _e('Enter the full address where service will be provided', 'mobooking'); ?>"></textarea>
+                            </div>
+
+                            <div class="form-group full-width">
+                                <label for="booking_notes"><?php _e('Special Instructions', 'mobooking'); ?></label>
+                                <textarea id="booking_notes" name="booking_notes" rows="3"
+                                          placeholder="<?php _e('Any special instructions or requests...', 'mobooking'); ?>"></textarea>
+                            </div>
+                        </div>
+
+                        <div class="step-actions">
+                            <button type="button" class="btn-secondary prev-step"><?php _e('Back', 'mobooking'); ?></button>
+                            <button type="button" class="btn-primary next-step"><?php _e('Review Booking', 'mobooking'); ?></button>
+                        </div>
+                    </div>
+
+                    <!-- Step 5: Review & Confirm -->
+                    <div class="booking-step step-5">
+                        <div class="step-header">
+                            <h2><?php _e('Review Your Booking', 'mobooking'); ?></h2>
+                            <p><?php _e('Please review your booking details before confirming', 'mobooking'); ?></p>
+                        </div>
+
+                        <div class="booking-summary">
+                            <div class="summary-section">
+                                <h3><?php _e('Selected Services', 'mobooking'); ?></h3>
+                                <div class="selected-services-list">
+                                    <!-- Services will be populated by JavaScript -->
+                                </div>
+                            </div>
+
+                            <div class="summary-section">
+                                <h3><?php _e('Service Details', 'mobooking'); ?></h3>
+                                <div class="service-address"></div>
+                                <div class="service-datetime"></div>
+                            </div>
+
+                            <div class="summary-section">
+                                <h3><?php _e('Contact Information', 'mobooking'); ?></h3>
+                                <div class="customer-info"></div>
+                            </div>
+
+                            <div class="summary-section discount-section" style="display: none;">
+                                <h3><?php _e('Discount Code', 'mobooking'); ?></h3>
+                                <div class="discount-input-group">
+                                    <input type="text" id="discount_code" name="discount_code" placeholder="<?php _e('Enter discount code', 'mobooking'); ?>">
+                                    <button type="button" class="apply-discount-btn"><?php _e('Apply', 'mobooking'); ?></button>
+                                </div>
+                                <div class="discount-message"></div>
+                            </div>
+
+                            <div class="summary-section">
+                                <h3><?php _e('Pricing', 'mobooking'); ?></h3>
+                                <div class="pricing-summary">
+                                    <div class="pricing-line">
+                                        <span class="label"><?php _e('Subtotal', 'mobooking'); ?></span>
+                                        <span class="amount subtotal">$0.00</span>
+                                    </div>
+                                    <div class="pricing-line discount" style="display: none;">
+                                        <span class="label"><?php _e('Discount', 'mobooking'); ?></span>
+                                        <span class="amount">-$0.00</span>
+                                    </div>
+                                    <div class="pricing-line total">
+                                        <span class="label"><?php _e('Total', 'mobooking'); ?></span>
+                                        <span class="amount">$0.00</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="step-actions">
+                            <button type="button" class="btn-secondary prev-step"><?php _e('Back', 'mobooking'); ?></button>
+                            <button type="submit" class="btn-primary confirm-booking-btn">
+                                <span class="btn-text"><?php _e('Confirm Booking', 'mobooking'); ?></span>
+                                <span class="btn-loading"><?php _e('Processing...', 'mobooking'); ?></span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Step 6: Success -->
+                    <div class="booking-step step-6 step-success">
+                        <div class="success-content">
+                            <div class="success-icon">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2ZM8 12l2 2 4-4"/>
+                                </svg>
+                            </div>
+
+                            <h2><?php _e('Booking Confirmed!', 'mobooking'); ?></h2>
+                            <p class="success-message"><?php _e('Thank you for your booking. We\'ll contact you shortly to confirm the details.', 'mobooking'); ?></p>
+
+                            <div class="booking-reference">
+                                <strong><?php _e('Your booking reference:', 'mobooking'); ?></strong>
+                                <span class="reference-number">#0000</span>
+                            </div>
+
+                            <div class="next-steps">
+                                <p><?php _e('What happens next?', 'mobooking'); ?></p>
+                                <ul>
+                                    <li><?php _e('You\'ll receive a confirmation email shortly', 'mobooking'); ?></li>
+                                    <li><?php _e('We\'ll contact you to confirm the appointment details', 'mobooking'); ?></li>
+                                    <li><?php _e('Our team will arrive at the scheduled time', 'mobooking'); ?></li>
+                                </ul>
+                            </div>
+
+                            <div class="success-actions">
+                                <button type="button" class="btn-primary new-booking-btn" onclick="location.reload();">
+                                    <?php _e('Book Another Service', 'mobooking'); ?>
+                                </button>
+                                <button type="button" class="btn-secondary print-booking-btn" onclick="window.print();">
+                                    <?php _e('Print Confirmation', 'mobooking'); ?>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </form>
+
+                <!-- Auto-Progression Status Indicator -->
+                <div class="auto-progress-indicator" style="display: none;">
+                    <div class="progress-content">
+                        <div class="progress-spinner">
+                            <div class="spinner"></div>
+                        </div>
+                        <div class="progress-message">
+                            <span class="progress-text"><?php _e('Processing...', 'mobooking'); ?></span>
+                            <div class="progress-dots">
+                                <span class="dot"></span>
+                                <span class="dot"></span>
+                                <span class="dot"></span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <style>
+            /* Enhanced styles for auto-progression */
+            .auto-advance-notice {
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                gap: 1rem;
+                padding: 2rem;
+                background: linear-gradient(135deg, rgba(16, 185, 129, 0.1), rgba(16, 185, 129, 0.05));
+                border: 1px solid rgba(16, 185, 129, 0.2);
+                border-radius: 0.5rem;
+                color: #059669;
+                font-weight: 500;
+            }
             
+            .notice-icon svg {
+                width: 2rem;
+                height: 2rem;
+                color: #10b981;
+            }
+
+            .auto-progress-indicator {
+                position: fixed;
+                top: 50%;
+                left: 50%;
+                transform: translate(-50%, -50%);
+                background: rgba(255, 255, 255, 0.95);
+                backdrop-filter: blur(8px);
+                border-radius: 1rem;
+                padding: 2rem;
+                box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+                z-index: 1000;
+                text-align: center;
+                min-width: 200px;
+            }
+
+            .progress-content {
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                gap: 1rem;
+            }
+
+            .progress-spinner .spinner {
+                width: 2rem;
+                height: 2rem;
+                border: 3px solid rgba(59, 130, 246, 0.2);
+                border-top-color: #3b82f6;
+                border-radius: 50%;
+                animation: spin 1s linear infinite;
+            }
+
+            .progress-message {
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                gap: 0.5rem;
+            }
+
+            .progress-text {
+                font-weight: 600;
+                color: #374151;
+            }
+
+            .progress-dots {
+                display: flex;
+                gap: 0.25rem;
+            }
+
+            .progress-dots .dot {
+                width: 0.5rem;
+                height: 0.5rem;
+                background: #3b82f6;
+                border-radius: 50%;
+                animation: dotPulse 1.5s infinite;
+            }
+
+            .progress-dots .dot:nth-child(2) {
+                animation-delay: 0.2s;
+            }
+
+            .progress-dots .dot:nth-child(3) {
+                animation-delay: 0.4s;
+            }
+
+            @keyframes dotPulse {
+                0%, 20%, 80%, 100% {
+                    opacity: 0.3;
+                    transform: scale(1);
+                }
+                50% {
+                    opacity: 1;
+                    transform: scale(1.2);
+                }
+            }
+            
+            @keyframes spin {
+                to {
+                    transform: rotate(360deg);
+                }
+            }
+            
+            /* Enhanced step transitions */
+            .booking-step {
+                transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+                transform: translateX(0);
+                opacity: 1;
+            }
+
+            .booking-step:not(.active) {
+                transform: translateX(-20px);
+                opacity: 0;
+                pointer-events: none;
+            }
+
+            .booking-step.entering {
+                transform: translateX(20px);
+                opacity: 0;
+            }
+
+            .booking-step.entering.active {
+                transform: translateX(0);
+                opacity: 1;
+            }
+
+            /* Enhanced progress bar animation */
+            .progress-fill {
+                transition: width 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+                position: relative;
+                overflow: hidden;
+            }
+
+            .progress-fill::after {
+                content: '';
+                position: absolute;
+                top: 0;
+                left: 0;
+                right: 0;
+                bottom: 0;
+                background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+                animation: shimmer 2s infinite;
+            }
+
+            @keyframes shimmer {
+                0% {
+                    transform: translateX(-100%);
+                }
+                100% {
+                    transform: translateX(100%);
+                }
+            }
+
+            /* Enhanced service card selection */
+            .service-card {
+                transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            }
+
+            .service-card.selected {
+                transform: translateY(-4px) scale(1.02);
+                box-shadow: 0 8px 25px rgba(59, 130, 246, 0.15);
+            }
+
+            .service-card.selecting {
+                animation: cardPulse 0.6s ease-out;
+            }
+
+            @keyframes cardPulse {
+                0% {
+                    transform: scale(1);
+                }
+                50% {
+                    transform: scale(1.05);
+                }
+                100% {
+                    transform: scale(1.02);
+                }
+            }
+
+            /* Enhanced button states */
+            .btn-primary, .btn-secondary {
+                transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+                position: relative;
+                overflow: hidden;
+            }
+
+            .btn-primary:not(:disabled):hover {
+                transform: translateY(-2px);
+                box-shadow: 0 8px 25px rgba(59, 130, 246, 0.25);
+            }
+
+            .btn-primary:not(:disabled):active {
+                transform: translateY(0);
+            }
+
+            /* Success step enhancements */
+            .step-success {
+                text-align: center;
+                animation: successFadeIn 0.8s ease-out;
+            }
+
+            @keyframes successFadeIn {
+                0% {
+                    opacity: 0;
+                    transform: translateY(20px) scale(0.95);
+                }
+                100% {
+                    opacity: 1;
+                    transform: translateY(0) scale(1);
+                }
+            }
+
+            .success-icon {
+                animation: successBounce 1s ease-out 0.3s both;
+            }
+
+            @keyframes successBounce {
+                0% {
+                    transform: scale(0);
+                }
+                50% {
+                    transform: scale(1.2);
+                }
+                100% {
+                    transform: scale(1);
+                }
+            }
+
+            .success-actions {
+                display: flex;
+                gap: 1rem;
+                justify-content: center;
+                margin-top: 2rem;
+            }
+
+            @media (max-width: 768px) {
+                .success-actions {
+                    flex-direction: column;
+                }
+
+                .auto-progress-indicator {
+                    margin: 0 1rem;
+                    min-width: auto;
+                    width: calc(100% - 2rem);
+                }
+            }
+            </style>
+            <?php
+            return ob_get_clean();
+
         } catch (Exception $e) {
             if (defined('WP_DEBUG') && WP_DEBUG) {
                 error_log('MoBooking: Exception in render_booking_form: ' . $e->getMessage());
             }
             return '<p class="mobooking-error">' . __('Error rendering booking form.', 'mobooking') . '</p>';
         }
-    }
-    
-    /**
-     * Get booking analytics for dashboard
-     */
-    public function get_booking_analytics($user_id, $period = 'month') {
-        global $wpdb;
-        
-        $date_condition = '';
-        switch ($period) {
-            case 'today':
-                $date_condition = "AND DATE(created_at) = CURDATE()";
-                break;
-            case 'week':
-                $date_condition = "AND created_at >= DATE_SUB(NOW(), INTERVAL 1 WEEK)";
-                break;
-            case 'month':
-                $date_condition = "AND created_at >= DATE_SUB(NOW(), INTERVAL 1 MONTH)";
-                break;
-            case 'year':
-                $date_condition = "AND created_at >= DATE_SUB(NOW(), INTERVAL 1 YEAR)";
-                break;
-        }
-        
-        // Get booking counts by status
-        $status_counts = $wpdb->get_results($wpdb->prepare(
-            "SELECT status, COUNT(*) as count 
-             FROM {$wpdb->prefix}mobooking_bookings 
-             WHERE user_id = %d {$date_condition}
-             GROUP BY status",
-            $user_id
-        ));
-        
-        // Get revenue data
-        $revenue_data = $wpdb->get_row($wpdb->prepare(
-            "SELECT 
-                SUM(total_price) as total_revenue,
-                AVG(total_price) as average_booking_value,
-                COUNT(*) as total_bookings
-             FROM {$wpdb->prefix}mobooking_bookings 
-             WHERE user_id = %d AND status IN ('confirmed', 'completed') {$date_condition}",
-            $user_id
-        ));
-        
-        // Get most popular services
-        $popular_services = $wpdb->get_results($wpdb->prepare(
-            "SELECT s.name, COUNT(bs.service_id) as booking_count
-             FROM {$wpdb->prefix}mobooking_services s
-             JOIN {$wpdb->prefix}mobooking_booking_services bs ON s.id = bs.service_id
-             JOIN {$wpdb->prefix}mobooking_bookings b ON bs.booking_id = b.id
-             WHERE s.user_id = %d {$date_condition}
-             GROUP BY s.id, s.name
-             ORDER BY booking_count DESC
-             LIMIT 5",
-            $user_id
-        ));
-        
-        return array(
-            'status_counts' => $status_counts,
-            'revenue_data' => $revenue_data,
-            'popular_services' => $popular_services,
-            'period' => $period
-        );
-    }
-    
-    /**
-     * Export bookings data for reporting
-     */
-    public function export_bookings_csv($user_id, $args = array()) {
-        $bookings = $this->get_user_bookings($user_id, $args);
-        
-        if (empty($bookings)) {
-            return false;
-        }
-        
-        $filename = 'bookings-export-' . date('Y-m-d-H-i-s') . '.csv';
-        
-        header('Content-Type: text/csv');
-        header('Content-Disposition: attachment; filename="' . $filename . '"');
-        
-        $output = fopen('php://output', 'w');
-        
-        // CSV headers
-        fputcsv($output, array(
-            'Booking ID',
-            'Customer Name',
-            'Customer Email',
-            'Customer Phone',
-            'Service Date',
-            'Services',
-            'Options',
-            'Subtotal',
-            'Total Price',
-            'Status',
-            'Created Date'
-        ));
-        
-        foreach ($bookings as $booking) {
-            // Prepare services list
-            $services_list = array();
-            if (!empty($booking->services)) {
-                foreach ($booking->services as $service) {
-                    $services_list[] = $service->service_name;
-                }
-            }
-            
-            // Prepare options list
-            $options_list = array();
-            if (!empty($booking->service_options)) {
-                foreach ($booking->service_options as $option) {
-                    $options_list[] = $option->option_name . ': ' . $option->option_value;
-                }
-            }
-            
-            fputcsv($output, array(
-                $booking->id,
-                $booking->customer_name,
-                $booking->customer_email,
-                $booking->customer_phone,
-                $booking->service_date,
-                implode('; ', $services_list),
-                implode('; ', $options_list),
-                $booking->subtotal,
-                $booking->total_price,
-                $booking->status,
-                $booking->created_at
-            ));
-        }
-        
-        fclose($output);
-        exit;
     }
 }

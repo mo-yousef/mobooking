@@ -1,4 +1,6 @@
 <?php
+namespace MoBooking\Settings;
+
 // Add this to your SettingsManager class or create a new Settings AJAX handler
 
 /**
