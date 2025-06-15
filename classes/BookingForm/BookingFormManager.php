@@ -4,7 +4,7 @@ namespace MoBooking\BookingForm;
 /**
  * Booking Form Manager - Handles custom booking forms per user
  */
-class Manager {
+class BookingFormManager {
     /**
      * Constructor
      */

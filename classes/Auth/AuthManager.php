@@ -4,7 +4,7 @@ namespace MoBooking\Auth;
 /**
  * Authentication Manager
  */
-class Manager {
+class AuthManager {
     /**
      * Constructor
      */

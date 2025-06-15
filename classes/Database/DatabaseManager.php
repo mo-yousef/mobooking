@@ -4,7 +4,7 @@ namespace MoBooking\Database;
 /**
  * Database Manager class - FIXED VERSION with proper relationships
  */
-class Manager {
+class DatabaseManager {
     /**
      * Tables to be created
      */
