@@ -18,6 +18,18 @@ spl_autoload_register(function ($class) {
         return;
     }
 
+    // Specific fix for Database\Manager
+    if ($class === 'MoBooking\Database\Manager') {
+        $specific_file = MOBOOKING_PATH . '/classes/Database/manager.php';
+        if (file_exists($specific_file)) {
+            require_once $specific_file;
+            if (defined('WP_DEBUG') && WP_DEBUG) {
+                error_log("MoBooking: Successfully loaded class {$class} from specific path {$specific_file}");
+            }
+            return;
+        }
+    }
+
     // Remove MoBooking namespace prefix
     $relative_class = str_replace('MoBooking\\', '', $class);
     

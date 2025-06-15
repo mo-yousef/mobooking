@@ -37,6 +37,7 @@ if (!in_array('mobooking_business_owner', $current_user->roles) && !in_array('ad
 
 // Get current section - lightweight
 $current_section = get_query_var('section', 'overview');
+$current_section = str_replace('\\', '', $current_section); // Remove all backslashes
 
 // Quick settings load - only what's needed for layout
 $settings = (object) array(
