@@ -1767,37 +1767,37 @@ add_action('wp_ajax_mobooking_upload_logo', function() {
         if (!isset($_POST['nonce']) || !wp_verify_nonce($_POST['nonce'], 'mobooking-booking-form-nonce')) {
             wp_send_json_error(__('Security verification failed.', 'mobooking'));
         }
-
+        
         // Check permissions
         if (!current_user_can('mobooking_business_owner') && !current_user_can('administrator')) {
             wp_send_json_error(__('You do not have permission to do this.', 'mobooking'));
         }
-
+        
         // Check if file was uploaded
         if (!isset($_FILES['logo_file']) || $_FILES['logo_file']['error'] !== UPLOAD_ERR_OK) {
             wp_send_json_error(__('No file uploaded or upload error occurred.', 'mobooking'));
         }
-
+        
         $file = $_FILES['logo_file'];
-
+        
         // Validate file type
         $allowed_types = ['image/jpeg', 'image/jpg', 'image/png', 'image/svg+xml'];
         $file_type = wp_check_filetype($file['name']);
-
+        
         if (!in_array($file_type['type'], $allowed_types)) {
             wp_send_json_error(__('Invalid file type. Please upload JPG, PNG, or SVG files only.', 'mobooking'));
         }
-
+        
         // Validate file size (5MB limit)
         if ($file['size'] > 5 * 1024 * 1024) {
             wp_send_json_error(__('File size too large. Maximum size is 5MB.', 'mobooking'));
         }
-
+        
         // Handle the upload using WordPress functions
         if (!function_exists('wp_handle_upload')) {
             require_once(ABSPATH . 'wp-admin/includes/file.php');
         }
-
+        
         // Set upload directory to a custom subfolder
         add_filter('upload_dir', function($upload) {
             $upload['subdir'] = '/mobooking/logos';
@@ -1805,7 +1805,7 @@ add_action('wp_ajax_mobooking_upload_logo', function() {
             $upload['url'] = $upload['baseurl'] . $upload['subdir'];
             return $upload;
         });
-
+        
         $upload_overrides = array(
             'test_form' => false,
             'unique_filename_callback' => function($dir, $name, $ext) {
@@ -1815,12 +1815,12 @@ add_action('wp_ajax_mobooking_upload_logo', function() {
                 return "logo-{$user_id}-{$timestamp}{$ext}";
             }
         );
-
+        
         $movefile = wp_handle_upload($file, $upload_overrides);
-
+        
         // Remove the upload_dir filter
         remove_all_filters('upload_dir');
-
+        
         if ($movefile && !isset($movefile['error'])) {
             wp_send_json_success(array(
                 'url' => $movefile['url'],
@@ -1830,7 +1830,7 @@ add_action('wp_ajax_mobooking_upload_logo', function() {
         } else {
             wp_send_json_error($movefile['error'] ?? __('Upload failed.', 'mobooking'));
         }
-
+        
     } catch (Exception $e) {
         error_log('MoBooking - Exception in logo upload: ' . $e->getMessage());
         wp_send_json_error(__('An error occurred during upload.', 'mobooking'));

@@ -58,7 +58,7 @@ class Manager {
                 wp_send_json_error(__('Security verification failed.', 'mobooking'));
                 return;
             }
-
+            
             if (!current_user_can('mobooking_business_owner') && !current_user_can('administrator')) {
                 wp_send_json_error(__('You do not have permission to do this.', 'mobooking'));
                 return;
@@ -88,7 +88,7 @@ class Manager {
                 'state' => $state,
                 'total_areas' => count($areas_data)
             ));
-
+            
         } catch (Exception $e) {
             error_log('MoBooking: Exception in ajax_fetch_city_areas: ' . $e->getMessage());
             wp_send_json_error(array(
@@ -131,7 +131,7 @@ class Manager {
             $saved_count = 0;
             $errors = array();
             $duplicate_count = 0;
-
+            
             foreach ($areas_data as $area_data) {
                 try {
                     // Validate required fields
@@ -139,10 +139,10 @@ class Manager {
                         $errors[] = 'Missing area name or ZIP code for one entry';
                         continue;
                     }
-
+                    
                     $area_name = sanitize_text_field($area_data['area_name']);
                     $zip_code = sanitize_text_field($area_data['zip_code']);
-
+                    
                     // Check for duplicates (by area name + ZIP code combination)
                     $existing = $wpdb->get_var($wpdb->prepare(
                         "SELECT COUNT(*) FROM $table_name WHERE user_id = %d AND (
@@ -155,12 +155,12 @@ class Manager {
                         $zip_code,
                         $area_name
                     ));
-
+                    
                     if ($existing > 0) {
                         $duplicate_count++;
                         continue;
                     }
-
+                    
                     // Prepare area data for insertion
                     $insert_data = array(
                         'user_id' => $user_id,
@@ -173,26 +173,26 @@ class Manager {
                         'active' => 1,
                         'description' => sprintf(__('Service area in %s', 'mobooking'), $city_name)
                     );
-
+                    
                     // If the area has additional ZIP codes, merge them
                     if (!empty($area_data['additional_zips']) && is_array($area_data['additional_zips'])) {
                         $all_zips = array_merge(array($zip_code), $area_data['additional_zips']);
                         $all_zips = array_unique(array_filter($all_zips)); // Remove duplicates and empty values
                         $insert_data['zip_codes'] = json_encode($all_zips);
                     }
-
+                    
                     $result = $wpdb->insert(
                         $table_name,
                         $insert_data,
                         array('%d', '%s', '%s', '%s', '%s', '%s', '%s', '%d', '%s')
                     );
-
+                    
                     if ($result !== false) {
                         $saved_count++;
                     } else {
                         $errors[] = 'Failed to save: ' . $area_name . ' (DB Error: ' . $wpdb->last_error . ')';
                     }
-
+                    
                 } catch (Exception $e) {
                     $errors[] = 'Error saving ' . ($area_data['area_name'] ?? 'unknown area') . ': ' . $e->getMessage();
                 }
@@ -204,15 +204,15 @@ class Manager {
             
             if ($saved_count > 0) {
                 $message = sprintf(__('Successfully saved %d areas.', 'mobooking'), $saved_count);
-
+                
                 if ($duplicate_count > 0) {
                     $message .= ' ' . sprintf(__('%d duplicates were skipped.', 'mobooking'), $duplicate_count);
                 }
-
+                
                 if (!empty($errors)) {
                     $message .= ' ' . sprintf(__('However, %d errors occurred.', 'mobooking'), count($errors));
                 }
-
+                
                 wp_send_json_success(array(
                     'message' => $message,
                     'saved_count' => $saved_count,
@@ -225,14 +225,14 @@ class Manager {
                 if ($duplicate_count > 0) {
                     $message .= ' ' . sprintf(__('All %d areas already exist.', 'mobooking'), $duplicate_count);
                 }
-
+                
                 wp_send_json_error(array(
                     'message' => $message,
                     'errors' => $errors,
                     'duplicate_count' => $duplicate_count
                 ));
             }
-
+            
         } catch (Exception $e) {
             error_log('MoBooking: Exception in ajax_save_selected_areas: ' . $e->getMessage());
             wp_send_json_error(array(
@@ -459,40 +459,40 @@ class Manager {
      */
     private function fetch_from_postcode_io($city_name, $country_code, $state = '') {
         $areas = array();
-
+        
         // Only works for UK
         if ($country_code !== 'GB') {
             return $areas;
         }
-
+        
         try {
             // Search for postcodes near the city
             $url = "https://api.postcodes.io/places/" . urlencode($city_name);
-
+            
             $response = wp_remote_get($url, array(
                 'timeout' => 10,
                 'headers' => array(
                     'User-Agent' => 'MoBooking/1.0'
                 )
             ));
-
+            
             if (is_wp_error($response)) {
                 throw new Exception('API request failed: ' . $response->get_error_message());
             }
-
+            
             $body = wp_remote_retrieve_body($response);
             $data = json_decode($body, true);
-
+            
             if (!$data || !isset($data['result'])) {
                 return $areas;
             }
-
+            
             // Get nearby postcodes
             if (isset($data['result'][0])) {
                 $place = $data['result'][0];
                 $lat = $place['latitude'] ?? 0;
                 $lon = $place['longitude'] ?? 0;
-
+                
                 if ($lat && $lon) {
                     $nearby_url = "https://api.postcodes.io/postcodes?" . http_build_query(array(
                         'lat' => $lat,
@@ -500,18 +500,18 @@ class Manager {
                         'radius' => 5000,
                         'limit' => 20
                     ));
-
+                    
                     $nearby_response = wp_remote_get($nearby_url, array('timeout' => 10));
-
+                    
                     if (!is_wp_error($nearby_response)) {
                         $nearby_body = wp_remote_retrieve_body($nearby_response);
                         $nearby_data = json_decode($nearby_body, true);
-
+                        
                         if ($nearby_data && isset($nearby_data['result'])) {
                             foreach ($nearby_data['result'] as $postcode_data) {
                                 $area_name = $postcode_data['ward'] ?? $postcode_data['district'] ?? '';
                                 $zip_code = $postcode_data['postcode'] ?? '';
-
+                                
                                 if (!empty($area_name) && !empty($zip_code)) {
                                     $areas[] = array(
                                         'area_name' => $area_name,
@@ -528,22 +528,22 @@ class Manager {
                     }
                 }
             }
-
+            
         } catch (Exception $e) {
             if (defined('WP_DEBUG') && WP_DEBUG) {
                 error_log('MoBooking: Postcodes.io API error: ' . $e->getMessage());
             }
         }
-
+        
         return $areas;
     }
-
+    
     /**
      * Generate fallback areas when APIs fail
      */
     private function generate_fallback_areas($city_name, $country_code, $state = '') {
         $areas = array();
-
+        
         // Generate realistic area names based on common patterns
         $area_suffixes = array(
             'US' => array('Downtown', 'North Side', 'South Side', 'East End', 'West End', 'Old Town', 'Midtown', 'Uptown', 'Heights', 'Village'),
@@ -552,15 +552,15 @@ class Manager {
             'DE' => array('Zentrum', 'Nord', 'Süd', 'Ost', 'West', 'Altstadt', 'Neustadt', 'Park', 'Platz', 'Strasse'),
             'FR' => array('Centre', 'Nord', 'Sud', 'Est', 'Ouest', 'Vieux', 'Nouveau', 'Quartier', 'Place', 'Parc')
         );
-
+        
         $suffixes = $area_suffixes[$country_code] ?? $area_suffixes['US'];
-
+        
         // Generate mock ZIP codes
         $zip_codes = $this->generate_mock_zip_codes_for_city($city_name, $country_code);
-
+        
         for ($i = 0; $i < min(count($suffixes), count($zip_codes)); $i++) {
             $area_name = $city_name . ' ' . $suffixes[$i];
-
+            
             $areas[] = array(
                 'area_name' => $area_name,
                 'zip_code' => $zip_codes[$i],
@@ -571,7 +571,7 @@ class Manager {
                 'longitude' => 0
             );
         }
-
+        
         return $areas;
     }
     
@@ -864,7 +864,7 @@ class Manager {
      */
     public function maybe_upgrade_database() {
         $version = get_option('mobooking_geography_db_version', '1.0');
-
+        
         if (version_compare($version, '2.0', '<')) {
             $this->upgrade_areas_table();
             update_option('mobooking_geography_db_version', '2.0');
@@ -877,7 +877,7 @@ class Manager {
     private function upgrade_areas_table() {
         global $wpdb;
         $table_name = $wpdb->prefix . 'mobooking_areas';
-
+        
         // Add new columns if they don't exist
         $columns_to_add = array(
             'city_name' => 'VARCHAR(255) NULL AFTER label',
@@ -886,11 +886,11 @@ class Manager {
             'description' => 'TEXT NULL AFTER country',
             'zip_codes' => 'LONGTEXT NULL AFTER description'
         );
-
+        
         foreach ($columns_to_add as $column => $definition) {
             $column_exists = $wpdb->get_results(
                 $wpdb->prepare(
-                    "SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS
+                    "SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS 
                      WHERE TABLE_SCHEMA = %s AND TABLE_NAME = %s AND COLUMN_NAME = %s",
                     DB_NAME, $table_name, $column
                 )
@@ -904,7 +904,7 @@ class Manager {
                 }
             }
         }
-
+        
         // Migrate existing data
         $this->migrate_existing_data();
     }
@@ -918,14 +918,14 @@ class Manager {
         
         // Migrate single ZIP codes to ZIP codes array
         $areas_to_migrate = $wpdb->get_results(
-            "SELECT id, zip_code, label FROM $table_name
+            "SELECT id, zip_code, label FROM $table_name 
              WHERE zip_codes IS NULL AND zip_code IS NOT NULL"
         );
-
+        
         foreach ($areas_to_migrate as $area) {
             $zip_codes_json = json_encode(array($area->zip_code));
             $city_name = $area->label ?: 'Area ' . $area->id;
-
+            
             $wpdb->update(
                 $table_name,
                 array(
@@ -1022,33 +1022,33 @@ class Manager {
     
     // Include all the existing methods from the previous version...
     // [Rest of the existing methods remain the same]
-
+    
     /**
      * Get user's selected service country
      */
     public function get_user_service_country($user_id) {
         return get_user_meta($user_id, 'mobooking_service_country', true);
     }
-
+    
     /**
      * Set user's service country
      */
     public function set_user_service_country($user_id, $country_code) {
         return update_user_meta($user_id, 'mobooking_service_country', $country_code);
     }
-
+    
     /**
      * Get areas for a user with enhanced data
      */
     public function get_user_areas($user_id) {
         global $wpdb;
         $table_name = $wpdb->prefix . 'mobooking_areas';
-
+        
         $results = $wpdb->get_results($wpdb->prepare(
             "SELECT * FROM $table_name WHERE user_id = %d ORDER BY city_name ASC, label ASC",
             $user_id
         ));
-
+        
         // Process results to ensure backward compatibility
         foreach ($results as $result) {
             if (empty($result->zip_codes) && !empty($result->zip_code)) {
@@ -1059,7 +1059,7 @@ class Manager {
                 $result->city_name = $result->label;
             }
         }
-
+        
         return $results;
     }
     
@@ -1069,43 +1069,43 @@ class Manager {
     public function is_zip_covered($zip_code, $user_id) {
         global $wpdb;
         $table_name = $wpdb->prefix . 'mobooking_areas';
-
+        
         if (empty($zip_code) || empty($user_id)) {
             return false;
         }
-
+        
         $zip_code = sanitize_text_field(trim($zip_code));
         $user_id = absint($user_id);
-
+        
         if (empty($zip_code) || $user_id <= 0) {
             return false;
         }
-
+        
         $table_exists = $wpdb->get_var("SHOW TABLES LIKE '$table_name'") == $table_name;
         if (!$table_exists) {
             return false;
         }
-
-        $sql = "SELECT * FROM $table_name
-                WHERE user_id = %d AND active = 1
+        
+        $sql = "SELECT * FROM $table_name 
+                WHERE user_id = %d AND active = 1 
                 AND (
-                    zip_code = %s
+                    zip_code = %s 
                     OR (zip_codes IS NOT NULL AND JSON_CONTAINS(zip_codes, %s))
                 )";
-
+        
         $area = $wpdb->get_row($wpdb->prepare(
-            $sql,
-            $user_id,
-            $zip_code,
+            $sql, 
+            $user_id, 
+            $zip_code, 
             json_encode($zip_code)
         ));
-
+        
         return $area ? $area : false;
     }
     
     // Include remaining AJAX handlers and methods...
     // [All existing AJAX methods remain the same]
-
+    
     /**
      * AJAX: Set service country
      */

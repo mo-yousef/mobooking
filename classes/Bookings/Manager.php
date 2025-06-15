@@ -40,12 +40,12 @@ class Manager {
             error_log('MoBooking\Bookings\Manager: Enhanced constructor with auto-progression support');
         }
     }
-
+    
 public function ajax_get_service_options() {
     // Simple nonce check - accept any valid mobooking nonce
     $nonce_valid = false;
     if (isset($_POST['nonce'])) {
-        $nonce_valid = wp_verify_nonce($_POST['nonce'], 'mobooking-booking-nonce') ||
+        $nonce_valid = wp_verify_nonce($_POST['nonce'], 'mobooking-booking-nonce') || 
                       wp_verify_nonce($_POST['nonce'], 'mobooking-service-nonce');
     }
 
@@ -63,7 +63,7 @@ public function ajax_get_service_options() {
     // Get options directly from database
     global $wpdb;
     $table_name = $wpdb->prefix . 'mobooking_service_options';
-
+    
     $options = $wpdb->get_results($wpdb->prepare(
         "SELECT * FROM $table_name WHERE service_id = %d ORDER BY display_order ASC",
         $service_id
@@ -95,7 +95,7 @@ public function ajax_get_service_options() {
     wp_send_json_success(array('options' => $formatted_options));
 }
 
-
+    
     /**
      * AJAX handler to check ZIP coverage - ENHANCED for auto-progression
      */
@@ -201,7 +201,7 @@ public function ajax_get_service_options() {
                 wp_send_json_error(__('Security verification failed.', 'mobooking'));
                 return;
             }
-
+            
             // Validate required fields
             $required_fields = array('customer_name', 'customer_email', 'customer_address', 'zip_code', 'service_date', 'selected_services', 'total_price', 'user_id');
             
@@ -228,7 +228,7 @@ public function ajax_get_service_options() {
                 wp_send_json_error(__('Please select at least one service.', 'mobooking'));
                 return;
             }
-
+            
             // Prepare booking data
             $booking_data = array(
                 'user_id' => absint($_POST['user_id']),
@@ -248,7 +248,7 @@ public function ajax_get_service_options() {
             
             // Save booking
             $booking_id = $this->save_booking($booking_data);
-
+            
             if ($booking_id) {
                 wp_send_json_success(array(
                     'id' => $booking_id,
@@ -258,7 +258,7 @@ public function ajax_get_service_options() {
             } else {
                 wp_send_json_error(__('Failed to save booking. Please try again.', 'mobooking'));
             }
-
+            
         } catch (Exception $e) {
             if (defined('WP_DEBUG') && WP_DEBUG) {
                 error_log('MoBooking Save Booking Exception: ' . $e->getMessage());
@@ -312,7 +312,7 @@ public function ajax_get_service_options() {
                 ));
                 return;
             }
-
+            
             // Calculate discount amount
             $discount_amount = 0;
             if ($discount->type === 'percentage') {
@@ -320,17 +320,17 @@ public function ajax_get_service_options() {
             } else {
                 $discount_amount = min($discount->amount, $total);
             }
-
+            
             wp_send_json_success(array(
                 'discount_amount' => $discount_amount,
                 'message' => sprintf(__('Discount applied! You save %s', 'mobooking'), wc_price($discount_amount))
             ));
-
+            
         } catch (Exception $e) {
             if (defined('WP_DEBUG') && WP_DEBUG) {
                 error_log('MoBooking Discount Validation Exception: ' . $e->getMessage());
             }
-
+            
             wp_send_json_error(array(
                 'message' => __('Error processing discount code.', 'mobooking')
             ));
@@ -378,16 +378,16 @@ public function ajax_get_service_options() {
             $booking_data,
             array('%d', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%f', '%s', '%f', '%s', '%s')
         );
-
+        
         if ($result) {
             $booking_id = $wpdb->insert_id;
-
+            
             // Send confirmation email
             $this->send_booking_confirmation($booking_id);
-
+            
             return $booking_id;
         }
-
+        
         return false;
     }
     
@@ -397,46 +397,46 @@ public function ajax_get_service_options() {
     private function send_booking_confirmation($booking_id) {
         $booking = $this->get_booking($booking_id);
         if (!$booking) return false;
-
+        
         // Get business owner settings
         $settings_manager = new \MoBooking\Database\SettingsManager();
         $settings = $settings_manager->get_settings($booking->user_id);
-
+        
         // Prepare email content
         $subject = sprintf(__('Booking Confirmation - %s', 'mobooking'), $settings->company_name);
-
+        
         $message = $settings->email_header;
         $message .= '<h2>' . __('Booking Confirmation', 'mobooking') . '</h2>';
         $message .= '<p>' . sprintf(__('Dear %s,', 'mobooking'), $booking->customer_name) . '</p>';
         $message .= '<p>' . $settings->booking_confirmation_message . '</p>';
-
+        
         $message .= '<h3>' . __('Booking Details', 'mobooking') . '</h3>';
         $message .= '<p><strong>' . __('Booking ID:', 'mobooking') . '</strong> #' . $booking->id . '</p>';
         $message .= '<p><strong>' . __('Service Date:', 'mobooking') . '</strong> ' . date_i18n(get_option('date_format') . ' ' . get_option('time_format'), strtotime($booking->service_date)) . '</p>';
         $message .= '<p><strong>' . __('Address:', 'mobooking') . '</strong> ' . $booking->customer_address . '</p>';
         $message .= '<p><strong>' . __('Total Amount:', 'mobooking') . '</strong> ' . wc_price($booking->total_price) . '</p>';
-
+        
         if (!empty($booking->notes)) {
             $message .= '<p><strong>' . __('Special Instructions:', 'mobooking') . '</strong> ' . $booking->notes . '</p>';
         }
         
         $message .= $settings->email_footer;
-
+        
         // Send email
         $headers = array('Content-Type: text/html; charset=UTF-8');
         wp_mail($booking->customer_email, $subject, $message, $headers);
-
+        
         // Also notify business owner
         $business_user = get_userdata($booking->user_id);
         if ($business_user) {
             $business_subject = sprintf(__('New Booking Received - #%d', 'mobooking'), $booking->id);
-            $business_message = sprintf(__('You have received a new booking from %s for %s.', 'mobooking'),
-                $booking->customer_name,
+            $business_message = sprintf(__('You have received a new booking from %s for %s.', 'mobooking'), 
+                $booking->customer_name, 
                 date_i18n(get_option('date_format'), strtotime($booking->service_date))
             );
             wp_mail($business_user->user_email, $business_subject, $business_message);
         }
-
+        
         return true;
     }
     
@@ -590,12 +590,12 @@ public function ajax_get_service_options() {
         $bookings_table = $wpdb->prefix . 'mobooking_bookings';
         $services_table = $wpdb->prefix . 'mobooking_services';
         
-        $sql = "SELECT s.*, COUNT(b.id) as booking_count
+        $sql = "SELECT s.*, COUNT(b.id) as booking_count 
                 FROM $services_table s
                 LEFT JOIN $bookings_table b ON FIND_IN_SET(s.id, REPLACE(REPLACE(b.services, '[', ''), ']', ''))
-                WHERE s.user_id = %d
-                GROUP BY s.id
-                ORDER BY booking_count DESC
+                WHERE s.user_id = %d 
+                GROUP BY s.id 
+                ORDER BY booking_count DESC 
                 LIMIT 1";
         
         return $wpdb->get_row($wpdb->prepare($sql, $user_id));
@@ -837,7 +837,7 @@ public function ajax_get_service_options() {
                         </div>
                     </div>
                 </div>
-
+                
                 <form id="mobooking-booking-form" class="booking-form">
                     <!-- Hidden fields -->
                     <input type="hidden" name="user_id" value="<?php echo esc_attr($user_id); ?>">
@@ -845,45 +845,45 @@ public function ajax_get_service_options() {
                     <input type="hidden" name="discount_amount" id="discount_amount" value="0">
                     <input type="hidden" name="service_options_data" id="service_options_data" value="">
                     <?php wp_nonce_field('mobooking-booking-nonce', 'nonce'); ?>
-
+                    
                     <!-- Step 1: ZIP Code -->
                     <div class="booking-step step-1 active">
                         <div class="step-header">
                             <h2><?php _e('Check Service Availability', 'mobooking'); ?></h2>
                             <p><?php _e('Enter your ZIP code to see if we service your area', 'mobooking'); ?></p>
                         </div>
-
+                        
                         <div class="zip-input-group">
                             <label for="customer_zip_code"><?php _e('ZIP Code', 'mobooking'); ?></label>
                             <div class="zip-input-wrapper">
-                                <input type="text" id="customer_zip_code" name="zip_code" class="zip-input"
+                                <input type="text" id="customer_zip_code" name="zip_code" class="zip-input" 
                                        placeholder="<?php _e('Enter ZIP code', 'mobooking'); ?>" required
-                                       pattern="[0-9]{5}(-[0-9]{4})?"
+                                       pattern="[0-9]{5}(-[0-9]{4})?" 
                                        title="<?php _e('Please enter a valid ZIP code (e.g., 12345 or 12345-6789)', 'mobooking'); ?>">
                                 <div class="zip-validation-icon"></div>
 
                             </div>
                             <p class="zip-help"><?php _e('Enter your ZIP code to check service availability', 'mobooking'); ?></p>
                         </div>
-
+                        
                         <div class="zip-result"></div>
-
+                        
                         <div class="step-actions">
                             <button type="button" class="btn-primary next-step" disabled>
                                 <?php _e('Enter ZIP Code', 'mobooking'); ?>
                             </button>
                         </div>
                     </div>
-
+                    
                     <!-- Step 2: Services -->
                     <div class="booking-step step-2">
                         <div class="step-header">
                             <h2><?php _e('Select Services', 'mobooking'); ?></h2>
                             <p><?php _e('Choose the services you need', 'mobooking'); ?></p>
                         </div>
-
+                        
                         <div class="services-grid services-container">
-                            <?php foreach ($services as $service) :
+                            <?php foreach ($services as $service) : 
                                 $service_options = $options_manager->get_service_options($service->id);
                                 $has_options = !empty($service_options);
                             ?>
@@ -905,7 +905,7 @@ public function ajax_get_service_options() {
                                                     </svg>
                                                 </div>
                                             <?php endif; ?>
-
+                                            
                                             <div class="service-content">
                                                 <h3><?php echo esc_html($service->name); ?></h3>
                                                 <?php if (!empty($service->description)) : ?>
@@ -913,15 +913,15 @@ public function ajax_get_service_options() {
                                                 <?php endif; ?>
                                             </div>
                                         </div>
-
+                                        
                                         <div class="service-selector">
-                                            <input type="checkbox" name="selected_services[]" value="<?php echo esc_attr($service->id); ?>"
-                                                   id="service_<?php echo esc_attr($service->id); ?>"
+                                            <input type="checkbox" name="selected_services[]" value="<?php echo esc_attr($service->id); ?>" 
+                                                   id="service_<?php echo esc_attr($service->id); ?>" 
                                                    data-has-options="<?php echo $has_options ? 1 : 0; ?>">
                                             <div class="service-checkbox"></div>
                                         </div>
                                     </div>
-
+                                    
                                     <div class="service-meta">
                                         <div class="service-price"><?php echo wc_price($service->price); ?></div>
                                         <div class="service-duration">
@@ -932,7 +932,7 @@ public function ajax_get_service_options() {
                                             <?php echo sprintf(_n('%d min', '%d mins', $service->duration, 'mobooking'), $service->duration); ?>
                                         </div>
                                     </div>
-
+                                    
                                     <?php if ($has_options) : ?>
                                         <div class="service-options-indicator">
                                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -945,24 +945,24 @@ public function ajax_get_service_options() {
                                 </div>
                             <?php endforeach; ?>
                         </div>
-
+                        
                         <div class="step-actions">
                             <button type="button" class="btn-secondary prev-step"><?php _e('Back', 'mobooking'); ?></button>
                             <button type="button" class="btn-primary next-step" disabled><?php _e('Select Services', 'mobooking'); ?></button>
                         </div>
                     </div>
-
+                    
                     <!-- Step 3: Service Options -->
                     <div class="booking-step step-3">
                         <div class="step-header">
                             <h2><?php _e('Customize Your Services', 'mobooking'); ?></h2>
                             <p><?php _e('Configure your selected services', 'mobooking'); ?></p>
                         </div>
-
+                        
                         <div class="service-options-container">
                             <!-- Service options will be loaded dynamically -->
                         </div>
-
+                        
                         <div class="no-options-message" style="display: none;">
                             <div class="auto-advance-notice">
                                 <div class="notice-icon">
@@ -973,67 +973,67 @@ public function ajax_get_service_options() {
                                 <p><?php _e('No additional options needed. Moving to next step...', 'mobooking'); ?></p>
                             </div>
                         </div>
-
+                        
                         <div class="step-actions">
                             <button type="button" class="btn-secondary prev-step"><?php _e('Back', 'mobooking'); ?></button>
                             <button type="button" class="btn-primary next-step"><?php _e('Continue', 'mobooking'); ?></button>
                         </div>
                     </div>
-
+                    
                     <!-- Step 4: Customer Information -->
                     <div class="booking-step step-4">
                         <div class="step-header">
                             <h2><?php _e('Your Information', 'mobooking'); ?></h2>
                             <p><?php _e('Please provide your contact details', 'mobooking'); ?></p>
                         </div>
-
+                        
                         <div class="form-grid">
                             <div class="form-group">
                                 <label for="customer_name"><?php _e('Full Name', 'mobooking'); ?> *</label>
                                 <input type="text" id="customer_name" name="customer_name" required>
                             </div>
-
+                            
                             <div class="form-group">
                                 <label for="customer_email"><?php _e('Email Address', 'mobooking'); ?> *</label>
                                 <input type="email" id="customer_email" name="customer_email" required>
                             </div>
-
+                            
                             <div class="form-group">
                                 <label for="customer_phone"><?php _e('Phone Number', 'mobooking'); ?></label>
                                 <input type="tel" id="customer_phone" name="customer_phone">
                             </div>
-
+                            
                             <div class="form-group">
                                 <label for="service_date"><?php _e('Preferred Date & Time', 'mobooking'); ?> *</label>
                                 <input type="datetime-local" id="service_date" name="service_date" required>
                             </div>
-
+                            
                             <div class="form-group full-width">
                                 <label for="customer_address"><?php _e('Service Address', 'mobooking'); ?> *</label>
-                                <textarea id="customer_address" name="customer_address" rows="3" required
+                                <textarea id="customer_address" name="customer_address" rows="3" required 
                                           placeholder="<?php _e('Enter the full address where service will be provided', 'mobooking'); ?>"></textarea>
                             </div>
-
+                            
                             <div class="form-group full-width">
                                 <label for="booking_notes"><?php _e('Special Instructions', 'mobooking'); ?></label>
-                                <textarea id="booking_notes" name="booking_notes" rows="3"
+                                <textarea id="booking_notes" name="booking_notes" rows="3" 
                                           placeholder="<?php _e('Any special instructions or requests...', 'mobooking'); ?>"></textarea>
                             </div>
                         </div>
-
+                        
                         <div class="step-actions">
                             <button type="button" class="btn-secondary prev-step"><?php _e('Back', 'mobooking'); ?></button>
                             <button type="button" class="btn-primary next-step"><?php _e('Review Booking', 'mobooking'); ?></button>
                         </div>
                     </div>
-
+                    
                     <!-- Step 5: Review & Confirm -->
                     <div class="booking-step step-5">
                         <div class="step-header">
                             <h2><?php _e('Review Your Booking', 'mobooking'); ?></h2>
                             <p><?php _e('Please review your booking details before confirming', 'mobooking'); ?></p>
                         </div>
-
+                        
                         <div class="booking-summary">
                             <div class="summary-section">
                                 <h3><?php _e('Selected Services', 'mobooking'); ?></h3>
@@ -1041,18 +1041,18 @@ public function ajax_get_service_options() {
                                     <!-- Services will be populated by JavaScript -->
                                 </div>
                             </div>
-
+                            
                             <div class="summary-section">
                                 <h3><?php _e('Service Details', 'mobooking'); ?></h3>
                                 <div class="service-address"></div>
                                 <div class="service-datetime"></div>
                             </div>
-
+                            
                             <div class="summary-section">
                                 <h3><?php _e('Contact Information', 'mobooking'); ?></h3>
                                 <div class="customer-info"></div>
                             </div>
-
+                            
                             <div class="summary-section discount-section" style="display: none;">
                                 <h3><?php _e('Discount Code', 'mobooking'); ?></h3>
                                 <div class="discount-input-group">
@@ -1061,7 +1061,7 @@ public function ajax_get_service_options() {
                                 </div>
                                 <div class="discount-message"></div>
                             </div>
-
+                            
                             <div class="summary-section">
                                 <h3><?php _e('Pricing', 'mobooking'); ?></h3>
                                 <div class="pricing-summary">
@@ -1080,7 +1080,7 @@ public function ajax_get_service_options() {
                                 </div>
                             </div>
                         </div>
-
+                        
                         <div class="step-actions">
                             <button type="button" class="btn-secondary prev-step"><?php _e('Back', 'mobooking'); ?></button>
                             <button type="submit" class="btn-primary confirm-booking-btn">
@@ -1089,7 +1089,7 @@ public function ajax_get_service_options() {
                             </button>
                         </div>
                     </div>
-
+                    
                     <!-- Step 6: Success -->
                     <div class="booking-step step-6 step-success">
                         <div class="success-content">
@@ -1098,15 +1098,15 @@ public function ajax_get_service_options() {
                                     <path d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2ZM8 12l2 2 4-4"/>
                                 </svg>
                             </div>
-
+                            
                             <h2><?php _e('Booking Confirmed!', 'mobooking'); ?></h2>
                             <p class="success-message"><?php _e('Thank you for your booking. We\'ll contact you shortly to confirm the details.', 'mobooking'); ?></p>
-
+                            
                             <div class="booking-reference">
                                 <strong><?php _e('Your booking reference:', 'mobooking'); ?></strong>
                                 <span class="reference-number">#0000</span>
                             </div>
-
+                            
                             <div class="next-steps">
                                 <p><?php _e('What happens next?', 'mobooking'); ?></p>
                                 <ul>
@@ -1115,7 +1115,7 @@ public function ajax_get_service_options() {
                                     <li><?php _e('Our team will arrive at the scheduled time', 'mobooking'); ?></li>
                                 </ul>
                             </div>
-
+                            
                             <div class="success-actions">
                                 <button type="button" class="btn-primary new-booking-btn" onclick="location.reload();">
                                     <?php _e('Book Another Service', 'mobooking'); ?>
@@ -1127,7 +1127,7 @@ public function ajax_get_service_options() {
                         </div>
                     </div>
                 </form>
-
+                
                 <!-- Auto-Progression Status Indicator -->
                 <div class="auto-progress-indicator" style="display: none;">
                     <div class="progress-content">
@@ -1145,7 +1145,7 @@ public function ajax_get_service_options() {
                     </div>
                 </div>
             </div>
-
+            
             <style>
             /* Enhanced styles for auto-progression */
             .auto-advance-notice {
@@ -1166,7 +1166,7 @@ public function ajax_get_service_options() {
                 height: 2rem;
                 color: #10b981;
             }
-
+            
             .auto-progress-indicator {
                 position: fixed;
                 top: 50%;
@@ -1181,14 +1181,14 @@ public function ajax_get_service_options() {
                 text-align: center;
                 min-width: 200px;
             }
-
+            
             .progress-content {
                 display: flex;
                 flex-direction: column;
                 align-items: center;
                 gap: 1rem;
             }
-
+            
             .progress-spinner .spinner {
                 width: 2rem;
                 height: 2rem;
@@ -1197,24 +1197,24 @@ public function ajax_get_service_options() {
                 border-radius: 50%;
                 animation: spin 1s linear infinite;
             }
-
+            
             .progress-message {
                 display: flex;
                 flex-direction: column;
                 align-items: center;
                 gap: 0.5rem;
             }
-
+            
             .progress-text {
                 font-weight: 600;
                 color: #374151;
             }
-
+            
             .progress-dots {
                 display: flex;
                 gap: 0.25rem;
             }
-
+            
             .progress-dots .dot {
                 width: 0.5rem;
                 height: 0.5rem;
@@ -1222,15 +1222,15 @@ public function ajax_get_service_options() {
                 border-radius: 50%;
                 animation: dotPulse 1.5s infinite;
             }
-
+            
             .progress-dots .dot:nth-child(2) {
                 animation-delay: 0.2s;
             }
-
+            
             .progress-dots .dot:nth-child(3) {
                 animation-delay: 0.4s;
             }
-
+            
             @keyframes dotPulse {
                 0%, 20%, 80%, 100% {
                     opacity: 0.3;
@@ -1254,30 +1254,30 @@ public function ajax_get_service_options() {
                 transform: translateX(0);
                 opacity: 1;
             }
-
+            
             .booking-step:not(.active) {
                 transform: translateX(-20px);
                 opacity: 0;
                 pointer-events: none;
             }
-
+            
             .booking-step.entering {
                 transform: translateX(20px);
                 opacity: 0;
             }
-
+            
             .booking-step.entering.active {
                 transform: translateX(0);
                 opacity: 1;
             }
-
+            
             /* Enhanced progress bar animation */
             .progress-fill {
                 transition: width 0.6s cubic-bezier(0.4, 0, 0.2, 1);
                 position: relative;
                 overflow: hidden;
             }
-
+            
             .progress-fill::after {
                 content: '';
                 position: absolute;
@@ -1288,7 +1288,7 @@ public function ajax_get_service_options() {
                 background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
                 animation: shimmer 2s infinite;
             }
-
+            
             @keyframes shimmer {
                 0% {
                     transform: translateX(-100%);
@@ -1297,21 +1297,21 @@ public function ajax_get_service_options() {
                     transform: translateX(100%);
                 }
             }
-
+            
             /* Enhanced service card selection */
             .service-card {
                 transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
             }
-
+            
             .service-card.selected {
                 transform: translateY(-4px) scale(1.02);
                 box-shadow: 0 8px 25px rgba(59, 130, 246, 0.15);
             }
-
+            
             .service-card.selecting {
                 animation: cardPulse 0.6s ease-out;
             }
-
+            
             @keyframes cardPulse {
                 0% {
                     transform: scale(1);
@@ -1323,29 +1323,29 @@ public function ajax_get_service_options() {
                     transform: scale(1.02);
                 }
             }
-
+            
             /* Enhanced button states */
             .btn-primary, .btn-secondary {
                 transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
                 position: relative;
                 overflow: hidden;
             }
-
+            
             .btn-primary:not(:disabled):hover {
                 transform: translateY(-2px);
                 box-shadow: 0 8px 25px rgba(59, 130, 246, 0.25);
             }
-
+            
             .btn-primary:not(:disabled):active {
                 transform: translateY(0);
             }
-
+            
             /* Success step enhancements */
             .step-success {
                 text-align: center;
                 animation: successFadeIn 0.8s ease-out;
             }
-
+            
             @keyframes successFadeIn {
                 0% {
                     opacity: 0;
@@ -1356,11 +1356,11 @@ public function ajax_get_service_options() {
                     transform: translateY(0) scale(1);
                 }
             }
-
+            
             .success-icon {
                 animation: successBounce 1s ease-out 0.3s both;
             }
-
+            
             @keyframes successBounce {
                 0% {
                     transform: scale(0);
@@ -1372,19 +1372,19 @@ public function ajax_get_service_options() {
                     transform: scale(1);
                 }
             }
-
+            
             .success-actions {
                 display: flex;
                 gap: 1rem;
                 justify-content: center;
                 margin-top: 2rem;
             }
-
+            
             @media (max-width: 768px) {
                 .success-actions {
                     flex-direction: column;
                 }
-
+                
                 .auto-progress-indicator {
                     margin: 0 1rem;
                     min-width: auto;
@@ -1394,7 +1394,7 @@ public function ajax_get_service_options() {
             </style>
             <?php
             return ob_get_clean();
-
+            
         } catch (Exception $e) {
             if (defined('WP_DEBUG') && WP_DEBUG) {
                 error_log('MoBooking: Exception in render_booking_form: ' . $e->getMessage());

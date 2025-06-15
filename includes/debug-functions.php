@@ -4,7 +4,7 @@
  */
 
 if (defined('WP_DEBUG') && WP_DEBUG) {
-
+    
     /**
      * Debug helper for development
      */
@@ -12,16 +12,16 @@ if (defined('WP_DEBUG') && WP_DEBUG) {
         if (!current_user_can('administrator') || !isset($_GET['mobooking_debug'])) {
             return;
         }
-
+        
         echo '<div style="background: #f0f0f0; padding: 20px; margin: 20px; font-family: monospace;">';
         echo '<h3>MoBooking Debug Information</h3>';
-
+        
         // Theme info
         echo '<h4>Theme Information:</h4>';
         echo '<p>Version: ' . MOBOOKING_VERSION . '</p>';
         echo '<p>Path: ' . MOBOOKING_PATH . '</p>';
         echo '<p>URL: ' . MOBOOKING_URL . '</p>';
-
+        
         // Database tables
         echo '<h4>Database Tables:</h4>';
         global $wpdb;
@@ -31,7 +31,7 @@ if (defined('WP_DEBUG') && WP_DEBUG) {
             $exists = $wpdb->get_var("SHOW TABLES LIKE '$table_name'") == $table_name;
             echo '<p>' . $table . ': ' . ($exists ? '✅ EXISTS' : '❌ MISSING') . '</p>';
         }
-
+        
         // Loaded classes
         echo '<h4>Loaded Classes:</h4>';
         $classes = get_declared_classes();
@@ -41,11 +41,11 @@ if (defined('WP_DEBUG') && WP_DEBUG) {
         foreach ($mobooking_classes as $class) {
             echo '<p>✅ ' . $class . '</p>';
         }
-
+        
         echo '</div>';
     }
     add_action('wp_head', 'mobooking_debug_info');
-
+    
     /**
      * Quick database fix button
      */
@@ -53,13 +53,13 @@ if (defined('WP_DEBUG') && WP_DEBUG) {
         if (!current_user_can('administrator')) {
             return;
         }
-
+        
         $wp_admin_bar->add_node(array(
             'id' => 'mobooking-debug',
             'title' => 'MoBooking Debug',
             'href' => add_query_arg('mobooking_debug', '1'),
         ));
-
+        
         $wp_admin_bar->add_node(array(
             'id' => 'mobooking-fix-db',
             'parent' => 'mobooking-debug',
@@ -68,7 +68,7 @@ if (defined('WP_DEBUG') && WP_DEBUG) {
         ));
     }
     add_action('admin_bar_menu', 'mobooking_debug_admin_bar', 999);
-
+    
     /**
      * Quick database fix
      */
@@ -76,12 +76,12 @@ if (defined('WP_DEBUG') && WP_DEBUG) {
         if (!current_user_can('administrator') || !isset($_GET['mobooking_fix_db'])) {
             return;
         }
-
+        
         try {
             if (class_exists('\MoBooking\Database\Manager')) {
                 $db_manager = new \MoBooking\Database\Manager();
                 $db_manager->create_tables();
-
+                
                 wp_redirect(add_query_arg('mobooking_db_fixed', '1', remove_query_arg('mobooking_fix_db')));
                 exit;
             }

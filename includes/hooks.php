@@ -3,7 +3,7 @@
  * WordPress action and filter hooks.
  */
 
-// This file should primarily contain hooks whose callback functions
+// This file should primarily contain hooks whose callback functions 
 // are located in the main functions.php or in general utility files
 // like theme-setup.php or helper-functions.php.
 

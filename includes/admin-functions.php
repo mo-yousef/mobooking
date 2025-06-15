@@ -17,7 +17,7 @@ function mobooking_admin_notices() {
         echo __('WooCommerce is recommended for payment processing. Please install and activate WooCommerce.', 'mobooking');
         echo '</p></div>';
     }
-
+    
     // Check if database tables exist
     global $wpdb;
     $required_tables = array(
@@ -27,7 +27,7 @@ function mobooking_admin_notices() {
         'mobooking_areas',
         'mobooking_settings'
     );
-
+    
     $missing_tables = array();
     foreach ($required_tables as $table) {
         $table_name = $wpdb->prefix . $table;
@@ -35,7 +35,7 @@ function mobooking_admin_notices() {
             $missing_tables[] = $table;
         }
     }
-
+    
     if (!empty($missing_tables)) {
         echo '<div class="notice notice-error"><p>';
         echo '<strong>MoBooking:</strong> ';
