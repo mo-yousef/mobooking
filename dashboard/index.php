@@ -35,9 +35,19 @@ if (!in_array('mobooking_business_owner', $current_user->roles) && !in_array('ad
 
 
 
-// Get current section - lightweight
-$current_section = get_query_var('section', 'overview');
-$current_section = str_replace('\\', '', $current_section); // Remove all backslashes
+global $wp_query; // Ensure $wp_query is available
+
+// Get current section
+$current_section = 'overview'; // Default
+
+if (!empty($_GET['section'])) {
+    $current_section = sanitize_text_field($_GET['section']);
+} elseif (!empty($wp_query->query_vars['section'])) {
+    $current_section = sanitize_text_field($wp_query->query_vars['section']);
+}
+
+// Further sanitize: remove any backslashes that might have been manually added or passed
+$current_section = str_replace('\\', '', $current_section); // Keep this sanitization
 
 // Quick settings load - only what's needed for layout
 $settings = (object) array(
