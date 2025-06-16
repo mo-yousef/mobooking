@@ -83,94 +83,38 @@ $settings = (object) array(
         
         <div class="dashboard-content">
             <?php
-            // NOW load heavy managers AFTER layout is rendered
-            $managers_loaded = false;
-            $bookings_manager = null;
-            $services_manager = null;
-            $geography_manager = null;
-            
-            try {
-                // Only load what the current section actually needs
-                switch ($current_section) {
-                    case 'bookings':
-                        $bookings_manager = new \MoBooking\Bookings\Manager();
-                        break;
-                    case 'services':
-                        $services_manager = new \MoBooking\Services\ServicesManager();
-                        break;
-                    case 'areas':
-                        $geography_manager = new \MoBooking\Geography\Manager();
-                        break;
-                    case 'overview':
-                        // Load all for overview, but after layout
-                        $bookings_manager = new \MoBooking\Bookings\Manager();
-                        $services_manager = new \MoBooking\Services\ServicesManager();
-                        $geography_manager = new \MoBooking\Geography\Manager();
-                        break;
+            <?php
+            // Include page-overview.php by default
+            $overview_file = MOBOOKING_PATH . '/page-overview.php';
+            if (file_exists($overview_file)) {
+                // Initialize managers needed for overview.php, if not already done
+                // This ensures that variables like $bookings_manager are available in page-overview.php
+                if (!isset($bookings_manager)) {
+                    $bookings_manager = new \MoBooking\Bookings\Manager();
                 }
-                
-                // Load settings manager only when needed
-                if (in_array($current_section, ['settings', 'overview'])) {
+                if (!isset($services_manager)) {
+                    $services_manager = new \MoBooking\Services\ServicesManager();
+                }
+                if (!isset($geography_manager)) {
+                    $geography_manager = new \MoBooking\Geography\Manager();
+                }
+                if(!isset($settings_manager)) {
                     $settings_manager = new \MoBooking\Database\SettingsManager();
-                    $settings = $settings_manager->get_settings($user_id);
+                    // $settings is already defined above, but if overview needs its own, adjust here
+                    // For now, we assume $settings from above is sufficient or page-overview.php handles its own settings if needed.
                 }
-                
-                $managers_loaded = true;
-                
-            } catch (Exception $e) {
-                if (defined('WP_DEBUG') && WP_DEBUG) {
-                    error_log('MoBooking: Error loading managers: ' . $e->getMessage());
-                }
-                $managers_loaded = false;
-            }
-            
-            // Load the appropriate section
-            $section_loaded = false;
-            $error_during_section_load = false; // New flag
-            $allowed_sections = array('overview', 'services', 'bookings', 'booking-form', 'discounts', 'areas', 'settings');
-            
-            if (in_array($current_section, $allowed_sections)) {
-                $section_file = MOBOOKING_PATH . '/dashboard/sections/' . $current_section . '.php';
-                
-                if (file_exists($section_file)) {
-                    try {
-                        include $section_file;
-                        $section_loaded = true;
-                    } catch (Throwable $e) { // Changed to Throwable
-                        $error_during_section_load = true; // Set flag
-                        if (defined('WP_DEBUG') && WP_DEBUG) {
-                            error_log('MoBooking: Error loading section ' . $current_section . ': ' . $e->getMessage());
-                        }
-                        // Updated error message
-                        echo '<div class="mobooking-error-message">
-       <h3>' . __('Section Temporarily Unavailable', 'mobooking') . '</h3>
-       <p>' . __('An unexpected error occurred while trying to load this section. Please try again later or contact support if the issue persists.', 'mobooking') . '</p>';
-                        if (defined('WP_DEBUG') && WP_DEBUG) {
-                            echo '<pre>' . esc_html($e->getMessage()) . '</pre>';
-                        }
-                        echo '</div>';
-                    }
-                } else {
-                    // File doesn't exist, section_loaded remains false
-                     if (defined('WP_DEBUG') && WP_DEBUG) {
-                        error_log('MoBooking: Section file not found: ' . $section_file);
-                    }
-                }
-            }
-            
-            // Fallback if section couldn't be loaded and no error occurred during an attempted load
-            if (!$section_loaded && !$error_during_section_load) {
-                // Updated fallback content
+                include $overview_file;
+            } else {
+                // Fallback if page-overview.php is missing
                 echo '<div class="mobooking-fallback-content">
-       <h2>' . __('Dashboard Section Not Found', 'mobooking') . '</h2>
-       <p>' . sprintf(__('The requested dashboard section "%s" is not valid or could not be loaded. Please select a valid section from the menu.', 'mobooking'), esc_html($current_section)) . '</p>
-       <div class="mobooking-quick-links">
-           <a href="' . esc_url(remove_query_arg('section')) . '" class="mobooking-btn-primary">
-               ' . __('Go to Main Dashboard', 'mobooking') . '
-           </a>
-       </div>
-   </div>';
+       <h2>' . __('Welcome to your Dashboard', 'mobooking') . '</h2>
+       <p>' . __('The main overview page could not be loaded. Please ensure all plugin files are correctly installed.', 'mobooking') . '</p>
+       </div>';
+                 if (defined('WP_DEBUG') && WP_DEBUG) {
+                    error_log('MoBooking: page-overview.php file not found at: ' . $overview_file);
+                }
             }
+            ?>
             ?>
         </div>
     </div>
