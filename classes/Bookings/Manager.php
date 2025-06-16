@@ -589,11 +589,13 @@ public function ajax_get_service_options() {
         global $wpdb;
         $bookings_table = $wpdb->prefix . 'mobooking_bookings';
         $services_table = $wpdb->prefix . 'mobooking_services';
-        
-        $sql = "SELECT s.*, COUNT(b.id) as booking_count 
+        $booking_services_table = $wpdb->prefix . 'mobooking_booking_services'; // New junction table
+
+        $sql = "SELECT s.*, COUNT(bs.booking_id) as booking_count
                 FROM $services_table s
-                LEFT JOIN $bookings_table b ON FIND_IN_SET(s.id, REPLACE(REPLACE(b.services, '[', ''), ']', ''))
-                WHERE s.user_id = %d 
+                LEFT JOIN $booking_services_table bs ON s.id = bs.service_id
+                LEFT JOIN $bookings_table b ON bs.booking_id = b.id
+                WHERE s.user_id = %d AND b.status IN ('confirmed', 'completed')
                 GROUP BY s.id 
                 ORDER BY booking_count DESC 
                 LIMIT 1";
