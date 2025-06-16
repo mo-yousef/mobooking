@@ -18,18 +18,6 @@ spl_autoload_register(function ($class) {
         return;
     }
 
-    // Specific fix for Database\Manager
-    if ($class === 'MoBooking\Database\Manager') {
-        $specific_file = MOBOOKING_PATH . '/classes/Database/manager.php';
-        if (file_exists($specific_file)) {
-            require_once $specific_file;
-            if (defined('WP_DEBUG') && WP_DEBUG) {
-                error_log("MoBooking: Successfully loaded class {$class} from specific path {$specific_file}");
-            }
-            return;
-        }
-    }
-
     // Remove MoBooking namespace prefix
     $relative_class = str_replace('MoBooking\\', '', $class);
     
@@ -100,12 +88,11 @@ function mobooking_load_critical_files() {
             '/classes/core/loader.php',
             '/classes/Core/loader.php',
         ),
-        // Database Manager variants
+        // DatabaseManager variants
         array(
-            '/classes/Database/Manager.php',
-            '/classes/database/Manager.php',
-            '/classes/database/manager.php',
-            '/classes/Database/manager.php',
+            '/classes/Database/DatabaseManager.php',
+            '/classes/database/DatabaseManager.php', // For case-insensitive systems or potential typos
+            '/classes/Database/databasemanager.php', // all lower
         ),
     );
     
@@ -172,7 +159,7 @@ function mobooking_debug_file_structure() {
 function mobooking_check_class_dependencies() {
     $required_classes = array(
         'MoBooking\Core\Loader' => 'Core theme loader',
-        'MoBooking\Database\Manager' => 'Database management',
+        'MoBooking\Database\DatabaseManager' => 'Database management (DatabaseManager)',
     );
     
     $missing_classes = array();
