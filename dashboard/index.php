@@ -41,13 +41,11 @@ global $wp_query; // Ensure $wp_query is available
 $current_section = 'overview'; // Default
 
 if (!empty($_GET['section'])) {
-    $current_section = sanitize_text_field($_GET['section']);
+    $current_section = sanitize_key($_GET['section']);
 } elseif (!empty($wp_query->query_vars['section'])) {
-    $current_section = sanitize_text_field($wp_query->query_vars['section']);
+    $current_section = sanitize_key($wp_query->query_vars['section']);
 }
-
-// Further sanitize: remove any backslashes that might have been manually added or passed
-$current_section = str_replace('\\', '', $current_section); // Keep this sanitization
+// The str_replace for backslashes is no longer needed as sanitize_key handles disallowed characters.
 
 // Settings are now loaded via mobooking_setup_dashboard_globals() before section content.
 

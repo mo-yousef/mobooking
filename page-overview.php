@@ -6,20 +6,13 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-// Initialize managers and get data
-try {
-    $bookings_manager = new \MoBooking\Bookings\Manager();
-    $services_manager = new \MoBooking\Services\ServicesManager();
-    $geography_manager = new \MoBooking\Geography\Manager();
-} catch (Throwable $e) { // Changed Exception to Throwable
-    if (defined('WP_DEBUG') && WP_DEBUG) {
-        error_log('MoBooking: Failed to initialize managers in overview: ' . $e->getMessage());
-    }
-    // Create fallback objects
-    $bookings_manager = new stdClass();
-    $services_manager = new stdClass();
-    $geography_manager = new stdClass();
-}
+global $user_id, $current_user, $settings,
+       $bookings_manager, $services_manager, $geography_manager,
+       $settings_manager, $discounts_manager, $booking_form_manager;
+
+// Managers are now initialized globally by mobooking_setup_dashboard_globals()
+// and are available here via the global keyword.
+// Data fetching will use these global manager instances.
 
 // Get dashboard stats - with error handling
 $stats = array(
