@@ -1,3 +1,4 @@
+<?php /** Template Name: Page Areas */ ?>
 <?php
 // dashboard/sections/areas.php - Enhanced Service Areas Management with Local JSON Data
 // Prevent direct access

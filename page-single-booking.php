@@ -1,3 +1,4 @@
+<?php /** Template Name: Page Single Booking */ ?>
 <?php
 // dashboard/sections/single-booking.php - Individual Booking Detail Page
 // Prevent direct access
@@ -1561,3 +1562,5 @@ jQuery(document).ready(function($) {
     }
 }
 </style>
+
+[end of page-single-booking.php]

@@ -83,7 +83,6 @@ $settings = (object) array(
         
         <div class="dashboard-content">
             <?php
-            <?php
             // Include page-overview.php by default
             $overview_file = MOBOOKING_PATH . '/page-overview.php';
             if (file_exists($overview_file)) {
@@ -114,8 +113,7 @@ $settings = (object) array(
                     error_log('MoBooking: page-overview.php file not found at: ' . $overview_file);
                 }
             }
-            ?>
-            ?>
+            // Removed extra ?> here
         </div>
     </div>
 </div>

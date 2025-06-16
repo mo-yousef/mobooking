@@ -1,3 +1,4 @@
+<?php /** Template Name: Page Booking Form */ ?>
 <?php
 // dashboard/sections/booking-form.php - Enhanced Booking Form Management
 // Prevent direct access

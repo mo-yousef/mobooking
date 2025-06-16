@@ -1,3 +1,4 @@
+<?php /** Template Name: Page Overview */ ?>
 <?php
 // dashboard/sections/overview.php - Complete Dashboard Overview Section
 // Prevent direct access

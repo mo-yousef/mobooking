@@ -118,6 +118,10 @@ $menu_items = array(
         </ul>
     </div>
     
+<?php
+// Check for subscription status
+$subscription_info = mobooking_get_user_subscription_status($user_id);
+?>
     <div class="sidebar-subscription expired">
         <?php if ($subscription_info['is_active']) : ?>
             <div class="subscription-status active">
@@ -127,7 +131,7 @@ $menu_items = array(
                     <span class="status-type"><?php echo esc_html(ucfirst($subscription_info['type'])); ?> <?php _e('Plan', 'mobooking'); ?></span>
                 </div>
             </div>
-        <?php elseif ($subscription_info['is_expired']) : ?>
+        <?php elseif (isset($subscription_info['is_expired']) && $subscription_info['is_expired']) : ?>
             <div class="subscription-status expired">
                 <span class="dashicons dashicons-warning"></span>
                 <div class="status-info">
@@ -136,6 +140,7 @@ $menu_items = array(
                 </div>
             </div>
         <?php else : ?>
+            <?php // Default to active if not explicitly expired, or if is_active is true (covers cases where is_expired might not be set) ?>
             <div class="subscription-status active">
                 <span class="dashicons dashicons-yes-alt"></span>
                 <div class="status-info">
