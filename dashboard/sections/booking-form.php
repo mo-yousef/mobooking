@@ -6,7 +6,7 @@ if (!defined('ABSPATH')) {
 }
 
 // Initialize booking form manager
-$booking_form_manager = new \MoBooking\BookingForm\Manager();
+$booking_form_manager = new \MoBooking\BookingForm\BookingFormManager();
 $settings = $booking_form_manager->get_settings($user_id);
 $booking_url = $booking_form_manager->get_booking_form_url($user_id);
 $embed_url = $booking_form_manager->get_embed_url($user_id);
@@ -1454,7 +1454,7 @@ add_action('wp_ajax_mobooking_save_booking_form_settings', function() {
         );
         
         // Save settings using BookingForm Manager
-        $booking_form_manager = new \MoBooking\BookingForm\Manager();
+        $booking_form_manager = new \MoBooking\BookingForm\BookingFormManager();
         $result = $booking_form_manager->save_settings($user_id, $settings_data);
         
         if ($result) {
@@ -1515,7 +1515,7 @@ add_action('wp_ajax_mobooking_reset_booking_form_settings', function() {
             'custom_css' => ''
         );
         
-        $booking_form_manager = new \MoBooking\BookingForm\Manager();
+        $booking_form_manager = new \MoBooking\BookingForm\BookingFormManager();
         $result = $booking_form_manager->save_settings($user_id, $default_settings);
         
         if ($result) {

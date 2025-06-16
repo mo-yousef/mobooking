@@ -91,8 +91,8 @@ function mobooking_ajax_reset_booking_form_settings() {
         $user_id = get_current_user_id();
         
         // Reset settings using BookingForm Manager
-        if (class_exists('\MoBooking\BookingForm\Manager')) {
-            $booking_form_manager = new \MoBooking\BookingForm\Manager();
+        if (class_exists('\MoBooking\BookingForm\BookingFormManager')) {
+            $booking_form_manager = new \MoBooking\BookingForm\BookingFormManager();
             $result = $booking_form_manager->reset_settings($user_id);
         } else {
             // Fallback: Direct database reset
