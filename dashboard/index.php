@@ -49,17 +49,31 @@ if (!empty($_GET['section'])) {
 // Further sanitize: remove any backslashes that might have been manually added or passed
 $current_section = str_replace('\\', '', $current_section); // Keep this sanitization
 
-// Quick settings load - only what's needed for layout
-$settings = (object) array(
-    'company_name' => get_user_meta($user_id, 'mobooking_company_name', true) ?: $current_user->display_name . "'s Business",
-    'primary_color' => '#4CAF50',
-    'logo_url' => '',
-    'phone' => '',
-    'email_header' => '',
-    'email_footer' => '',
-    'terms_conditions' => '',
-    'booking_confirmation_message' => 'Thank you for your booking.'
-);
+// Settings are now loaded via mobooking_setup_dashboard_globals() before section content.
+
+// MOVED: Call mobooking_setup_dashboard_globals() here to ensure all managers and $settings are loaded
+// before any dashboard HTML (including sidebar and header) is rendered.
+if (function_exists('mobooking_setup_dashboard_globals')) {
+    if (!mobooking_setup_dashboard_globals()) {
+        // The function returned false, likely due to user not being logged in
+        // and already handled a redirect. Or some other critical setup failure.
+        // We should probably exit here if it returns false, as it implies a redirect or failure.
+        if (defined('WP_DEBUG') && WP_DEBUG) {
+            error_log('MoBooking Info: mobooking_setup_dashboard_globals() returned false. Halting further dashboard rendering in template.');
+        }
+        // Depending on how mobooking_setup_dashboard_globals handles failed auth (e.g. if it always exits),
+        // this exit might be redundant or a safeguard.
+        exit;
+    }
+} else {
+    // Fallback or error if the crucial setup function is missing
+    if (defined('WP_DEBUG') && WP_DEBUG) {
+        error_log('MoBooking Error: mobooking_setup_dashboard_globals() function not found. Dashboard cannot be properly rendered.');
+    }
+    // Display a user-friendly error and exit, as the dashboard will be broken.
+    wp_die(__('A critical setup function is missing. The dashboard cannot be displayed. Please contact support.', 'mobooking'));
+    exit;
+}
 ?>
 
 <!-- RENDER LAYOUT IMMEDIATELY -->
@@ -83,37 +97,25 @@ $settings = (object) array(
         
         <div class="dashboard-content">
             <?php
-            // Include page-overview.php by default
-            $overview_file = MOBOOKING_PATH . '/page-overview.php';
-            if (file_exists($overview_file)) {
-                // Initialize managers needed for overview.php, if not already done
-                // This ensures that variables like $bookings_manager are available in page-overview.php
-                if (!isset($bookings_manager)) {
-                    $bookings_manager = new \MoBooking\Bookings\Manager();
-                }
-                if (!isset($services_manager)) {
-                    $services_manager = new \MoBooking\Services\ServicesManager();
-                }
-                if (!isset($geography_manager)) {
-                    $geography_manager = new \MoBooking\Geography\Manager();
-                }
-                if(!isset($settings_manager)) {
-                    $settings_manager = new \MoBooking\Database\SettingsManager();
-                    // $settings is already defined above, but if overview needs its own, adjust here
-                    // For now, we assume $settings from above is sufficient or page-overview.php handles its own settings if needed.
-                }
-                include $overview_file;
+            // Dynamically load the section content
+            $section_file_name = 'page-' . $current_section . '.php';
+            $section_file_path = MOBOOKING_PATH . '/' . $section_file_name;
+
+            if (file_exists($section_file_path)) {
+                // Managers and $settings are already loaded globally now by the call
+                // to mobooking_setup_dashboard_globals() near the top of this file.
+                include $section_file_path;
+
             } else {
-                // Fallback if page-overview.php is missing
+                // Fallback if the specific section page (e.g., page-services.php) is missing
                 echo '<div class="mobooking-fallback-content">
-       <h2>' . __('Welcome to your Dashboard', 'mobooking') . '</h2>
-       <p>' . __('The main overview page could not be loaded. Please ensure all plugin files are correctly installed.', 'mobooking') . '</p>
-       </div>';
-                 if (defined('WP_DEBUG') && WP_DEBUG) {
-                    error_log('MoBooking: page-overview.php file not found at: ' . $overview_file);
+<h2>' . sprintf(__('Section Not Found: %s', 'mobooking'), esc_html($current_section)) . '</h2>
+<p>' . __('The requested dashboard section could not be loaded. Please ensure all plugin/theme files are correctly installed or contact support.', 'mobooking') . '</p>
+</div>';
+                if (defined('WP_DEBUG') && WP_DEBUG) {
+                    error_log('MoBooking: Section file not found: ' . $section_file_path);
                 }
             }
-            // Removed extra ?> here
         </div>
     </div>
 </div>
