@@ -1045,7 +1045,7 @@ class Manager {
         $table_name = $wpdb->prefix . 'mobooking_areas';
         
         $results = $wpdb->get_results($wpdb->prepare(
-            "SELECT * FROM $table_name WHERE user_id = %d ORDER BY city_name ASC, label ASC",
+            "SELECT * FROM $table_name WHERE user_id = %d ORDER BY label ASC",
             $user_id
         ));
         
