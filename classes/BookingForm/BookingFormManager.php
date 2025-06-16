@@ -73,6 +73,10 @@ class BookingFormManager {
                     $custom_template = MOBOOKING_PATH . '/templates/' . $template_file;
                     
                     if (file_exists($custom_template)) {
+                        $wp_query->is_404 = false;
+                        $wp_query->is_page = true;
+                        $wp_query->is_singular = true;
+                        status_header(200);
                         return $custom_template;
                     }
                 } else {
