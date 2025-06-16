@@ -1,3 +1,4 @@
+<?php /** Template Name: Page Bookings */ ?>
 <?php
 // dashboard/sections/bookings.php - ENHANCED Responsive Bookings Management Section
 // Prevent direct access

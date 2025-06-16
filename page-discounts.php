@@ -1,3 +1,4 @@
+<?php /** Template Name: Page Discounts */ ?>
 <?php
 // dashboard/sections/discounts.php - FIXED Discount Codes Management Section
 // Prevent direct access

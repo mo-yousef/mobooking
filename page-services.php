@@ -1,3 +1,4 @@
+<?php /** Template Name: Page Services */ ?>
 <?php
 // Prevent direct access
 if (!defined('ABSPATH')) {

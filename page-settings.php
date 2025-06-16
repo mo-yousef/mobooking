@@ -1,3 +1,4 @@
+<?php /** Template Name: Page Settings */ ?>
 <?php
 // dashboard/sections/settings.php - Business Settings Management
 // Prevent direct access

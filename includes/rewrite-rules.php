@@ -34,71 +34,134 @@ function mobooking_register_query_vars($vars) {
 add_filter('query_vars', 'mobooking_register_query_vars');
 
 /**
+ * Sets up global variables and managers needed for dashboard pages.
+ * @return bool True on success, false if user not logged in (or other critical failure).
+ */
+function mobooking_setup_dashboard_globals() {
+    global $current_user, $user_id, $settings, // Added $settings
+           $bookings_manager, $services_manager, $geography_manager,
+           $settings_manager, $discounts_manager, $booking_form_manager;
+
+    if (!is_user_logged_in()) {
+        // Redirect to login if trying to access dashboard pages while logged out
+        // Consider checking if is_admin() is false to avoid issues in admin context if this runs too early
+        if (!is_admin()) {
+            wp_redirect(wp_login_url($_SERVER['REQUEST_URI']));
+            exit;
+        }
+        return false;
+    }
+
+    $current_user = wp_get_current_user();
+    $user_id = $current_user->ID;
+
+    // Initialize managers - using $GLOBALS to ensure they are truly global
+    // for the included page-*.php files.
+    if (class_exists('\MoBooking\Database\SettingsManager') && !isset($GLOBALS['settings_manager'])) {
+        $GLOBALS['settings_manager'] = new \MoBooking\Database\SettingsManager();
+    }
+    // Ensure $settings is populated after SettingsManager is available
+    if (isset($GLOBALS['settings_manager']) && is_callable([$GLOBALS['settings_manager'], 'get_settings']) && !isset($settings)) {
+        $settings = $GLOBALS['settings_manager']->get_settings($user_id);
+        $GLOBALS['settings'] = $settings; // Also ensure $settings is in $GLOBALS if page-*.php files expect it globally
+    }
+
+
+    if (class_exists('\MoBooking\Bookings\Manager') && !isset($GLOBALS['bookings_manager'])) {
+        $GLOBALS['bookings_manager'] = new \MoBooking\Bookings\Manager();
+    }
+    if (class_exists('\MoBooking\Services\ServicesManager') && !isset($GLOBALS['services_manager'])) {
+        $GLOBALS['services_manager'] = new \MoBooking\Services\ServicesManager();
+    }
+    if (class_exists('\MoBooking\Geography\Manager') && !isset($GLOBALS['geography_manager'])) {
+        $GLOBALS['geography_manager'] = new \MoBooking\Geography\Manager();
+    }
+    if (class_exists('\MoBooking\Discounts\Manager') && !isset($GLOBALS['discounts_manager'])) {
+        $GLOBALS['discounts_manager'] = new \MoBooking\Discounts\Manager();
+    }
+    if (class_exists('\MoBooking\BookingForm\BookingFormManager') && !isset($GLOBALS['booking_form_manager'])) {
+        $GLOBALS['booking_form_manager'] = new \MoBooking\BookingForm\BookingFormManager();
+    }
+
+    // Ensure local variables are also set for direct use in this function's scope if needed later
+    // and for any files included directly by this handler that might not use $GLOBALS.
+    if(isset($GLOBALS['settings_manager'])) $settings_manager = $GLOBALS['settings_manager'];
+    if(isset($GLOBALS['bookings_manager'])) $bookings_manager = $GLOBALS['bookings_manager'];
+    if(isset($GLOBALS['services_manager'])) $services_manager = $GLOBALS['services_manager'];
+    if(isset($GLOBALS['geography_manager'])) $geography_manager = $GLOBALS['geography_manager'];
+    if(isset($GLOBALS['discounts_manager'])) $discounts_manager = $GLOBALS['discounts_manager'];
+    if(isset($GLOBALS['booking_form_manager'])) $booking_form_manager = $GLOBALS['booking_form_manager'];
+
+
+    return true;
+}
+
+
+/**
  * Handle the actual redirection or content loading for mob_page_redirect.
  */
 function mobooking_handle_page_redirect() {
-    $redirect_section = get_query_var('mob_page_redirect');
+    global $current_section; // Make $current_section global for sidebar and header
+    $redirect_section_slug = get_query_var('mob_page_redirect');
 
-    if ($redirect_section) {
-        $file_name = 'page-' . sanitize_key($redirect_section) . '.php';
-        $file_path = MOBOOKING_PATH . '/' . $file_name; // Files are in the root
+    if ($redirect_section_slug) {
+
+        if (!mobooking_setup_dashboard_globals()) {
+            // If setup failed (e.g., user not logged in and redirected), stop further processing.
+            return;
+        }
+
+        // Set $current_section for sidebar and header active states
+        $current_section = sanitize_key($redirect_section_slug);
+        $GLOBALS['current_section'] = $current_section; // Ensure it's available if sidebar uses it directly from GLOBALS
+
+        $file_name = 'page-' . $current_section . '.php';
+        $file_path = MOBOOKING_PATH . '/' . $file_name;
 
         if (file_exists($file_path)) {
-            // Before including, ensure necessary global variables are available if these files expect them
-            // For example, if they need WordPress user context:
-            global $current_user, $user_id;
-            if (is_user_logged_in()) {
-                $current_user = wp_get_current_user();
-                $user_id = $current_user->ID;
+            status_header(200); // Ensure a 200 OK status
+
+            // Load the full WordPress context and dashboard structure
+            get_header(); // Main theme header
+
+            echo '<div class="mobooking-dashboard-container">'; // Start dashboard container
+
+            $sidebar_path = MOBOOKING_PATH . '/dashboard/sidebar.php';
+            if (file_exists($sidebar_path)) {
+                include $sidebar_path;
             }
 
-            // If these page-*.php files expect to be within the dashboard's visual structure,
-            // dashboard/header.php and dashboard/footer.php (and sidebar) should be included here.
-            // This mimics how dashboard/index.php would have loaded them.
-
-            // Check if header/sidebar/footer are needed based on how page-*.php files are structured.
-            // For now, assuming they might need the dashboard context.
+            echo '<div class="mobooking-dashboard-main">'; // Start main content area
 
             $dashboard_header_path = MOBOOKING_PATH . '/dashboard/header.php';
             if (file_exists($dashboard_header_path)) {
                 include $dashboard_header_path;
             }
 
-            // It's assumed page-*.php files might need $current_section to be set.
-            // For direct loading via mob_page_redirect, $current_section should match $redirect_section.
-            $current_section = $redirect_section;
+            echo '<div class="dashboard-content">'; // Start content wrapper
+            include $file_path; // Include the specific page-*.php file
+            echo '</div>'; // End content wrapper
 
+            // Note: dashboard/footer.php is not typically structured as a full footer,
+            // but rather as content that might appear before the main theme footer.
+            // If it contains closing tags for .mobooking-dashboard-main, it should be here.
+            // For now, assuming dashboard/footer.php is minor or not essential for layout structure.
+            // $dashboard_footer_path = MOBOOKING_PATH . '/dashboard/footer.php';
+            // if (file_exists($dashboard_footer_path)) {
+            //     include $dashboard_footer_path;
+            // }
 
-            // Initialize managers if they are used directly in page-*.php files
-            // This mirrors what was done in dashboard/index.php for overview
-            // These should ideally be singletons or managed more centrally in a real app.
-            if (!isset($GLOBALS['bookings_manager'])) {
-                 $GLOBALS['bookings_manager'] = new \MoBooking\Bookings\Manager();
-            }
-            if (!isset($GLOBALS['services_manager'])) {
-                 $GLOBALS['services_manager'] = new \MoBooking\Services\ServicesManager();
-            }
-            if (!isset($GLOBALS['geography_manager'])) {
-                 $GLOBALS['geography_manager'] = new \MoBooking\Geography\Manager();
-            }
-            if (!isset($GLOBALS['settings_manager'])) {
-                 $GLOBALS['settings_manager'] = new \MoBooking\Database\SettingsManager();
-                 // $settings might also be needed if page-*.php uses it directly.
-                 // $GLOBALS['settings'] = $GLOBALS['settings_manager']->get_settings($user_id);
-            }
+            echo '</div>'; // End main content area
+            echo '</div>'; // End dashboard container
 
-
-            include $file_path;
-
-            $dashboard_footer_path = MOBOOKING_PATH . '/dashboard/footer.php';
-            if (file_exists($dashboard_footer_path)) {
-                include $dashboard_footer_path;
-            }
+            get_footer(); // Main theme footer
             exit; // Important to stop WordPress from loading the original query's template
         } else {
             // File not found, redirect to main dashboard or a 404 page
-            // For now, redirect to the main dashboard page
-            wp_redirect(home_url('/dashboard/'));
+            if (defined('WP_DEBUG') && WP_DEBUG) {
+                error_log("MoBooking: Redirect target file not found: " . $file_path);
+            }
+            wp_redirect(home_url('/dashboard/')); // Or handle as 404
             exit;
         }
     }
