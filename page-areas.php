@@ -6,8 +6,12 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-// Initialize managers
-$geography_manager = new \MoBooking\Geography\Manager();
+global $user_id, $current_user, $settings,
+       $bookings_manager, $services_manager, $geography_manager,
+       $settings_manager, $discounts_manager, $booking_form_manager, $options_manager;
+
+// Managers are now initialized globally by mobooking_setup_dashboard_globals().
+// $geography_manager is available here via the global keyword.
 $areas = $geography_manager->get_user_areas($user_id);
 
 // Get coverage statistics

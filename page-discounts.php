@@ -6,12 +6,21 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
+global $user_id, $current_user, $settings,
+       $bookings_manager, $services_manager, $geography_manager,
+       $settings_manager, $discounts_manager, $booking_form_manager, $options_manager;
+
 // Initialize discounts manager
 try {
-    $discounts_manager = new \MoBooking\Discounts\Manager();
+    // $discounts_manager is now expected to be globally available.
+    // If it's not, the catch block below will handle it.
+    if (!isset($discounts_manager) || !is_object($discounts_manager)) {
+        // This condition might be hit if mobooking_setup_dashboard_globals failed to set it up.
+        throw new Exception('Global $discounts_manager not available.');
+    }
 } catch (Exception $e) {
     if (defined('WP_DEBUG') && WP_DEBUG) {
-        error_log('MoBooking: Failed to initialize Discounts Manager: ' . $e->getMessage());
+        error_log('MoBooking: Error accessing global Discounts Manager or it was not set up: ' . $e->getMessage());
     }
     // Create a fallback to prevent fatal errors
     $discounts_manager = new stdClass();

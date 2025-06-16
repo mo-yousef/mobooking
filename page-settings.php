@@ -6,9 +6,12 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-// Initialize settings manager
-$settings_manager = new \MoBooking\Database\SettingsManager();
-$settings = $settings_manager->get_settings($user_id);
+global $user_id, $current_user, $settings, // $settings is the global one
+       $bookings_manager, $services_manager, $geography_manager,
+       $settings_manager, $discounts_manager, $booking_form_manager, $options_manager;
+
+// Initialize settings manager for this page's specific settings
+$_page_settings = $settings_manager->get_settings($user_id); // Page-specific settings
 
 // Get user data
 $user_data = get_userdata($user_id);
@@ -120,7 +123,7 @@ $user_data = get_userdata($user_id);
                         <div class="field-group">
                             <label for="company-name" class="field-label required"><?php _e('Company Name', 'mobooking'); ?></label>
                             <input type="text" id="company-name" name="company_name" class="form-control"
-                                   value="<?php echo esc_attr($settings->company_name); ?>"
+                                   value="<?php echo esc_attr($_page_settings->company_name); ?>"
                                    placeholder="<?php _e('Your Company Name', 'mobooking'); ?>" required>
                             <p class="field-help"><?php _e('This name will appear on your booking forms and emails', 'mobooking'); ?></p>
                         </div>
@@ -128,7 +131,7 @@ $user_data = get_userdata($user_id);
                         <div class="field-group">
                             <label for="company-phone" class="field-label"><?php _e('Phone Number', 'mobooking'); ?></label>
                             <input type="tel" id="company-phone" name="phone" class="form-control"
-                                   value="<?php echo esc_attr($settings->phone); ?>"
+                                   value="<?php echo esc_attr($_page_settings->phone); ?>"
                                    placeholder="<?php _e('(555) 123-4567', 'mobooking'); ?>">
                             <p class="field-help"><?php _e('Contact phone number for customer inquiries', 'mobooking'); ?></p>
                         </div>
@@ -182,8 +185,8 @@ $user_data = get_userdata($user_id);
 
                         <div class="logo-upload-section">
                             <div class="logo-preview">
-                                <?php if (!empty($settings->logo_url)) : ?>
-                                    <img src="<?php echo esc_url($settings->logo_url); ?>" alt="<?php _e('Current Logo', 'mobooking'); ?>" class="current-logo">
+                                <?php if (!empty($_page_settings->logo_url)) : ?>
+                                    <img src="<?php echo esc_url($_page_settings->logo_url); ?>" alt="<?php _e('Current Logo', 'mobooking'); ?>" class="current-logo">
                                 <?php else : ?>
                                     <div class="logo-placeholder">
                                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -197,7 +200,7 @@ $user_data = get_userdata($user_id);
                             </div>
 
                             <div class="logo-upload-controls">
-                                <input type="hidden" id="logo-url" name="logo_url" value="<?php echo esc_attr($settings->logo_url); ?>">
+                                <input type="hidden" id="logo-url" name="logo_url" value="<?php echo esc_attr($_page_settings->logo_url); ?>">
                                 <button type="button" class="btn-secondary select-logo-btn">
                                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                         <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
@@ -207,7 +210,7 @@ $user_data = get_userdata($user_id);
                                     <?php _e('Upload Logo', 'mobooking'); ?>
                                 </button>
 
-                                <?php if (!empty($settings->logo_url)) : ?>
+                                <?php if (!empty($_page_settings->logo_url)) : ?>
                                     <button type="button" class="btn-secondary remove-logo-btn">
                                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                             <path d="m3 6 3 18h12l3-18"></path>
@@ -231,9 +234,9 @@ $user_data = get_userdata($user_id);
                                 <label for="primary-color" class="field-label"><?php _e('Primary Color', 'mobooking'); ?></label>
                                 <div class="color-input-group">
                                     <input type="color" id="primary-color" name="primary_color"
-                                           value="<?php echo esc_attr($settings->primary_color); ?>" class="color-picker">
-                                    <input type="text" class="color-text" value="<?php echo esc_attr($settings->primary_color); ?>" readonly>
-                                    <div class="color-preview" style="background-color: <?php echo esc_attr($settings->primary_color); ?>"></div>
+                                           value="<?php echo esc_attr($_page_settings->primary_color); ?>" class="color-picker">
+                                    <input type="text" class="color-text" value="<?php echo esc_attr($_page_settings->primary_color); ?>" readonly>
+                                    <div class="color-preview" style="background-color: <?php echo esc_attr($_page_settings->primary_color); ?>"></div>
                                 </div>
                                 <p class="field-help"><?php _e('Main brand color used for buttons and highlights', 'mobooking'); ?></p>
                             </div>
@@ -259,16 +262,16 @@ $user_data = get_userdata($user_id);
                         <h3 class="subsection-title"><?php _e('Preview', 'mobooking'); ?></h3>
 
                         <div class="branding-preview">
-                            <div class="preview-card" style="border-color: <?php echo esc_attr($settings->primary_color); ?>;">
-                                <div class="preview-header" style="background-color: <?php echo esc_attr($settings->primary_color); ?>;">
-                                    <?php if (!empty($settings->logo_url)) : ?>
-                                        <img src="<?php echo esc_url($settings->logo_url); ?>" alt="Logo Preview" class="preview-logo">
+                            <div class="preview-card" style="border-color: <?php echo esc_attr($_page_settings->primary_color); ?>;">
+                                <div class="preview-header" style="background-color: <?php echo esc_attr($_page_settings->primary_color); ?>;">
+                                    <?php if (!empty($_page_settings->logo_url)) : ?>
+                                        <img src="<?php echo esc_url($_page_settings->logo_url); ?>" alt="Logo Preview" class="preview-logo">
                                     <?php endif; ?>
-                                    <div class="preview-title"><?php echo esc_html($settings->company_name); ?></div>
+                                    <div class="preview-title"><?php echo esc_html($_page_settings->company_name); ?></div>
                                 </div>
                                 <div class="preview-content">
                                     <p><?php _e('This is how your branding will appear on booking forms and emails.', 'mobooking'); ?></p>
-                                    <button type="button" class="preview-button" style="background-color: <?php echo esc_attr($settings->primary_color); ?>;">
+                                    <button type="button" class="preview-button" style="background-color: <?php echo esc_attr($_page_settings->primary_color); ?>;">
                                         <?php _e('Book Now', 'mobooking'); ?>
                                     </button>
                                 </div>
@@ -304,7 +307,7 @@ $user_data = get_userdata($user_id);
                                         <span class="variable-tag" data-variable="{{email}}"><?php _e('Email', 'mobooking'); ?></span>
                                     </div>
                                 </div>
-                                <textarea id="email-header" name="email_header" class="form-control email-template" rows="6"><?php echo esc_textarea($settings->email_header); ?></textarea>
+                                <textarea id="email-header" name="email_header" class="form-control email-template" rows="6"><?php echo esc_textarea($_page_settings->email_header); ?></textarea>
                             </div>
                             <p class="field-help"><?php _e('HTML template for email headers. Click variable tags to insert them.', 'mobooking'); ?></p>
                         </div>
@@ -321,7 +324,7 @@ $user_data = get_userdata($user_id);
                                         <span class="variable-tag" data-variable="{{email}}"><?php _e('Email', 'mobooking'); ?></span>
                                     </div>
                                 </div>
-                                <textarea id="email-footer" name="email_footer" class="form-control email-template" rows="6"><?php echo esc_textarea($settings->email_footer); ?></textarea>
+                                <textarea id="email-footer" name="email_footer" class="form-control email-template" rows="6"><?php echo esc_textarea($_page_settings->email_footer); ?></textarea>
                             </div>
                             <p class="field-help"><?php _e('HTML template for email footers. Click variable tags to insert them.', 'mobooking'); ?></p>
                         </div>
@@ -329,7 +332,7 @@ $user_data = get_userdata($user_id);
                         <div class="field-group">
                             <label for="booking-confirmation-message" class="field-label"><?php _e('Booking Confirmation Message', 'mobooking'); ?></label>
                             <textarea id="booking-confirmation-message" name="booking_confirmation_message" class="form-control" rows="4"
-                                      placeholder="<?php _e('Thank you for your booking. We will contact you shortly...', 'mobooking'); ?>"><?php echo esc_textarea($settings->booking_confirmation_message); ?></textarea>
+                                      placeholder="<?php _e('Thank you for your booking. We will contact you shortly...', 'mobooking'); ?>"><?php echo esc_textarea($_page_settings->booking_confirmation_message); ?></textarea>
                             <p class="field-help"><?php _e('Message sent to customers when they make a booking', 'mobooking'); ?></p>
                         </div>
                     </div>
@@ -389,7 +392,7 @@ $user_data = get_userdata($user_id);
                                     <div class="email-message-preview">
                                         <!-- Booking confirmation message preview -->
                                     </div>
-                                    <p><?php _e('Best regards,', 'mobooking'); ?><br><?php echo esc_html($settings->company_name); ?></p>
+                                    <p><?php _e('Best regards,', 'mobooking'); ?><br><?php echo esc_html($_page_settings->company_name); ?></p>
                                 </div>
                                 <div class="email-footer-preview">
                                     <!-- Email footer preview will be generated by JavaScript -->
@@ -435,7 +438,7 @@ $user_data = get_userdata($user_id);
                         <div class="field-group">
                             <label for="terms-conditions" class="field-label"><?php _e('Terms & Conditions Text', 'mobooking'); ?></label>
                             <textarea id="terms-conditions" name="terms_conditions" class="form-control" rows="8"
-                                      placeholder="<?php _e('Enter your terms and conditions that customers must agree to...', 'mobooking'); ?>"><?php echo esc_textarea($settings->terms_conditions); ?></textarea>
+                                      placeholder="<?php _e('Enter your terms and conditions that customers must agree to...', 'mobooking'); ?>"><?php echo esc_textarea($_page_settings->terms_conditions); ?></textarea>
                             <p class="field-help"><?php _e('Legal terms and conditions that customers must accept when booking', 'mobooking'); ?></p>
                         </div>
 
@@ -605,7 +608,7 @@ $user_data = get_userdata($user_id);
                                 <span class="info-label"><?php _e('Total Bookings:', 'mobooking'); ?></span>
                                 <span class="info-value">
                                     <?php
-                                    $bookings_manager = new \MoBooking\Bookings\Manager();
+                                    // $bookings_manager is now global
                                     echo esc_html($bookings_manager->count_user_bookings($user_id));
                                     ?>
                                 </span>
@@ -614,7 +617,7 @@ $user_data = get_userdata($user_id);
                                 <span class="info-label"><?php _e('Active Services:', 'mobooking'); ?></span>
                                 <span class="info-value">
                                     <?php
-                                    $services_manager = new \MoBooking\Services\ServicesManager();
+                                    // $services_manager is now global
                                     $services = $services_manager->get_user_services($user_id);
                                     echo esc_html(count($services));
                                     ?>

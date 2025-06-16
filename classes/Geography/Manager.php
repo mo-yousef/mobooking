@@ -47,6 +47,38 @@ class Manager {
             error_log('MoBooking\Geography\Manager: Enhanced constructor with external API integration');
         }
     }
+
+    /**
+     * Get a list of supported countries with their properties.
+     *
+     * @return array Associative array of countries. Key is country code, value is an array with 'name', 'has_local_data', 'has_api'.
+     */
+    public function get_supported_countries() {
+        // Define countries based on the structure in get_major_cities_for_country and page-areas.php requirements
+        $countries = array(
+            'US' => array('name' => 'United States', 'has_local_data' => false, 'has_api' => true),
+            'CA' => array('name' => 'Canada', 'has_local_data' => false, 'has_api' => true),
+            'GB' => array('name' => 'United Kingdom', 'has_local_data' => false, 'has_api' => true),
+            'DE' => array('name' => 'Germany', 'has_local_data' => false, 'has_api' => true),
+            'FR' => array('name' => 'France', 'has_local_data' => false, 'has_api' => true),
+            'ES' => array('name' => 'Spain', 'has_local_data' => false, 'has_api' => true),
+            'IT' => array('name' => 'Italy', 'has_local_data' => false, 'has_api' => true),
+            'AU' => array('name' => 'Australia', 'has_local_data' => false, 'has_api' => true),
+            'SE' => array('name' => 'Sweden', 'has_local_data' => true, 'has_api' => false), // Nordic, assumed local
+            'CY' => array('name' => 'Cyprus', 'has_local_data' => false, 'has_api' => true),
+            // Add other Nordic countries as per page-areas.php if desired, e.g.:
+            // 'NO' => array('name' => 'Norway', 'has_local_data' => true, 'has_api' => false),
+            // 'DK' => array('name' => 'Denmark', 'has_local_data' => true, 'has_api' => false),
+            // 'FI' => array('name' => 'Finland', 'has_local_data' => true, 'has_api' => false),
+        );
+
+        // Sort by country name for display
+        uasort($countries, function($a, $b) {
+            return strcmp($a['name'], $b['name']);
+        });
+
+        return $countries;
+    }
     
     /**
      * AJAX: Fetch areas/neighborhoods for a selected city using external APIs

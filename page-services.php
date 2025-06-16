@@ -11,13 +11,18 @@ $service_id = isset($_GET['service_id']) ? absint($_GET['service_id']) : 0;
 $active_tab = isset($_GET['active_tab']) ? sanitize_text_field($_GET['active_tab']) : 'basic-info';
 
 // Initialize managers
-$service_manager = new \MoBooking\Services\ServicesManager();
-$options_manager = new \MoBooking\Services\ServiceOptionsManager();
+global $user_id, $current_user, $settings,
+       $bookings_manager, $services_manager, $geography_manager,
+       $settings_manager, $discounts_manager, $booking_form_manager, $options_manager;
+
+// Use $services_manager (plural) consistent with global declaration.
+// $service_manager (singular) was used locally before.
+// $options_manager is also now global.
 
 // Handle service editing
 $service_data = null;
 if ($current_view === 'edit' && $service_id) {
-    $service_data = $service_manager->get_service($service_id, $user_id);
+    $service_data = $services_manager->get_service($service_id, $user_id); // Changed to $services_manager
     if (!$service_data) {
         $current_view = 'list';
     }
@@ -27,8 +32,8 @@ if ($current_view === 'edit' && $service_id) {
 $services = array();
 $categories = array();
 if ($current_view === 'list') {
-    $services = $service_manager->get_user_services($user_id);
-    $categories = $service_manager->get_user_categories($user_id);
+    $services = $services_manager->get_user_services($user_id); // Changed to $services_manager
+    $categories = $services_manager->get_user_categories($user_id); // Changed to $services_manager
 }
 
 // Available icons for services

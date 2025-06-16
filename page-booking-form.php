@@ -6,19 +6,23 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-// Initialize booking form manager
-$booking_form_manager = new \MoBooking\BookingForm\BookingFormManager();
-$settings = $booking_form_manager->get_settings($user_id);
+global $user_id, $current_user, $settings,
+       $bookings_manager, $services_manager, $geography_manager,
+       $settings_manager, $discounts_manager, $booking_form_manager, $options_manager;
+
+// Managers are now initialized globally by mobooking_setup_dashboard_globals().
+// They are available here via the global keyword.
+
+// Local $settings for booking form specific settings, shadows global $settings
+$_booking_form_settings = $booking_form_manager->get_settings($user_id); // Renamed to avoid conflict with global $settings
 $booking_url = $booking_form_manager->get_booking_form_url($user_id);
 $embed_url = $booking_form_manager->get_embed_url($user_id);
 
 // Get user's services count for validation
-$services_manager = new \MoBooking\Services\ServicesManager();
 $services = $services_manager->get_user_services($user_id);
 $services_count = count($services);
 
 // Get geography areas count
-$geography_manager = new \MoBooking\Geography\Manager();
 $areas = $geography_manager->get_user_areas($user_id);
 $areas_count = count($areas);
 
@@ -855,14 +859,14 @@ $progress_percentage = round(($completed_steps / $total_steps) * 100);
                                 <div class="form-group">
                                     <label for="form-title" class="field-label required"><?php _e('Form Title', 'mobooking'); ?></label>
                                     <input type="text" id="form-title" name="form_title" class="form-control"
-                                           value="<?php echo esc_attr($settings->form_title); ?>" required>
+                                           value="<?php echo esc_attr($_booking_form_settings->form_title); ?>" required>
                                     <small class="field-note"><?php _e('This appears as the main heading on your booking form', 'mobooking'); ?></small>
                                 </div>
 
                                 <div class="form-group">
                                     <label for="form-description" class="field-label"><?php _e('Form Description', 'mobooking'); ?></label>
                                     <textarea id="form-description" name="form_description" class="form-control" rows="3"
-                                              placeholder="<?php _e('Book our professional services quickly and easily...', 'mobooking'); ?>"><?php echo esc_textarea($settings->form_description); ?></textarea>
+                                              placeholder="<?php _e('Book our professional services quickly and easily...', 'mobooking'); ?>"><?php echo esc_textarea($_booking_form_settings->form_description); ?></textarea>
                                     <small class="field-note"><?php _e('Brief description shown below the title', 'mobooking'); ?></small>
                                 </div>
 
@@ -870,19 +874,19 @@ $progress_percentage = round(($completed_steps / $total_steps) * 100);
                                     <div class="form-group">
                                         <label for="language" class="field-label"><?php _e('Language', 'mobooking'); ?></label>
                                         <select id="language" name="language" class="form-control">
-                                            <option value="en" <?php selected($settings->language, 'en'); ?>><?php _e('English', 'mobooking'); ?></option>
-                                            <option value="es" <?php selected($settings->language, 'es'); ?>><?php _e('Spanish', 'mobooking'); ?></option>
-                                            <option value="fr" <?php selected($settings->language, 'fr'); ?>><?php _e('French', 'mobooking'); ?></option>
-                                            <option value="de" <?php selected($settings->language, 'de'); ?>><?php _e('German', 'mobooking'); ?></option>
-                                            <option value="it" <?php selected($settings->language, 'it'); ?>><?php _e('Italian', 'mobooking'); ?></option>
+                                            <option value="en" <?php selected($_booking_form_settings->language, 'en'); ?>><?php _e('English', 'mobooking'); ?></option>
+                                            <option value="es" <?php selected($_booking_form_settings->language, 'es'); ?>><?php _e('Spanish', 'mobooking'); ?></option>
+                                            <option value="fr" <?php selected($_booking_form_settings->language, 'fr'); ?>><?php _e('French', 'mobooking'); ?></option>
+                                            <option value="de" <?php selected($_booking_form_settings->language, 'de'); ?>><?php _e('German', 'mobooking'); ?></option>
+                                            <option value="it" <?php selected($_booking_form_settings->language, 'it'); ?>><?php _e('Italian', 'mobooking'); ?></option>
                                         </select>
                                     </div>
 
                                     <div class="form-group">
                                         <label for="is-active" class="field-label"><?php _e('Form Status', 'mobooking'); ?></label>
                                         <select id="is-active" name="is_active" class="form-control">
-                                            <option value="1" <?php selected($settings->is_active, 1); ?>><?php _e('Active', 'mobooking'); ?></option>
-                                            <option value="0" <?php selected($settings->is_active, 0); ?>><?php _e('Inactive', 'mobooking'); ?></option>
+                                            <option value="1" <?php selected($_booking_form_settings->is_active, 1); ?>><?php _e('Active', 'mobooking'); ?></option>
+                                            <option value="0" <?php selected($_booking_form_settings->is_active, 0); ?>><?php _e('Inactive', 'mobooking'); ?></option>
                                         </select>
                                     </div>
                                 </div>
@@ -900,7 +904,7 @@ $progress_percentage = round(($completed_steps / $total_steps) * 100);
                                 <div class="checkbox-grid">
                                     <div class="checkbox-option">
                                         <input type="checkbox" id="show-form-header" name="show_form_header" value="1"
-                                               <?php checked($settings->show_form_header, 1); ?>>
+                                               <?php checked($_booking_form_settings->show_form_header, 1); ?>>
                                         <div class="checkbox-content">
                                             <div class="checkbox-title"><?php _e('Show Form Header', 'mobooking'); ?></div>
                                             <div class="checkbox-desc"><?php _e('Display title, description, and logo at the top', 'mobooking'); ?></div>
@@ -909,7 +913,7 @@ $progress_percentage = round(($completed_steps / $total_steps) * 100);
 
                                     <div class="checkbox-option">
                                         <input type="checkbox" id="show-service-descriptions" name="show_service_descriptions" value="1"
-                                               <?php checked($settings->show_service_descriptions, 1); ?>>
+                                               <?php checked($_booking_form_settings->show_service_descriptions, 1); ?>>
                                         <div class="checkbox-content">
                                             <div class="checkbox-title"><?php _e('Show Service Descriptions', 'mobooking'); ?></div>
                                             <div class="checkbox-desc"><?php _e('Display detailed descriptions for each service', 'mobooking'); ?></div>
@@ -918,7 +922,7 @@ $progress_percentage = round(($completed_steps / $total_steps) * 100);
 
                                     <div class="checkbox-option">
                                         <input type="checkbox" id="show-price-breakdown" name="show_price_breakdown" value="1"
-                                               <?php checked($settings->show_price_breakdown, 1); ?>>
+                                               <?php checked($_booking_form_settings->show_price_breakdown, 1); ?>>
                                         <div class="checkbox-content">
                                             <div class="checkbox-title"><?php _e('Show Price Breakdown', 'mobooking'); ?></div>
                                             <div class="checkbox-desc"><?php _e('Display detailed pricing information', 'mobooking'); ?></div>
@@ -927,7 +931,7 @@ $progress_percentage = round(($completed_steps / $total_steps) * 100);
 
                                     <div class="checkbox-option">
                                         <input type="checkbox" id="enable-zip-validation" name="enable_zip_validation" value="1"
-                                               <?php checked($settings->enable_zip_validation, 1); ?>>
+                                               <?php checked($_booking_form_settings->enable_zip_validation, 1); ?>>
                                         <div class="checkbox-content">
                                             <div class="checkbox-title"><?php _e('ZIP Code Validation', 'mobooking'); ?></div>
                                             <div class="checkbox-desc"><?php _e('Validate ZIP codes for service area coverage', 'mobooking'); ?></div>
@@ -936,7 +940,7 @@ $progress_percentage = round(($completed_steps / $total_steps) * 100);
 
                                     <div class="checkbox-option">
                                         <input type="checkbox" id="show-form-footer" name="show_form_footer" value="1"
-                                               <?php checked($settings->show_form_footer, 1); ?>>
+                                               <?php checked($_booking_form_settings->show_form_footer, 1); ?>>
                                         <div class="checkbox-content">
                                             <div class="checkbox-title"><?php _e('Show Form Footer', 'mobooking'); ?></div>
                                             <div class="checkbox-desc"><?php _e('Display footer content and social links', 'mobooking'); ?></div>
@@ -964,8 +968,8 @@ $progress_percentage = round(($completed_steps / $total_steps) * 100);
                                         <label for="primary-color" class="field-label"><?php _e('Primary Color', 'mobooking'); ?></label>
                                         <div class="color-input-group">
                                             <input type="color" id="primary-color" name="primary_color"
-                                                   value="<?php echo esc_attr($settings->primary_color); ?>" class="color-picker">
-                                            <input type="text" class="color-text" value="<?php echo esc_attr($settings->primary_color); ?>" readonly>
+                                                   value="<?php echo esc_attr($_booking_form_settings->primary_color); ?>" class="color-picker">
+                                            <input type="text" class="color-text" value="<?php echo esc_attr($_booking_form_settings->primary_color); ?>" readonly>
                                         </div>
                                     </div>
 
@@ -973,8 +977,8 @@ $progress_percentage = round(($completed_steps / $total_steps) * 100);
                                         <label for="secondary-color" class="field-label"><?php _e('Secondary Color', 'mobooking'); ?></label>
                                         <div class="color-input-group">
                                             <input type="color" id="secondary-color" name="secondary_color"
-                                                   value="<?php echo esc_attr($settings->secondary_color); ?>" class="color-picker">
-                                            <input type="text" class="color-text" value="<?php echo esc_attr($settings->secondary_color); ?>" readonly>
+                                                   value="<?php echo esc_attr($_booking_form_settings->secondary_color); ?>" class="color-picker">
+                                            <input type="text" class="color-text" value="<?php echo esc_attr($_booking_form_settings->secondary_color); ?>" readonly>
                                         </div>
                                     </div>
                                 </div>
@@ -984,8 +988,8 @@ $progress_percentage = round(($completed_steps / $total_steps) * 100);
                                         <label for="background-color" class="field-label"><?php _e('Background Color', 'mobooking'); ?></label>
                                         <div class="color-input-group">
                                             <input type="color" id="background-color" name="background_color"
-                                                   value="<?php echo esc_attr($settings->background_color); ?>" class="color-picker">
-                                            <input type="text" class="color-text" value="<?php echo esc_attr($settings->background_color); ?>" readonly>
+                                                   value="<?php echo esc_attr($_booking_form_settings->background_color); ?>" class="color-picker">
+                                            <input type="text" class="color-text" value="<?php echo esc_attr($_booking_form_settings->background_color); ?>" readonly>
                                         </div>
                                     </div>
 
@@ -993,8 +997,8 @@ $progress_percentage = round(($completed_steps / $total_steps) * 100);
                                         <label for="text-color" class="field-label"><?php _e('Text Color', 'mobooking'); ?></label>
                                         <div class="color-input-group">
                                             <input type="color" id="text-color" name="text_color"
-                                                   value="<?php echo esc_attr($settings->text_color); ?>" class="color-picker">
-                                            <input type="text" class="color-text" value="<?php echo esc_attr($settings->text_color); ?>" readonly>
+                                                   value="<?php echo esc_attr($_booking_form_settings->text_color); ?>" class="color-picker">
+                                            <input type="text" class="color-text" value="<?php echo esc_attr($_booking_form_settings->text_color); ?>" readonly>
                                         </div>
                                     </div>
                                 </div>
@@ -1013,19 +1017,19 @@ $progress_percentage = round(($completed_steps / $total_steps) * 100);
                                     <div class="form-group">
                                         <label for="form-layout" class="field-label"><?php _e('Form Layout', 'mobooking'); ?></label>
                                         <select id="form-layout" name="form_layout" class="form-control">
-                                            <option value="modern" <?php selected($settings->form_layout, 'modern'); ?>><?php _e('Modern', 'mobooking'); ?></option>
-                                            <option value="classic" <?php selected($settings->form_layout, 'classic'); ?>><?php _e('Classic', 'mobooking'); ?></option>
-                                            <option value="minimal" <?php selected($settings->form_layout, 'minimal'); ?>><?php _e('Minimal', 'mobooking'); ?></option>
+                                            <option value="modern" <?php selected($_booking_form_settings->form_layout, 'modern'); ?>><?php _e('Modern', 'mobooking'); ?></option>
+                                            <option value="classic" <?php selected($_booking_form_settings->form_layout, 'classic'); ?>><?php _e('Classic', 'mobooking'); ?></option>
+                                            <option value="minimal" <?php selected($_booking_form_settings->form_layout, 'minimal'); ?>><?php _e('Minimal', 'mobooking'); ?></option>
                                         </select>
                                     </div>
 
                                     <div class="form-group">
                                         <label for="form-width" class="field-label"><?php _e('Form Width', 'mobooking'); ?></label>
                                         <select id="form-width" name="form_width" class="form-control">
-                                            <option value="narrow" <?php selected($settings->form_width, 'narrow'); ?>><?php _e('Narrow (600px)', 'mobooking'); ?></option>
-                                            <option value="standard" <?php selected($settings->form_width, 'standard'); ?>><?php _e('Standard (800px)', 'mobooking'); ?></option>
-                                            <option value="wide" <?php selected($settings->form_width, 'wide'); ?>><?php _e('Wide (1000px)', 'mobooking'); ?></option>
-                                            <option value="full" <?php selected($settings->form_width, 'full'); ?>><?php _e('Full Width', 'mobooking'); ?></option>
+                                            <option value="narrow" <?php selected($_booking_form_settings->form_width, 'narrow'); ?>><?php _e('Narrow (600px)', 'mobooking'); ?></option>
+                                            <option value="standard" <?php selected($_booking_form_settings->form_width, 'standard'); ?>><?php _e('Standard (800px)', 'mobooking'); ?></option>
+                                            <option value="wide" <?php selected($_booking_form_settings->form_width, 'wide'); ?>><?php _e('Wide (1000px)', 'mobooking'); ?></option>
+                                            <option value="full" <?php selected($_booking_form_settings->form_width, 'full'); ?>><?php _e('Full Width', 'mobooking'); ?></option>
                                         </select>
                                     </div>
                                 </div>
@@ -1034,21 +1038,21 @@ $progress_percentage = round(($completed_steps / $total_steps) * 100);
                                     <div class="form-group">
                                         <label for="step-indicator-style" class="field-label"><?php _e('Step Indicator Style', 'mobooking'); ?></label>
                                         <select id="step-indicator-style" name="step_indicator_style" class="form-control">
-                                            <option value="progress" <?php selected($settings->step_indicator_style, 'progress'); ?>><?php _e('Progress Bar', 'mobooking'); ?></option>
-                                            <option value="dots" <?php selected($settings->step_indicator_style, 'dots'); ?>><?php _e('Dots', 'mobooking'); ?></option>
-                                            <option value="numbers" <?php selected($settings->step_indicator_style, 'numbers'); ?>><?php _e('Numbers', 'mobooking'); ?></option>
-                                            <option value="arrows" <?php selected($settings->step_indicator_style, 'arrows'); ?>><?php _e('Arrows', 'mobooking'); ?></option>
-                                            <option value="none" <?php selected($settings->step_indicator_style, 'none'); ?>><?php _e('None', 'mobooking'); ?></option>
+                                            <option value="progress" <?php selected($_booking_form_settings->step_indicator_style, 'progress'); ?>><?php _e('Progress Bar', 'mobooking'); ?></option>
+                                            <option value="dots" <?php selected($_booking_form_settings->step_indicator_style, 'dots'); ?>><?php _e('Dots', 'mobooking'); ?></option>
+                                            <option value="numbers" <?php selected($_booking_form_settings->step_indicator_style, 'numbers'); ?>><?php _e('Numbers', 'mobooking'); ?></option>
+                                            <option value="arrows" <?php selected($_booking_form_settings->step_indicator_style, 'arrows'); ?>><?php _e('Arrows', 'mobooking'); ?></option>
+                                            <option value="none" <?php selected($_booking_form_settings->step_indicator_style, 'none'); ?>><?php _e('None', 'mobooking'); ?></option>
                                         </select>
                                     </div>
 
                                     <div class="form-group">
                                         <label for="button-style" class="field-label"><?php _e('Button Style', 'mobooking'); ?></label>
                                         <select id="button-style" name="button_style" class="form-control">
-                                            <option value="rounded" <?php selected($settings->button_style, 'rounded'); ?>><?php _e('Rounded', 'mobooking'); ?></option>
-                                            <option value="square" <?php selected($settings->button_style, 'square'); ?>><?php _e('Square', 'mobooking'); ?></option>
-                                            <option value="pill" <?php selected($settings->button_style, 'pill'); ?>><?php _e('Pill', 'mobooking'); ?></option>
-                                            <option value="outline" <?php selected($settings->button_style, 'outline'); ?>><?php _e('Outline', 'mobooking'); ?></option>
+                                            <option value="rounded" <?php selected($_booking_form_settings->button_style, 'rounded'); ?>><?php _e('Rounded', 'mobooking'); ?></option>
+                                            <option value="square" <?php selected($_booking_form_settings->button_style, 'square'); ?>><?php _e('Square', 'mobooking'); ?></option>
+                                            <option value="pill" <?php selected($_booking_form_settings->button_style, 'pill'); ?>><?php _e('Pill', 'mobooking'); ?></option>
+                                            <option value="outline" <?php selected($_booking_form_settings->button_style, 'outline'); ?>><?php _e('Outline', 'mobooking'); ?></option>
                                         </select>
                                     </div>
                                 </div>
@@ -1071,7 +1075,7 @@ $progress_percentage = round(($completed_steps / $total_steps) * 100);
                                 <div class="form-group">
                                     <label for="seo-title" class="field-label"><?php _e('Page Title', 'mobooking'); ?></label>
                                     <input type="text" id="seo-title" name="seo_title" class="form-control"
-                                           value="<?php echo esc_attr($settings->seo_title); ?>"
+                                           value="<?php echo esc_attr($_booking_form_settings->seo_title); ?>"
                                            placeholder="<?php _e('Book Our Services - Company Name', 'mobooking'); ?>">
                                     <small class="field-note"><?php _e('Appears in browser title bar and search results', 'mobooking'); ?></small>
                                 </div>
@@ -1079,7 +1083,7 @@ $progress_percentage = round(($completed_steps / $total_steps) * 100);
                                 <div class="form-group">
                                     <label for="seo-description" class="field-label"><?php _e('Meta Description', 'mobooking'); ?></label>
                                     <textarea id="seo-description" name="seo_description" class="form-control" rows="3"
-                                              placeholder="<?php _e('Book our professional services easily online. Fast, reliable, and convenient scheduling...', 'mobooking'); ?>"><?php echo esc_textarea($settings->seo_description); ?></textarea>
+                                              placeholder="<?php _e('Book our professional services easily online. Fast, reliable, and convenient scheduling...', 'mobooking'); ?>"><?php echo esc_textarea($_booking_form_settings->seo_description); ?></textarea>
                                     <small class="field-note"><?php _e('Brief description for search engines (150-160 characters recommended)', 'mobooking'); ?></small>
                                 </div>
                             </div>
@@ -1097,7 +1101,7 @@ $progress_percentage = round(($completed_steps / $total_steps) * 100);
                                     <label for="custom-css" class="field-label"><?php _e('Custom CSS', 'mobooking'); ?></label>
                                     <textarea id="custom-css" name="custom_css" class="form-control" rows="8"
                                               style="font-family: monospace;"
-                                              placeholder="<?php _e('/* Custom CSS styles */\n.booking-form {\n    /* Your styles here */\n}', 'mobooking'); ?>"><?php echo esc_textarea($settings->custom_css); ?></textarea>
+                                              placeholder="<?php _e('/* Custom CSS styles */\n.booking-form {\n    /* Your styles here */\n}', 'mobooking'); ?>"><?php echo esc_textarea($_booking_form_settings->custom_css); ?></textarea>
                                     <small class="field-note"><?php _e('Custom CSS will override default styles.', 'mobooking'); ?></small>
                                 </div>
 
@@ -1105,7 +1109,7 @@ $progress_percentage = round(($completed_steps / $total_steps) * 100);
                                     <label for="analytics-code" class="field-label"><?php _e('Analytics Code', 'mobooking'); ?></label>
                                     <textarea id="analytics-code" name="analytics_code" class="form-control" rows="6"
                                               style="font-family: monospace;"
-                                              placeholder="<?php _e('<!-- Google Analytics, Facebook Pixel, or other tracking codes -->', 'mobooking'); ?>"><?php echo esc_textarea($settings->analytics_code); ?></textarea>
+                                              placeholder="<?php _e('<!-- Google Analytics, Facebook Pixel, or other tracking codes -->', 'mobooking'); ?>"><?php echo esc_textarea($_booking_form_settings->analytics_code); ?></textarea>
                                     <small class="field-note"><?php _e('Add Google Analytics, Facebook Pixel, or other tracking codes', 'mobooking'); ?></small>
                                 </div>
                             </div>

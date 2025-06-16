@@ -31,8 +31,15 @@ if (!$booking) {
     return;
 }
 
+global $user_id, $current_user, $settings,
+       $bookings_manager, $services_manager, $geography_manager,
+       $settings_manager, $discounts_manager, $booking_form_manager, $options_manager;
+
+// Managers are now initialized globally by mobooking_setup_dashboard_globals().
+// They are available here via the global keyword.
+
 // Get services data
-$services_manager = new \MoBooking\Services\ServicesManager();
+// $services_manager is now global
 $services_data     = $booking->services;
 $services_list     = array();
 

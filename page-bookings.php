@@ -6,8 +6,12 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-// Initialize bookings manager
-$bookings_manager = new \MoBooking\Bookings\Manager();
+global $user_id, $current_user, $settings,
+       $bookings_manager, $services_manager, $geography_manager,
+       $settings_manager, $discounts_manager, $booking_form_manager, $options_manager;
+
+// Managers are now initialized globally by mobooking_setup_dashboard_globals().
+// They are available here via the global keyword.
 
 // Get current view (list or individual booking)
 $current_view = isset($_GET['view']) ? sanitize_text_field($_GET['view']) : 'list';
@@ -367,7 +371,7 @@ $upcoming_bookings = $bookings_manager->get_user_bookings($user_id, $upcoming_ar
                     <!-- Bookings List -->
                     <div class="bookings-list">
                     <?php
-                    $services_manager = new \MoBooking\Services\ServicesManager();
+                    // $services_manager is now global
                     foreach ($bookings as $booking) :
                             $services_data = is_array($booking->services) ? $booking->services : json_decode($booking->services, true);
                             $service_name = '';

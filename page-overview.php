@@ -6,20 +6,13 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-// Initialize managers and get data
-try {
-    $bookings_manager = new \MoBooking\Bookings\Manager();
-    $services_manager = new \MoBooking\Services\ServicesManager();
-    $geography_manager = new \MoBooking\Geography\Manager();
-} catch (Throwable $e) { // Changed Exception to Throwable
-    if (defined('WP_DEBUG') && WP_DEBUG) {
-        error_log('MoBooking: Failed to initialize managers in overview: ' . $e->getMessage());
-    }
-    // Create fallback objects
-    $bookings_manager = new stdClass();
-    $services_manager = new stdClass();
-    $geography_manager = new stdClass();
-}
+global $user_id, $current_user, $settings,
+       $bookings_manager, $services_manager, $geography_manager,
+       $settings_manager, $discounts_manager, $booking_form_manager;
+
+// Managers are now initialized globally by mobooking_setup_dashboard_globals()
+// and are available here via the global keyword.
+// Data fetching will use these global manager instances.
 
 // Get dashboard stats - with error handling
 $stats = array(
@@ -35,62 +28,62 @@ $stats = array(
 );
 
 try {
-    if (method_exists($bookings_manager, 'count_user_bookings')) {
+    if (is_object($bookings_manager) && method_exists($bookings_manager, 'count_user_bookings')) {
         $stats['total_bookings'] = $bookings_manager->count_user_bookings($user_id);
         $stats['pending_bookings'] = $bookings_manager->count_user_bookings($user_id, 'pending');
         $stats['confirmed_bookings'] = $bookings_manager->count_user_bookings($user_id, 'confirmed');
         $stats['completed_bookings'] = $bookings_manager->count_user_bookings($user_id, 'completed');
     }
 
-    if (method_exists($bookings_manager, 'calculate_user_revenue')) {
+    if (is_object($bookings_manager) && method_exists($bookings_manager, 'calculate_user_revenue')) {
         $stats['total_revenue'] = $bookings_manager->calculate_user_revenue($user_id);
         $stats['this_month_revenue'] = $bookings_manager->calculate_user_revenue($user_id, 'this_month');
         $stats['this_week_revenue'] = $bookings_manager->calculate_user_revenue($user_id, 'this_week');
         $stats['today_revenue'] = $bookings_manager->calculate_user_revenue($user_id, 'today');
     }
 
-    if (method_exists($bookings_manager, 'get_most_popular_service')) {
+    if (is_object($bookings_manager) && method_exists($bookings_manager, 'get_most_popular_service')) {
         $stats['most_popular_service'] = $bookings_manager->get_most_popular_service($user_id);
     }
 } catch (Exception $e) {
     if (defined('WP_DEBUG') && WP_DEBUG) {
-        error_log('MoBooking: Error getting stats: ' . $e->getMessage());
+        error_log('MoBooking: Error getting stats in page-overview: ' . $e->getMessage());
     }
 }
 
 // Get recent bookings
 $recent_bookings = array();
 try {
-    if (method_exists($bookings_manager, 'get_user_bookings')) {
+    if (is_object($bookings_manager) && method_exists($bookings_manager, 'get_user_bookings')) {
         $recent_bookings = $bookings_manager->get_user_bookings($user_id, array('limit' => 5, 'order' => 'DESC'));
     }
 } catch (Exception $e) {
     if (defined('WP_DEBUG') && WP_DEBUG) {
-        error_log('MoBooking: Error getting recent bookings: ' . $e->getMessage());
+        error_log('MoBooking: Error getting recent bookings in page-overview: ' . $e->getMessage());
     }
 }
 
 // Get user services
 $user_services = array();
 try {
-    if (method_exists($services_manager, 'get_user_services')) {
+    if (is_object($services_manager) && method_exists($services_manager, 'get_user_services')) {
         $user_services = $services_manager->get_user_services($user_id);
     }
 } catch (Exception $e) {
     if (defined('WP_DEBUG') && WP_DEBUG) {
-        error_log('MoBooking: Error getting user services: ' . $e->getMessage());
+        error_log('MoBooking: Error getting user services in page-overview: ' . $e->getMessage());
     }
 }
 
 // Get user areas
 $user_areas = array();
 try {
-    if (method_exists($geography_manager, 'get_user_areas')) {
+    if (is_object($geography_manager) && method_exists($geography_manager, 'get_user_areas')) {
         $user_areas = $geography_manager->get_user_areas($user_id);
     }
 } catch (Exception $e) {
     if (defined('WP_DEBUG') && WP_DEBUG) {
-        error_log('MoBooking: Error getting user areas: ' . $e->getMessage());
+        error_log('MoBooking: Error getting user areas in page-overview: ' . $e->getMessage());
     }
 }
 
