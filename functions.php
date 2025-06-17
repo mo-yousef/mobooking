@@ -68,6 +68,11 @@ function mobooking_admin_notices() {
         return;
     }
 
+    // Display success message after attempting DB fix
+    if (isset($_GET['mobooking_db_fixed']) && $_GET['mobooking_db_fixed'] === '1') {
+        echo '<div class="notice notice-success is-dismissible"><p>' . __('Database table creation process was triggered. Please check if the missing table errors are resolved.', 'mobooking') . '</p></div>';
+    }
+
     if (!class_exists('WooCommerce')) {
         echo '<div class="notice notice-warning"><p>';
         echo '<strong>MoBooking:</strong> ';
@@ -96,7 +101,12 @@ function mobooking_admin_notices() {
     if (!empty($missing_tables)) {
         echo '<div class="notice notice-error"><p>';
         echo '<strong>MoBooking:</strong> ';
-        echo sprintf(__('Missing database tables: %s. Please deactivate and reactivate the theme.', 'mobooking'), implode(', ', $missing_tables));
+        echo sprintf(__('Missing database tables: %s.', 'mobooking'), implode(', ', $missing_tables));
+
+        // Add button to attempt fix
+        $fix_url = wp_nonce_url(admin_url('?mobooking_fix_db=1'), 'mobooking_fix_db_nonce', 'mobooking_fix_db_security');
+        echo ' <a href="' . esc_url($fix_url) . '" class="button button-primary">' . __('Attempt to Fix Database Tables', 'mobooking') . '</a>';
+
         echo '</p></div>';
     }
 }
@@ -241,8 +251,17 @@ if (defined('WP_DEBUG') && WP_DEBUG) {
      * Quick database fix
      */
     function mobooking_debug_fix_database() {
-        if (!current_user_can('administrator') || !isset($_GET['mobooking_fix_db'])) {
+        if (!isset($_GET['mobooking_fix_db'])) {
             return;
+        }
+
+        // Security check: Nonce verification
+        if (!isset($_GET['mobooking_fix_db_security']) || !wp_verify_nonce($_GET['mobooking_fix_db_security'], 'mobooking_fix_db_nonce')) {
+            wp_die(__('Security check failed. Please try again from the admin notices.', 'mobooking'));
+        }
+
+        if (!current_user_can('administrator')) {
+            wp_die(__('You do not have permission to perform this action.', 'mobooking'));
         }
         
         try {
@@ -250,14 +269,25 @@ if (defined('WP_DEBUG') && WP_DEBUG) {
                 $db_manager = new \MoBooking\Database\Manager();
                 $db_manager->create_tables();
                 
-                wp_redirect(add_query_arg('mobooking_db_fixed', '1', remove_query_arg('mobooking_fix_db')));
+                // Redirect with a success query arg
+                $redirect_url = admin_url('index.php'); // Or any relevant admin page
+                wp_redirect(add_query_arg('mobooking_db_fixed', '1', $redirect_url));
                 exit;
             }
         } catch (Exception $e) {
-            mobooking_log('Database fix error: ' . $e->getMessage(), 'error');
+            // Log the error
+            if (function_exists('mobooking_log')) {
+                mobooking_log('Database fix error: ' . $e->getMessage(), 'error');
+            } elseif (defined('WP_DEBUG') && WP_DEBUG) {
+                error_log('[MoBooking DB Setup] Database fix error: ' . $e->getMessage());
+            }
+            // Optionally, add an error message to the redirect URL
+            $redirect_url = admin_url('index.php');
+            wp_redirect(add_query_arg('mobooking_db_fix_error', '1', $redirect_url));
+            exit;
         }
     }
-    add_action('init', 'mobooking_debug_fix_database');
+    add_action('admin_init', 'mobooking_debug_fix_database'); // Changed to admin_init to ensure it runs before headers are sent for redirect and for admin context
 }
 
 /**

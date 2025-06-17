@@ -69,7 +69,60 @@ class Manager {
         ) $charset_collate;";
         
         require_once(ABSPATH . 'wp-admin/includes/upgrade.php');
-        dbDelta($sql);
+        $dbDelta_messages = dbDelta($sql);
+        if (function_exists('mobooking_log')) {
+            mobooking_log('dbDelta results for ' . $table_name . ': ' . print_r($dbDelta_messages, true));
+        } elseif (defined('WP_DEBUG') && WP_DEBUG) {
+            error_log('[MoBooking DB Setup] dbDelta results for ' . $table_name . ': ' . print_r($dbDelta_messages, true));
+        }
+        $dbDelta_messages = dbDelta($sql);
+        if (function_exists('mobooking_log')) {
+            mobooking_log('dbDelta results for ' . $table_name . ': ' . print_r($dbDelta_messages, true));
+        } elseif (defined('WP_DEBUG') && WP_DEBUG) {
+            error_log('[MoBooking DB Setup] dbDelta results for ' . $table_name . ': ' . print_r($dbDelta_messages, true));
+        }
+        $dbDelta_messages = dbDelta($sql);
+        if (function_exists('mobooking_log')) {
+            mobooking_log('dbDelta results for ' . $table_name . ': ' . print_r($dbDelta_messages, true));
+        } elseif (defined('WP_DEBUG') && WP_DEBUG) {
+            error_log('[MoBooking DB Setup] dbDelta results for ' . $table_name . ': ' . print_r($dbDelta_messages, true));
+        }
+        $dbDelta_messages = dbDelta($sql);
+        if (function_exists('mobooking_log')) {
+            mobooking_log('dbDelta results for ' . $table_name . ': ' . print_r($dbDelta_messages, true));
+        } elseif (defined('WP_DEBUG') && WP_DEBUG) {
+            error_log('[MoBooking DB Setup] dbDelta results for ' . $table_name . ': ' . print_r($dbDelta_messages, true));
+        }
+        $dbDelta_messages = dbDelta($sql);
+        if (function_exists('mobooking_log')) {
+            mobooking_log('dbDelta results for ' . $table_name . ': ' . print_r($dbDelta_messages, true));
+        } elseif (defined('WP_DEBUG') && WP_DEBUG) {
+            error_log('[MoBooking DB Setup] dbDelta results for ' . $table_name . ': ' . print_r($dbDelta_messages, true));
+        }
+        $dbDelta_messages = dbDelta($sql);
+        if (function_exists('mobooking_log')) {
+            mobooking_log('dbDelta results for ' . $table_name . ': ' . print_r($dbDelta_messages, true));
+        } elseif (defined('WP_DEBUG') && WP_DEBUG) {
+            error_log('[MoBooking DB Setup] dbDelta results for ' . $table_name . ': ' . print_r($dbDelta_messages, true));
+        }
+        $dbDelta_messages = dbDelta($sql);
+        if (function_exists('mobooking_log')) {
+            mobooking_log('dbDelta results for ' . $table_name . ': ' . print_r($dbDelta_messages, true));
+        } elseif (defined('WP_DEBUG') && WP_DEBUG) {
+            error_log('[MoBooking DB Setup] dbDelta results for ' . $table_name . ': ' . print_r($dbDelta_messages, true));
+        }
+        $dbDelta_messages = dbDelta($sql);
+        if (function_exists('mobooking_log')) {
+            mobooking_log('dbDelta results for ' . $table_name . ': ' . print_r($dbDelta_messages, true));
+        } elseif (defined('WP_DEBUG') && WP_DEBUG) {
+            error_log('[MoBooking DB Setup] dbDelta results for ' . $table_name . ': ' . print_r($dbDelta_messages, true));
+        }
+        $dbDelta_messages = dbDelta($sql);
+        if (function_exists('mobooking_log')) {
+            mobooking_log('dbDelta results for ' . $table_name . ': ' . print_r($dbDelta_messages, true));
+        } elseif (defined('WP_DEBUG') && WP_DEBUG) {
+            error_log('[MoBooking DB Setup] dbDelta results for ' . $table_name . ': ' . print_r($dbDelta_messages, true));
+        }
     }
 
     /**
@@ -391,8 +444,15 @@ class Manager {
         );
         
         foreach ($constraints as $constraint) {
-            // Check if constraint already exists before adding
-            $wpdb->query($constraint);
+            $result = $wpdb->query($constraint);
+            if ($result === false) {
+                $error_message = $wpdb->last_error;
+                if (function_exists('mobooking_log')) {
+                    mobooking_log('Failed to add foreign key: ' . $constraint . ' | Error: ' . $error_message);
+                } elseif (defined('WP_DEBUG') && WP_DEBUG) {
+                    error_log('[MoBooking DB Setup] Failed to add foreign key: ' . $constraint . ' | Error: ' . $error_message);
+                }
+            }
         }
     }
 
