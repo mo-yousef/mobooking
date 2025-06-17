@@ -950,13 +950,13 @@ $can_publish = ($services_count > 0 && $areas_count > 0);
     flex-direction: column;
     gap: 2rem;
 }
-
+/* 
 .settings-group {
     padding: 1.5rem;
     border: 1px solid hsl(var(--border));
     border-radius: var(--radius);
     background: hsl(var(--card));
-}
+} */
 
 .group-header {
     margin-bottom: 1.5rem;
@@ -2016,4 +2016,692 @@ add_action('wp_ajax_mobooking_reset_booking_form_settings', function() {
         }
         
         // Check permissions
-        if (!current_user_can('mobooking_business_owner') && !
+        if (!current_user_can('mobooking_business_owner') && !current_user_can('administrator')) {
+            wp_send_json_error(__('You do not have permission to do this.', 'mobooking'));
+        }
+        
+        $user_id = get_current_user_id();
+        
+        // Reset settings using BookingForm Manager
+        if (class_exists('\MoBooking\BookingForm\Manager')) {
+            $booking_form_manager = new \MoBooking\BookingForm\Manager();
+            $result = $booking_form_manager->reset_settings($user_id);
+        } else {
+            // Fallback: Direct database reset
+            global $wpdb;
+            $result = $wpdb->delete(
+                $wpdb->prefix . 'mobooking_booking_form_settings',
+                array('user_id' => $user_id),
+                array('%d')
+            );
+        }
+        
+        if ($result !== false) {
+            wp_send_json_success(array(
+                'message' => __('Settings reset to defaults successfully.', 'mobooking')
+            ));
+        } else {
+            wp_send_json_error(__('Failed to reset settings.', 'mobooking'));
+        }
+        
+    } catch (Exception $e) {
+        error_log('MoBooking - Exception in reset booking form settings: ' . $e->getMessage());
+        wp_send_json_error(__('An error occurred while resetting settings.', 'mobooking'));
+    }
+});
+
+// Add notification styles
+?>
+<style>
+/* Notification System */
+.mobooking-notification {
+    position: fixed;
+    top: 2rem;
+    right: 2rem;
+    z-index: 9999;
+    padding: 1rem 1.5rem;
+    border-radius: var(--radius);
+    background: hsl(var(--card));
+    border: 1px solid hsl(var(--border));
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15);
+    max-width: 24rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    transform: translateX(calc(100% + 2rem));
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    opacity: 0;
+}
+
+.mobooking-notification.show {
+    transform: translateX(0);
+    opacity: 1;
+}
+
+.mobooking-notification.success {
+    background: hsl(var(--success) / 0.1);
+    border-color: hsl(var(--success) / 0.3);
+    color: hsl(var(--success));
+}
+
+.mobooking-notification.error {
+    background: hsl(var(--destructive) / 0.1);
+    border-color: hsl(var(--destructive) / 0.3);
+    color: hsl(var(--destructive));
+}
+
+.mobooking-notification.info {
+    background: hsl(var(--info) / 0.1);
+    border-color: hsl(var(--info) / 0.3);
+    color: hsl(var(--info));
+}
+
+.mobooking-notification.warning {
+    background: hsl(var(--warning) / 0.1);
+    border-color: hsl(var(--warning) / 0.3);
+    color: hsl(var(--warning));
+}
+
+.notification-close {
+    background: none;
+    border: none;
+    font-size: 1.25rem;
+    color: inherit;
+    cursor: pointer;
+    opacity: 0.6;
+    transition: opacity 0.2s ease;
+    padding: 0;
+    width: 1.5rem;
+    height: 1.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.notification-close:hover {
+    opacity: 1;
+}
+
+/* Dark mode adjustments */
+@media (prefers-color-scheme: dark) {
+    .mobooking-notification {
+        box-shadow: 0 10px 40px rgba(0, 0, 0, 0.4);
+    }
+}
+
+/* Loading animation improvements */
+@keyframes spin {
+    to { 
+        transform: rotate(360deg); 
+    }
+}
+
+.spinner-modern {
+    animation: spin 1s linear infinite;
+}
+
+/* Accessibility improvements */
+@media (prefers-reduced-motion: reduce) {
+    .mobooking-notification {
+        transition: none;
+    }
+    
+    .spinner-modern {
+        animation: none;
+    }
+    
+    .spinner-modern::before {
+        content: '⟳';
+        font-size: 1rem;
+    }
+}
+
+
+/* Error state styles */
+.form-control.error {
+    border-color: hsl(var(--destructive));
+    box-shadow: 0 0 0 2px hsl(var(--destructive) / 0.2);
+}
+
+.field-error {
+    font-size: 0.75rem;
+    color: hsl(var(--destructive));
+    margin-top: 0.25rem;
+}
+
+/* Success state styles */
+.form-control.success {
+    border-color: hsl(var(--success));
+    box-shadow: 0 0 0 2px hsl(var(--success) / 0.2);
+}
+
+/* Enhanced responsive design */
+@media (max-width: 480px) {
+    .mobooking-notification {
+        top: 1rem;
+        right: 1rem;
+        left: 1rem;
+        max-width: none;
+    }
+    
+    .page-title {
+        font-size: 1.5rem;
+    }
+    
+    .stat-card {
+        min-width: auto;
+        flex: 1;
+    }
+    
+    .setup-alert {
+        padding: 1rem;
+    }
+    
+    .share-option {
+        padding: 1rem;
+    }
+    
+    .modal-header {
+        padding: 0.75rem;
+        flex-direction: column;
+        gap: 0.75rem;
+    }
+    
+    .modal-body {
+        padding: 1rem;
+    }
+}
+
+/* Print styles for QR codes and embed codes */
+@media print {
+    .booking-form-section {
+        background: white;
+        color: black;
+    }
+    
+    .header-actions,
+    .form-actions,
+    .modal-close {
+        display: none;
+    }
+    
+    .share-option {
+        page-break-inside: avoid;
+    }
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+    .btn-primary,
+    .btn-secondary {
+        border-width: 2px;
+    }
+    
+    .form-control {
+        border-width: 2px;
+    }
+    
+    .mobooking-notification {
+        border-width: 2px;
+    }
+}
+
+/* Improved focus indicators for keyboard navigation */
+.tab-button:focus-visible {
+    outline: 2px solid hsl(var(--ring));
+    outline-offset: -2px;
+}
+
+.checkbox-option:focus-within {
+    box-shadow: 0 0 0 2px hsl(var(--ring) / 0.2);
+}
+
+/* Status indicators improvements */
+.stat-icon svg {
+    transition: all 0.2s ease;
+}
+
+.stat-card:hover .stat-icon svg {
+    transform: scale(1.1);
+}
+
+/* Enhanced button states */
+.btn-primary:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    transform: none !important;
+    box-shadow: none !important;
+}
+
+.btn-secondary:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+/* Form validation improvements */
+.form-group.required .field-label::after {
+    content: " *";
+    color: hsl(var(--destructive));
+    font-weight: bold;
+}
+
+.form-group.has-error .form-control {
+    border-color: hsl(var(--destructive));
+    box-shadow: 0 0 0 2px hsl(var(--destructive) / 0.2);
+}
+
+.form-group.has-error .field-label {
+    color: hsl(var(--destructive));
+}
+
+/* Enhanced color picker styles */
+.color-input-group {
+    border: 1px solid hsl(var(--border));
+    border-radius: var(--radius);
+    overflow: hidden;
+    background: hsl(var(--background));
+}
+
+.color-picker {
+    border: none;
+    border-right: 1px solid hsl(var(--border));
+}
+
+.color-text {
+    border: none;
+    background: transparent;
+}
+
+/* Embed code enhancements */
+.code-textarea {
+    font-family: 'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono', Consolas, 'Courier New', monospace;
+    line-height: 1.4;
+    white-space: pre;
+    word-wrap: break-word;
+}
+
+/* QR code enhancements */
+.qr-display img {
+    border-radius: calc(var(--radius) - 2px);
+}
+
+/* URL display enhancements */
+.url-display {
+    font-family: 'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono', Consolas, 'Courier New', monospace;
+    word-break: break-all;
+    user-select: all;
+}
+
+/* Modal enhancements */
+.modal-large .modal-body {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+}
+
+.preview-container {
+    flex: 1;
+    min-height: 0;
+}
+
+#form-preview-iframe {
+    border-radius: var(--radius);
+    transition: opacity 0.3s ease;
+}
+
+/* Loading state for iframe */
+.preview-container.loading #form-preview-iframe {
+    opacity: 0.5;
+    pointer-events: none;
+}
+
+.preview-container.loading::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: hsl(var(--background) / 0.8);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.875rem;
+    color: hsl(var(--muted-foreground));
+    border-radius: var(--radius);
+}
+
+/* Smooth transitions for better UX */
+.tab-content {
+    animation: fadeInUp 0.3s ease-out;
+}
+
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Settings group animations */
+.settings-group {
+    animation: slideInLeft 0.4s ease-out;
+}
+
+@keyframes slideInLeft {
+    from {
+        opacity: 0;
+        transform: translateX(-20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+/* Enhanced form field animations */
+.form-control:focus {
+    transform: scale(1.01);
+}
+
+.form-control:invalid {
+    border-color: hsl(var(--destructive));
+    animation: shake 0.5s ease-in-out;
+}
+
+@keyframes shake {
+    0%, 100% { transform: translateX(0); }
+    10%, 30%, 50%, 70%, 90% { transform: translateX(-3px); }
+    20%, 40%, 60%, 80% { transform: translateX(3px); }
+}
+
+/* Enhanced button hover effects */
+.btn-primary:hover {
+    box-shadow: 0 6px 20px hsl(var(--primary) / 0.4);
+}
+
+.btn-secondary:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px hsl(var(--shadow) / 0.15);
+}
+
+/* Improved tooltip-like help text */
+.field-note {
+    position: relative;
+    transition: all 0.2s ease;
+}
+
+.field-note:hover {
+    color: hsl(var(--foreground));
+}
+
+/* Enhanced requirements list */
+.requirement-item {
+    transition: all 0.2s ease;
+}
+
+.requirement-item:hover {
+    background: hsl(var(--accent) / 0.3);
+    transform: translateX(4px);
+}
+
+/* Better visual hierarchy */
+.group-header h3 {
+    position: relative;
+}
+
+.group-header h3::before {
+    content: '';
+    position: absolute;
+    left: -1rem;
+    top: 50%;
+    width: 3px;
+    height: 1.5rem;
+    background: hsl(var(--primary));
+    border-radius: 2px;
+    transform: translateY(-50%);
+}
+
+/* Enhanced share options */
+.share-option:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 32px hsl(var(--shadow) / 0.2);
+}
+
+.share-option:hover .share-icon {
+    background: hsl(var(--primary));
+    color: white;
+    transform: scale(1.1);
+}
+
+/* Progress indicators for form saving */
+.form-saving::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: linear-gradient(90deg, hsl(var(--primary)), hsl(var(--primary) / 0.3), hsl(var(--primary)));
+    background-size: 200% 100%;
+    animation: shimmer 2s infinite;
+}
+
+@keyframes shimmer {
+    0% {
+        background-position: -200% 0;
+    }
+    100% {
+        background-position: 200% 0;
+    }
+}
+</style>
+
+<script>
+// Additional JavaScript enhancements
+jQuery(document).ready(function($) {
+    // Enhanced form validation
+    const FormValidator = {
+        validateField: function($field) {
+            const value = $field.val().trim();
+            const fieldType = $field.attr('type') || $field.prop('tagName').toLowerCase();
+            const isRequired = $field.prop('required');
+            
+            let isValid = true;
+            let errorMessage = '';
+            
+            // Required field validation
+            if (isRequired && !value) {
+                isValid = false;
+                errorMessage = 'This field is required.';
+            }
+            
+            // Email validation
+            if (fieldType === 'email' && value) {
+                const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+                if (!emailRegex.test(value)) {
+                    isValid = false;
+                    errorMessage = 'Please enter a valid email address.';
+                }
+            }
+            
+            // URL validation
+            if (fieldType === 'url' && value) {
+                try {
+                    new URL(value);
+                } catch {
+                    isValid = false;
+                    errorMessage = 'Please enter a valid URL.';
+                }
+            }
+            
+            // Color validation
+            if (fieldType === 'color' && value) {
+                const colorRegex = /^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/;
+                if (!colorRegex.test(value)) {
+                    isValid = false;
+                    errorMessage = 'Please enter a valid color code.';
+                }
+            }
+            
+            this.showFieldValidation($field, isValid, errorMessage);
+            return isValid;
+        },
+        
+        showFieldValidation: function($field, isValid, errorMessage) {
+            const $group = $field.closest('.form-group');
+            const $error = $group.find('.field-error');
+            
+            $group.removeClass('has-error has-success');
+            $field.removeClass('error success');
+            $error.remove();
+            
+            if (!isValid) {
+                $group.addClass('has-error');
+                $field.addClass('error');
+                $group.append(`<div class="field-error">${errorMessage}</div>`);
+            } else if ($field.val().trim()) {
+                $group.addClass('has-success');
+                $field.addClass('success');
+            }
+        },
+        
+        validateForm: function() {
+            let isValid = true;
+            $('#booking-form-settings .form-control[required]').each(function() {
+                if (!FormValidator.validateField($(this))) {
+                    isValid = false;
+                }
+            });
+            return isValid;
+        }
+    };
+    
+    // Real-time validation
+    $('#booking-form-settings .form-control').on('blur', function() {
+        FormValidator.validateField($(this));
+    });
+    
+    // Enhanced auto-save functionality (optional)
+    let autoSaveTimer;
+    const AUTO_SAVE_DELAY = 30000; // 30 seconds
+    
+    function scheduleAutoSave() {
+        clearTimeout(autoSaveTimer);
+        autoSaveTimer = setTimeout(() => {
+            if ($('#booking-form-settings').hasClass('form-changed')) {
+                console.log('Auto-saving form...');
+                BookingFormManager.saveSettings(true); // true for auto-save
+            }
+        }, AUTO_SAVE_DELAY);
+    }
+    
+    // Mark form as changed
+    $('#booking-form-settings').on('input change', '.form-control', function() {
+        $('#booking-form-settings').addClass('form-changed');
+        scheduleAutoSave();
+    });
+    
+    // Enhanced keyboard shortcuts
+    $(document).on('keydown', function(e) {
+        // Ctrl+S or Cmd+S to save
+        if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+            e.preventDefault();
+            $('#save-settings-btn').click();
+        }
+        
+        // Escape key to close modals
+        if (e.key === 'Escape') {
+            $('.mobooking-modal:visible').hide();
+        }
+    });
+    
+    // Enhanced URL copying with different formats
+    $('.copy-url-btn').on('contextmenu', function(e) {
+        e.preventDefault();
+        const url = $(this).data('url');
+        const formats = {
+            'Plain URL': url,
+            'Markdown Link': `[Book Now](${url})`,
+            'HTML Link': `<a href="${url}">Book Now</a>`,
+            'QR Code URL': `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(url)}`
+        };
+        
+        // Show format selection menu (simplified)
+        const format = prompt('Choose format:\n1. Plain URL\n2. Markdown Link\n3. HTML Link\n4. QR Code URL\n\nEnter number (1-4):');
+        const formatKeys = Object.keys(formats);
+        const selectedFormat = formatKeys[parseInt(format) - 1];
+        
+        if (selectedFormat && formats[selectedFormat]) {
+            navigator.clipboard.writeText(formats[selectedFormat]);
+            BookingFormManager.showNotification(`${selectedFormat} copied to clipboard!`, 'success');
+        }
+    });
+    
+    // Enhanced iframe loading handling
+    $('#form-preview-iframe').on('load', function() {
+        $('.preview-container').removeClass('loading');
+    });
+    
+    $('#refresh-preview-btn').on('click', function() {
+        $('.preview-container').addClass('loading');
+    });
+    
+    // Advanced QR code options
+    $('#generate-qr-btn').on('contextmenu', function(e) {
+        e.preventDefault();
+        const url = $('.url-display').val();
+        const size = prompt('QR Code size (default 200x200):', '200x200');
+        const color = prompt('Foreground color (hex, default black):', '000000');
+        const bgcolor = prompt('Background color (hex, default white):', 'ffffff');
+        
+        if (size) {
+            const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=${size}&color=${color}&bgcolor=${bgcolor}&data=${encodeURIComponent(url)}`;
+            $('#qr-code-container').html(`<img src="${qrCodeUrl}" alt="QR Code" style="width: 100%; height: 100%; object-fit: contain;">`);
+            $('#download-qr-btn').show().data('qr-url', qrCodeUrl);
+        }
+    });
+    
+    // Form analytics tracking (if analytics is enabled)
+    if (typeof gtag !== 'undefined') {
+        $('#save-settings-btn').on('click', function() {
+            gtag('event', 'form_save', {
+                'event_category': 'booking_form',
+                'event_label': 'settings_save'
+            });
+        });
+        
+        $('.copy-url-btn').on('click', function() {
+            gtag('event', 'url_copy', {
+                'event_category': 'booking_form',
+                'event_label': 'url_share'
+            });
+        });
+    }
+    
+    // Accessibility improvements
+    $('.tab-button').on('keydown', function(e) {
+        if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            $(this).click();
+        }
+    });
+    
+    // Enhanced error handling for network issues
+    $(document).ajaxError(function(event, jqXHR, ajaxSettings) {
+        if (ajaxSettings.url.includes('mobooking_save_booking_form_settings')) {
+            console.error('AJAX Error:', jqXHR);
+            
+            if (jqXHR.status === 0) {
+                BookingFormManager.showNotification('Network error. Please check your connection and try again.', 'error');
+            } else if (jqXHR.status >= 500) {
+                BookingFormManager.showNotification('Server error. Please try again or contact support.', 'error');
+            }
+        }
+    });
+    
+    console.log('Enhanced booking form functionality loaded');
+});
+</script>
