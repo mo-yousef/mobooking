@@ -45,15 +45,36 @@ spl_autoload_register(function ($class) {
  * Manually load critical files that might be needed before autoloader
  */
 function mobooking_load_critical_files() {
-    $critical_files = array(
-        '/classes/core/loader.php',      // Corrected case
-        '/classes/database/manager.php', // Corrected case
+    $critical_files_map = array(
+        'MoBooking\Core\Loader' => '/classes/core/loader.php',
+        'MoBooking\Database\Manager' => '/classes/database/manager.php',
+        // Add other truly critical classes here if needed
     );
-    
-    foreach ($critical_files as $file) {
+
+    foreach ($critical_files_map as $class_name => $file) {
         $file_path = MOBOOKING_PATH . $file;
+
+        if (defined('WP_DEBUG') && WP_DEBUG) {
+            error_log("MoBooking CRITICAL LOAD ATTEMPT: Attempting to load class {$class_name} from {$file_path}. MOBOOKING_PATH is: " . MOBOOKING_PATH);
+        }
+
         if (file_exists($file_path)) {
             require_once $file_path;
+
+            // Explicit check after require_once
+            if (!class_exists($class_name, false)) { // Use false to prevent re-triggering autoloader
+                if (defined('WP_DEBUG') && WP_DEBUG) {
+                    error_log("MoBooking CRITICAL LOAD FAILURE: Class {$class_name} not found AFTER attempting to require_once {$file_path}.");
+                }
+            } else {
+                if (defined('WP_DEBUG') && WP_DEBUG) {
+                    error_log("MoBooking CRITICAL LOAD SUCCESS: Class {$class_name} was successfully loaded from {$file_path}.");
+                }
+            }
+        } else {
+            if (defined('WP_DEBUG') && WP_DEBUG) {
+                error_log("MoBooking CRITICAL LOAD FAILURE: File {$file_path} for class {$class_name} not found. Check MOBOOKING_PATH and file existence.");
+            }
         }
     }
 }
