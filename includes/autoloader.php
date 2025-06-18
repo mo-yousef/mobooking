@@ -21,9 +21,18 @@ spl_autoload_register(function ($class) {
     // Remove MoBooking namespace prefix
     $relative_class = str_replace('MoBooking\\', '', $class);
     
-    // Convert namespace separators to directory separators and path to lowercase
-    $file_path_segment = str_replace('\\', '/', $relative_class);
-    $file = MOBOOKING_PATH . '/classes/' . strtolower($file_path_segment) . '.php';
+    // Convert namespace separators to directory separators
+    $parts = explode('\\', $relative_class);
+    $class_name = array_pop($parts); // Get the class name
+    $namespace_path = implode('/', $parts); // Path from namespace parts
+
+    $file_path_segment = '';
+    if (!empty($namespace_path)) {
+        $file_path_segment = $namespace_path . '/';
+    }
+    $file_path_segment .= strtolower($class_name) . '.php'; // Lowercase only the filename
+
+    $file = MOBOOKING_PATH . '/classes/' . $file_path_segment;
 
     // Load the file if it exists
     if (file_exists($file)) {
