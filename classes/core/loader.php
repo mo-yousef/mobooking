@@ -204,6 +204,7 @@ class Loader {
         // Admin initialization
         if (is_admin()) {
             add_action('admin_init', array($this, 'admin_init'));
+            add_action('admin_action_mobooking_run_booking_migration', array($this, 'handle_booking_migration_action'));
         }
     }
     
@@ -552,15 +553,98 @@ class Loader {
         }
         
         // Migration notice (if migration is pending)
-        if (!get_option('mobooking_migration_completed')) {
-            echo '<div class="notice notice-warning"><p>';
+        if (!get_option('mobooking_booking_data_migrated')) {
+            echo '<div class="notice notice-warning is-dismissible"><p>';
             echo '<strong>MoBooking:</strong> ';
-            echo __('Database migration is required. ', 'mobooking');
-            echo '<a href="' . admin_url('?run_mobooking_migration=1') . '" class="button button-secondary">';
-            echo __('Run Migration', 'mobooking');
+            echo __('A database migration for booking data is pending. ', 'mobooking');
+            $migration_url = admin_url('admin.php?action=mobooking_run_booking_migration&_wpnonce=' . wp_create_nonce('mobooking_booking_migration_nonce'));
+            echo '<a href="' . esc_url($migration_url) . '" class="button button-primary">';
+            echo __('Run Booking Data Migration', 'mobooking');
             echo '</a>';
             echo '</p></div>';
         }
+
+        // Display settings errors (used for migration success/failure notices)
+        settings_errors('mobooking_migration_notices');
+    }
+
+    /**
+     * Handle booking data migration action
+     */
+    public function handle_booking_migration_action() {
+        // Verify nonce
+        if (!isset($_GET['_wpnonce']) || !wp_verify_nonce($_GET['_wpnonce'], 'mobooking_booking_migration_nonce')) {
+            add_settings_error(
+                'mobooking_migration_notices',
+                'nonce_error',
+                __('Security check failed. Please try again.', 'mobooking'),
+                'error'
+            );
+            wp_redirect(admin_url('index.php')); // Redirect to dashboard
+            exit;
+        }
+
+        // Check permissions
+        if (!current_user_can('administrator')) {
+            add_settings_error(
+                'mobooking_migration_notices',
+                'permission_error',
+                __('You do not have permission to perform this action.', 'mobooking'),
+                'error'
+            );
+            wp_redirect(admin_url('index.php'));
+            exit;
+        }
+
+        // Get Database Manager instance
+        $db_manager = $this->get_manager('Database\Manager');
+        if (!$db_manager) {
+            add_settings_error(
+                'mobooking_migration_notices',
+                'db_manager_error',
+                __('Database Manager is not available. Migration cannot proceed.', 'mobooking'),
+                'error'
+            );
+            wp_redirect(admin_url('index.php'));
+            exit;
+        }
+
+        // Run migration
+        $migration_success = $db_manager->migrate_json_data_to_normalized_tables();
+
+        if ($migration_success) {
+            // If migration was successful, try to remove old columns
+            $removal_success = $db_manager->remove_json_columns();
+
+            if ($removal_success) {
+                update_option('mobooking_booking_data_migrated', true);
+                add_settings_error(
+                    'mobooking_migration_notices',
+                    'migration_success',
+                    __('Booking data migration completed successfully and old data columns removed.', 'mobooking'),
+                    'success'
+                );
+            } else {
+                // Migration succeeded, but column removal failed. Still mark as migrated for data integrity.
+                update_option('mobooking_booking_data_migrated', true);
+                 add_settings_error(
+                    'mobooking_migration_notices',
+                    'removal_failed',
+                    __('Booking data migrated, but failed to remove old JSON columns. Please check logs. The system will use the new tables.', 'mobooking'),
+                    'warning'
+                );
+            }
+        } else {
+            add_settings_error(
+                'mobooking_migration_notices',
+                'migration_failed',
+                __('Booking data migration failed. Please check error logs. The old data structure is still in use.', 'mobooking'),
+                'error'
+            );
+        }
+
+        wp_redirect(admin_url('index.php')); // Redirect to dashboard
+        exit;
     }
     
     /**
@@ -601,7 +685,7 @@ class Loader {
             'manager_status' => $this->get_manager_status(),
             'loaded_managers' => array_keys($this->loaded_managers),
             'database_tables' => $this->check_database_tables(),
-            'migration_status' => get_option('mobooking_migration_completed', false),
+            'migration_status' => get_option('mobooking_booking_data_migrated', false),
             'memory_usage' => memory_get_usage(true),
             'memory_limit' => ini_get('memory_limit')
         );
