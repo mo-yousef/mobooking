@@ -21,24 +21,24 @@ require_once MOBOOKING_PATH . '/includes/enqueue-scripts.php';
 require_once MOBOOKING_PATH . '/includes/ajax-handlers.php';
 require_once MOBOOKING_PATH . '/includes/helper-functions.php';
 
-/**
- * Initialize the MoBooking theme
- */
-function mobooking_init() {
-    try {
-        $loader = new MoBooking\Core\Loader();
-        $loader->init();
+// /**
+//  * Initialize the MoBooking theme
+//  */
+// function mobooking_init() {
+//     try {
+//         $loader = new MoBooking\Core\Loader();
+//         $loader->init();
         
-        if (defined('WP_DEBUG') && WP_DEBUG) {
-            mobooking_log('Theme initialized successfully');
-        }
-    } catch (Exception $e) {
-        if (defined('WP_DEBUG') && WP_DEBUG) {
-            mobooking_log('Theme initialization error: ' . $e->getMessage(), 'error');
-        }
-    }
-}
-add_action('after_setup_theme', 'mobooking_init', 5);
+//         if (defined('WP_DEBUG') && WP_DEBUG) {
+//             mobooking_log('Theme initialized successfully');
+//         }
+//     } catch (Exception $e) {
+//         if (defined('WP_DEBUG') && WP_DEBUG) {
+//             mobooking_log('Theme initialization error: ' . $e->getMessage(), 'error');
+//         }
+//     }
+// }
+// add_action('after_setup_theme', 'mobooking_init', 5);
 
 /**
  * Dashboard access control
